@@ -69,7 +69,7 @@ An offline-first, lightweight Manufacturing Resource Planning (MRP) and inventor
                     ┌─────────────┴─────────────┐
                     ▼                           ▼
           [ Finished Stock OUT ]       [ Customer Ledger / Receivables ]
-
+```
 ---
 
 ## Quick Start (Local Setup)
