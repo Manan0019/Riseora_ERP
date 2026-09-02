@@ -54,21 +54,22 @@ An offline-first, lightweight Manufacturing Resource Planning (MRP) and inventor
 
 ## Workflow Architecture
 
- [ Purchase Entry ] ────► [ Raw Materials & Packaging Stock IN ] ────► [ Weighted Moving Avg Cost ]
- │
- [ Riseora Formulas ] ──► [ Batch Production Run ] ◄────────────────────────────────┘
- │
- ┌─────────────┴─────────────┐
- ▼                           ▼
- [ Ingredients Consumed ]      [ Actual Yield / Loss ]
- [ Packaging Consumed   ]      [ Finished Goods Stock IN ]
- │
- [ Price Tiers & GST ] ──► [ Sales Invoice Generation ] ◄─────┘
- │
- ┌─────────────┴─────────────┐
- ▼                           ▼
- [ Finished Stock OUT ]       [ Customer Ledger / Receivables ]
-
+```mermaid
+flowchart TD
+    PE[Purchase Entry] --> RM[Raw Materials & Packaging Stock IN]
+    RM --> WMA[Weighted Moving Avg Cost]
+    
+    FORM[Riseora Formulas] --> PROD[Batch Production Run]
+    WMA --> PROD
+    
+    PROD --> MAT_OUT[Ingredients & Packaging Consumed]
+    PROD --> FG_IN[Finished Goods Stock IN & Yield Loss]
+    
+    PRICING[Price Tiers & GST] --> INV[Sales Invoice Generation]
+    FG_IN --> INV
+    
+    INV --> FG_OUT[Finished Stock OUT]
+    INV --> LEDGER[Customer Ledger & Receivables]
 ---
 
 ## Quick Start (Local Setup)
