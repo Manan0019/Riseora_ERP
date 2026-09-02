@@ -54,20 +54,20 @@ An offline-first, lightweight Manufacturing Resource Planning (MRP) and inventor
 
 ## Workflow Architecture
 
-[ Purchase Entry ] ────► [ Raw Materials & Packaging Stock IN ] ────► [ Weighted Moving Avg Cost ]
-│
-[ Riseora Formulas ] ──► [ Batch Production Run ] ◄────────────────────────────────┘
-│
-┌─────────────┴─────────────┐
-▼                           ▼
-[ Ingredients Consumed ]      [ Actual Yield / Loss ]
-[ Packaging Consumed   ]      [ Finished Goods Stock IN ]
-│
-[ Price Tiers & GST ] ──► [ Sales Invoice Generation ] ◄─────┘
-│
-┌─────────────┴─────────────┐
-▼                           ▼
-[ Finished Stock OUT ]       [ Customer Ledger / Receivables ]
+ [ Purchase Entry ] ────► [ Raw Materials & Packaging Stock IN ] ────► [ Weighted Moving Avg Cost ]
+ │
+ [ Riseora Formulas ] ──► [ Batch Production Run ] ◄────────────────────────────────┘
+ │
+ ┌─────────────┴─────────────┐
+ ▼                           ▼
+ [ Ingredients Consumed ]      [ Actual Yield / Loss ]
+ [ Packaging Consumed   ]      [ Finished Goods Stock IN ]
+ │
+ [ Price Tiers & GST ] ──► [ Sales Invoice Generation ] ◄─────┘
+ │
+ ┌─────────────┴─────────────┐
+ ▼                           ▼
+ [ Finished Stock OUT ]       [ Customer Ledger / Receivables ]
 
 ---
 
@@ -84,57 +84,54 @@ An offline-first, lightweight Manufacturing Resource Planning (MRP) and inventor
    git clone [https://github.com/](https://github.com/)<your-username>/riseora-erp.git
    cd riseora-erp
 
+2. **Install backend dependencies:**
+   ```bash
+   cd server
+   npm install
 
-2. Install backend dependencies:
+3. **Initialize the SQLite database:**
+   ```bash
+   npm run db:push
+   npm run db:seed  # Seeds standard units (ml, L, g, kg, pcs) and default categories
 
-Bash
+4. **Install frontend dependencies:**
+   ```bash
+   cd ../client
+   npm install
 
-cd server
-npm install
+5. **Start the local server:**
+   ```bash
+   # From the project root
+   npm run dev
 
+### Open your browser and navigate to http://localhost:3000.
 
-3. Initialize the SQLite database:
+## Core Database Models
+- **items & item_categories:** Unified registry for raw botanicals, packaging materials, and packaged finished goods.
 
-Bash
+- **stock_transactions:** Immutable double-entry inventory ledger for all receipts, issues, and adjustments.
 
-npm run db:push
-npm run db:seed  # Seeds standard units (ml, L, g, kg, pcs) and default categories
+- **formulas, formula_versions, & formula_ingredients:** Version-locked recipes with density parameters and unit definitions.
 
+- **production_batches & production_consumption:** Tracks planned vs. actual material usage, batch numbers, and yields.
 
-4. Install frontend dependencies:
+- **sales_invoices, sales_invoice_items, & payments:** Order-level tax breakdowns, balance tracking, and customer credit ledger.
 
-Bash
+## Data Safety & Backups
+Because the app runs locally on a single machine, automated backups are critical:
 
-cd ../client
-npm install
+- **Location:** The database file is located at server/data/riseora.db.
 
+- **Scheduled Backups:** Daily snapshots are stored in server/backups/ using SQLite online backup API to prevent WAL corruption.
 
-5. Start the local server:
+- **Recommended Practice:** Configure server/backups/ to sync with a USB drive or a local cloud-sync folder (Google Drive / OneDrive) so hardware failures do not result in data loss.
 
-Bash
-
-# From the project root
-npm run dev
-
-Open your browser and navigate to http://localhost:3000.
-
-Core Database Models
-items & item_categories: Unified registry for raw botanicals, packaging materials, and packaged finished goods.
-
-stock_transactions: Immutable double-entry inventory ledger for all receipts, issues, and adjustments.
-
-formulas, formula_versions, & formula_ingredients: Version-locked recipes with density parameters and unit definitions.
-
-production_batches & production_consumption: Tracks planned vs. actual material usage, batch numbers, and yields.
-
-sales_invoices, sales_invoice_items, & payments: Order-level tax breakdowns, balance tracking, and customer credit ledger.
-
-Future Growth & Expansion
+## Future Growth & Expansion
 When Riseora expands operations beyond the primary workstation:
 
-Local Area Network (LAN): Bind the Node.js server to the host PC's local IP address (0.0.0.0:3000) so warehouse and packing tablets or secondary office PCs on the same Wi-Fi network can access the system via their web browsers.
+- **Local Area Network (LAN):** Bind the Node.js server to the host PC's local IP address (0.0.0.0:3000) so warehouse and packing tablets or secondary office PCs on the same Wi-Fi network can access the system via their web browsers.
 
-PostgreSQL Migration: Migrate from better-sqlite3 to PostgreSQL simply by changing the Drizzle ORM dialect, allowing seamless deployment to a secure cloud server or VPS when opening additional facilities.
+- **PostgreSQL Migration:** Migrate from better-sqlite3 to PostgreSQL simply by changing the Drizzle ORM dialect, allowing seamless deployment to a secure cloud server or VPS when opening additional facilities.
 
-License
+## License
 Proprietary software built for Riseora Herbals. All rights reserved.
