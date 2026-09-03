@@ -82,7 +82,7 @@ An offline-first, lightweight Manufacturing Resource Planning (MRP) and inventor
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/](https://github.com/)<your-username>/riseora-erp.git
+   git clone https://github.com/Manan0019/Riseora_ERP.git
    cd riseora-erp
 
 2. **Install backend dependencies:**
