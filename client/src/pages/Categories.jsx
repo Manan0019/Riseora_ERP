@@ -21,6 +21,8 @@ function Categories() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  const [search, setSearch] = useState("");
+
   useEffect(() => {
     loadCategories();
   }, [showInactive]);
@@ -281,30 +283,29 @@ function Categories() {
     (category) => category.id === selectedId
   );
 
+  const filteredCategories = categories.filter((category) => {
+  const text = search.toLowerCase();
+
+  return (
+    category.code.toLowerCase().includes(text) ||
+    category.name.toLowerCase().includes(text)
+  );
+});
+
   return (
     <div>
       <div className="mb-4">
-        <h2 className="mb-1">
-          Item Categories
-        </h2>
+        <h2 className="mb-1">Item Categories</h2>
 
         <p className="text-muted mb-0">
-          Maintain the categories used to classify
-          raw materials, packaging and finished goods.
+          Maintain the categories used to classify raw materials, packaging and
+          finished goods.
         </p>
       </div>
 
-      {message && (
-        <div className="alert alert-success">
-          {message}
-        </div>
-      )}
+      {message && <div className="alert alert-success">{message}</div>}
 
-      {error && (
-        <div className="alert alert-danger">
-          {error}
-        </div>
-      )}
+      {error && <div className="alert alert-danger">{error}</div>}
 
       <div className="d-flex gap-2 flex-wrap mb-3">
         <button
@@ -320,11 +321,7 @@ function Categories() {
           type="button"
           className="btn btn-secondary"
           onClick={handleEdit}
-          disabled={
-            !selectedId ||
-            editing ||
-            !selectedCategory?.is_active
-          }
+          disabled={!selectedId || editing || !selectedCategory?.is_active}
         >
           Edit
         </button>
@@ -342,11 +339,7 @@ function Categories() {
           type="button"
           className="btn btn-outline-danger"
           onClick={handleDeactivate}
-          disabled={
-            !selectedId ||
-            editing ||
-            !selectedCategory?.is_active
-          }
+          disabled={!selectedId || editing || !selectedCategory?.is_active}
         >
           Deactivate
         </button>
@@ -355,14 +348,20 @@ function Categories() {
           type="button"
           className="btn btn-outline-success"
           onClick={handleActivate}
-          disabled={
-            !selectedId ||
-            editing ||
-            selectedCategory?.is_active
-          }
+          disabled={!selectedId || editing || selectedCategory?.is_active}
         >
           Activate
         </button>
+      </div>
+
+      <div className="mb-3">
+        <input
+          type="text"
+          className="form-control"
+          placeholder="Search categories..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
       {showForm && (
@@ -378,9 +377,7 @@ function Categories() {
 
             <div className="row">
               <div className="col-md-4 mb-3">
-                <label className="form-label">
-                  Code *
-                </label>
+                <label className="form-label">Code *</label>
 
                 <input
                   type="text"
@@ -395,9 +392,7 @@ function Categories() {
               </div>
 
               <div className="col-md-8 mb-3">
-                <label className="form-label">
-                  Name *
-                </label>
+                <label className="form-label">Name *</label>
 
                 <input
                   type="text"
@@ -425,9 +420,7 @@ function Categories() {
       <div className="card">
         <div className="card-body">
           <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="mb-0">
-              Category List
-            </h5>
+            <h5 className="mb-0">Category List</h5>
 
             <div className="form-check">
               <input
@@ -436,9 +429,7 @@ function Categories() {
                 className="form-check-input"
                 checked={showInactive}
                 onChange={(event) => {
-                  setShowInactive(
-                    event.target.checked
-                  );
+                  setShowInactive(event.target.checked);
 
                   setSelectedId(null);
                   setForm(emptyForm);
@@ -467,19 +458,15 @@ function Categories() {
               </thead>
 
               <tbody>
-                {categories.map((category) => (
+                {filteredCategories.map((category) => (
                   <tr
                     key={category.id}
-                    onClick={() =>
-                      handleSelect(category)
-                    }
+                    onClick={() => handleSelect(category)}
                     style={{
                       cursor: "pointer",
                     }}
                     className={
-                      selectedId === category.id
-                        ? "table-primary"
-                        : ""
+                      selectedId === category.id ? "table-primary" : ""
                     }
                   >
                     <td>{category.code}</td>
@@ -487,9 +474,7 @@ function Categories() {
 
                     <td>
                       {category.is_active ? (
-                        <span className="badge text-bg-success">
-                          Active
-                        </span>
+                        <span className="badge text-bg-success">Active</span>
                       ) : (
                         <span className="badge text-bg-secondary">
                           Inactive
@@ -499,12 +484,9 @@ function Categories() {
                   </tr>
                 ))}
 
-                {categories.length === 0 && (
+                {filteredCategories.length === 0 && (
                   <tr>
-                    <td
-                      colSpan={3}
-                      className="text-center text-muted"
-                    >
+                    <td colSpan={3} className="text-center text-muted">
                       No categories found.
                     </td>
                   </tr>

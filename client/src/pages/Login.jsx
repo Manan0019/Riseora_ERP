@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../api/api.js";
+import { useAuth } from "../context/AuthContext";
 
 function Login() {
   const navigate = useNavigate();
@@ -10,6 +10,8 @@ function Login() {
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const { login } = useAuth();
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -24,20 +26,12 @@ function Login() {
     try {
       setLoading(true);
 
-      const response = await api.post("/auth/login", {
-        username: username.trim(),
-        password,
-      });
-
-      const user = response.data.user;
-
-      localStorage.setItem("riseora_user", JSON.stringify(user));
+      await login(username.trim(), password);
 
       navigate("/dashboard");
     } catch (err) {
       const message =
-        err.response?.data?.message ||
-        "Unable to connect to the server.";
+        err.response?.data?.message || "Unable to connect to the server.";
 
       setError(message);
     } finally {

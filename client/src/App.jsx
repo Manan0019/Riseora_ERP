@@ -15,13 +15,35 @@ import Customers from "./pages/Customers";
 
 import MainLayout from "./layouts/MainLayout";
 
+import { useAuth } from "./context/AuthContext";
+
 function App() {
-  const user = localStorage.getItem("riseora_user");
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="d-flex align-items-center justify-content-center vh-100">
+        <div>Loading Riseora ERP...</div>
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        <Route
+          path="/login"
+          element={
+            user ? (
+              <Navigate
+                to="/dashboard"
+                replace
+              />
+            ) : (
+              <Login />
+            )
+          }
+        />
 
         <Route
           path="/"
@@ -29,13 +51,21 @@ function App() {
             user ? (
               <MainLayout />
             ) : (
-              <Navigate to="/login" replace />
+              <Navigate
+                to="/login"
+                replace
+              />
             )
           }
         >
           <Route
             index
-            element={<Navigate to="/dashboard" replace />}
+            element={
+              <Navigate
+                to="/dashboard"
+                replace
+              />
+            }
           />
 
           <Route
@@ -71,7 +101,12 @@ function App() {
 
         <Route
           path="*"
-          element={<Navigate to="/" replace />}
+          element={
+            <Navigate
+              to="/"
+              replace
+            />
+          }
         />
       </Routes>
     </BrowserRouter>

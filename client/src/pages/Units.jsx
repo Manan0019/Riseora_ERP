@@ -22,6 +22,8 @@ function Units() {
 
   const [showInactive, setShowInactive] = useState(false);
 
+  const [search, setSearch] = useState("");
+
   useEffect(() => {
     loadUnits();
   }, [showInactive]);
@@ -75,9 +77,7 @@ function Units() {
       return;
     }
 
-    const selectedUnit = units.find(
-      (unit) => unit.id === selectedId
-    );
+    const selectedUnit = units.find((unit) => unit.id === selectedId);
 
     if (!selectedUnit?.is_active) {
       setError("Inactive unit cannot be edited. Activate it first.");
@@ -104,10 +104,7 @@ function Units() {
 
     setForm((current) => ({
       ...current,
-      [name]:
-        name === "code"
-          ? value.toUpperCase()
-          : value,
+      [name]: name === "code" ? value.toUpperCase() : value,
     }));
   };
 
@@ -143,10 +140,7 @@ function Units() {
 
       await loadUnits();
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Unable to save unit."
-      );
+      setError(err.response?.data?.message || "Unable to save unit.");
     } finally {
       setSaving(false);
     }
@@ -158,9 +152,7 @@ function Units() {
       return;
     }
 
-    const selectedUnit = units.find(
-      (unit) => unit.id === selectedId
-    );
+    const selectedUnit = units.find((unit) => unit.id === selectedId);
 
     if (!selectedUnit) {
       setError("Selected unit could not be found.");
@@ -173,7 +165,7 @@ function Units() {
     }
 
     const confirmed = window.confirm(
-      `Deactivate "${selectedUnit.code} - ${selectedUnit.name}"?`
+      `Deactivate "${selectedUnit.code} - ${selectedUnit.name}"?`,
     );
 
     if (!confirmed) {
@@ -184,9 +176,7 @@ function Units() {
       setMessage("");
       setError("");
 
-      await api.patch(
-        `/units/${selectedId}/deactivate`
-      );
+      await api.patch(`/units/${selectedId}/deactivate`);
 
       setMessage("Unit deactivated successfully.");
 
@@ -197,10 +187,7 @@ function Units() {
 
       await loadUnits();
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Unable to deactivate unit."
-      );
+      setError(err.response?.data?.message || "Unable to deactivate unit.");
     }
   };
 
@@ -210,9 +197,7 @@ function Units() {
       return;
     }
 
-    const selectedUnit = units.find(
-      (unit) => unit.id === selectedId
-    );
+    const selectedUnit = units.find((unit) => unit.id === selectedId);
 
     if (!selectedUnit) {
       setError("Selected unit could not be found.");
@@ -225,7 +210,7 @@ function Units() {
     }
 
     const confirmed = window.confirm(
-      `Activate "${selectedUnit.code} - ${selectedUnit.name}"?`
+      `Activate "${selectedUnit.code} - ${selectedUnit.name}"?`,
     );
 
     if (!confirmed) {
@@ -236,9 +221,7 @@ function Units() {
       setMessage("");
       setError("");
 
-      await api.patch(
-        `/units/${selectedId}/activate`
-      );
+      await api.patch(`/units/${selectedId}/activate`);
 
       setMessage("Unit activated successfully.");
 
@@ -249,16 +232,21 @@ function Units() {
 
       await loadUnits();
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Unable to activate unit."
-      );
+      setError(err.response?.data?.message || "Unable to activate unit.");
     }
   };
 
-  const selectedUnit = units.find(
-    (unit) => unit.id === selectedId
-  );
+  const selectedUnit = units.find((unit) => unit.id === selectedId);
+
+  const filteredUnits = units.filter((unit) => {
+    const text = search.toLowerCase();
+
+    return (
+      unit.code.toLowerCase().includes(text) ||
+      unit.name.toLowerCase().includes(text) ||
+      unit.unit_type.toLowerCase().includes(text)
+    );
+  });
 
   return (
     <div>
@@ -270,17 +258,9 @@ function Units() {
         </p>
       </div>
 
-      {message && (
-        <div className="alert alert-success">
-          {message}
-        </div>
-      )}
+      {message && <div className="alert alert-success">{message}</div>}
 
-      {error && (
-        <div className="alert alert-danger">
-          {error}
-        </div>
-      )}
+      {error && <div className="alert alert-danger">{error}</div>}
 
       <div className="d-flex gap-2 flex-wrap mb-3">
         <button
@@ -296,11 +276,7 @@ function Units() {
           type="button"
           className="btn btn-secondary"
           onClick={handleEdit}
-          disabled={
-            !selectedId ||
-            editing ||
-            !selectedUnit?.is_active
-          }
+          disabled={!selectedId || editing || !selectedUnit?.is_active}
         >
           Edit
         </button>
@@ -318,11 +294,7 @@ function Units() {
           type="button"
           className="btn btn-outline-danger"
           onClick={handleDeactivate}
-          disabled={
-            !selectedId ||
-            editing ||
-            !selectedUnit?.is_active
-          }
+          disabled={!selectedId || editing || !selectedUnit?.is_active}
         >
           Deactivate
         </button>
@@ -331,14 +303,20 @@ function Units() {
           type="button"
           className="btn btn-outline-success"
           onClick={handleActivate}
-          disabled={
-            !selectedId ||
-            editing ||
-            selectedUnit?.is_active
-          }
+          disabled={!selectedId || editing || selectedUnit?.is_active}
         >
           Activate
         </button>
+      </div>
+
+      <div className="mb-3">
+        <input
+          type="text"
+          className="form-control"
+          placeholder="Search units..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
       {showForm && (
@@ -354,9 +332,7 @@ function Units() {
 
             <div className="row">
               <div className="col-md-3 mb-3">
-                <label className="form-label">
-                  Code *
-                </label>
+                <label className="form-label">Code *</label>
 
                 <input
                   type="text"
@@ -371,9 +347,7 @@ function Units() {
               </div>
 
               <div className="col-md-5 mb-3">
-                <label className="form-label">
-                  Name *
-                </label>
+                <label className="form-label">Name *</label>
 
                 <input
                   type="text"
@@ -386,9 +360,7 @@ function Units() {
               </div>
 
               <div className="col-md-4 mb-3">
-                <label className="form-label">
-                  Unit Type *
-                </label>
+                <label className="form-label">Unit Type *</label>
 
                 <select
                   className="form-select"
@@ -397,17 +369,11 @@ function Units() {
                   onChange={handleChange}
                   disabled={!editing}
                 >
-                  <option value="VOLUME">
-                    Volume
-                  </option>
+                  <option value="VOLUME">Volume</option>
 
-                  <option value="WEIGHT">
-                    Weight
-                  </option>
+                  <option value="WEIGHT">Weight</option>
 
-                  <option value="COUNT">
-                    Count
-                  </option>
+                  <option value="COUNT">Count</option>
                 </select>
               </div>
             </div>
@@ -427,9 +393,7 @@ function Units() {
       <div className="card">
         <div className="card-body">
           <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="mb-0">
-              Units List
-            </h5>
+            <h5 className="mb-0">Units List</h5>
 
             <div className="form-check">
               <input
@@ -438,9 +402,7 @@ function Units() {
                 className="form-check-input"
                 checked={showInactive}
                 onChange={(event) => {
-                  setShowInactive(
-                    event.target.checked
-                  );
+                  setShowInactive(event.target.checked);
 
                   setSelectedId(null);
                   setForm(emptyForm);
@@ -449,10 +411,7 @@ function Units() {
                 }}
               />
 
-              <label
-                className="form-check-label"
-                htmlFor="showInactive"
-              >
+              <label className="form-check-label" htmlFor="showInactive">
                 Show Inactive
               </label>
             </div>
@@ -470,20 +429,14 @@ function Units() {
               </thead>
 
               <tbody>
-                {units.map((unit) => (
+                {filteredUnits.map((unit) => (
                   <tr
                     key={unit.id}
-                    onClick={() =>
-                      handleSelect(unit)
-                    }
+                    onClick={() => handleSelect(unit)}
                     style={{
                       cursor: "pointer",
                     }}
-                    className={
-                      selectedId === unit.id
-                        ? "table-primary"
-                        : ""
-                    }
+                    className={selectedId === unit.id ? "table-primary" : ""}
                   >
                     <td>{unit.code}</td>
                     <td>{unit.name}</td>
@@ -491,9 +444,7 @@ function Units() {
 
                     <td>
                       {unit.is_active ? (
-                        <span className="badge text-bg-success">
-                          Active
-                        </span>
+                        <span className="badge text-bg-success">Active</span>
                       ) : (
                         <span className="badge text-bg-secondary">
                           Inactive
@@ -503,12 +454,9 @@ function Units() {
                   </tr>
                 ))}
 
-                {units.length === 0 && (
+                {filteredUnits.length === 0 && (
                   <tr>
-                    <td
-                      colSpan={4}
-                      className="text-center text-muted"
-                    >
+                    <td colSpan={4} className="text-center text-muted">
                       No units found.
                     </td>
                   </tr>

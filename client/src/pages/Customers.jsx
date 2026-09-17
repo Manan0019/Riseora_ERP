@@ -45,6 +45,8 @@ function Customers() {
   const [error, setError] =
     useState("");
 
+  const [search, setSearch] = useState("");
+
   useEffect(() => {
     loadCustomers();
   }, [showInactive]);
@@ -373,30 +375,32 @@ function Customers() {
         customer.id === selectedId
     );
 
+  const filteredCustomers = customers.filter((customer) => {
+    const text = search.toLowerCase();
+
+    return (
+      customer.code.toLowerCase().includes(text) ||
+      customer.name.toLowerCase().includes(text) ||
+      (customer.phone || "").toLowerCase().includes(text) ||
+      (customer.gstin || "").toLowerCase().includes(text) ||
+      (customer.city || "").toLowerCase().includes(text) ||
+      (customer.customer_type || "").toLowerCase().includes(text)
+    );
+  });
+
   return (
     <div>
       <div className="mb-4">
-        <h2 className="mb-1">
-          Customers
-        </h2>
+        <h2 className="mb-1">Customers</h2>
 
         <p className="text-muted mb-0">
-          Maintain retail, wholesale and
-          distributor customers.
+          Maintain retail, wholesale and distributor customers.
         </p>
       </div>
 
-      {message && (
-        <div className="alert alert-success">
-          {message}
-        </div>
-      )}
+      {message && <div className="alert alert-success">{message}</div>}
 
-      {error && (
-        <div className="alert alert-danger">
-          {error}
-        </div>
-      )}
+      {error && <div className="alert alert-danger">{error}</div>}
 
       <div className="d-flex gap-2 flex-wrap mb-3">
         <button
@@ -410,11 +414,7 @@ function Customers() {
         <button
           className="btn btn-secondary"
           onClick={handleEdit}
-          disabled={
-            !selectedId ||
-            editing ||
-            !selectedCustomer?.is_active
-          }
+          disabled={!selectedId || editing || !selectedCustomer?.is_active}
         >
           Edit
         </button>
@@ -430,11 +430,7 @@ function Customers() {
         <button
           className="btn btn-outline-danger"
           onClick={handleDeactivate}
-          disabled={
-            !selectedId ||
-            editing ||
-            !selectedCustomer?.is_active
-          }
+          disabled={!selectedId || editing || !selectedCustomer?.is_active}
         >
           Deactivate
         </button>
@@ -442,14 +438,20 @@ function Customers() {
         <button
           className="btn btn-outline-success"
           onClick={handleActivate}
-          disabled={
-            !selectedId ||
-            editing ||
-            selectedCustomer?.is_active
-          }
+          disabled={!selectedId || editing || selectedCustomer?.is_active}
         >
           Activate
         </button>
+      </div>
+
+      <div className="mb-3">
+        <input
+          type="text"
+          className="form-control"
+          placeholder="Search customers..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
       {showForm && (
@@ -465,9 +467,7 @@ function Customers() {
 
             <div className="row">
               <div className="col-md-3 mb-3">
-                <label className="form-label">
-                  Customer Code *
-                </label>
+                <label className="form-label">Customer Code *</label>
 
                 <input
                   className="form-control"
@@ -481,9 +481,7 @@ function Customers() {
               </div>
 
               <div className="col-md-5 mb-3">
-                <label className="form-label">
-                  Customer Name *
-                </label>
+                <label className="form-label">Customer Name *</label>
 
                 <input
                   className="form-control"
@@ -495,37 +493,25 @@ function Customers() {
               </div>
 
               <div className="col-md-4 mb-3">
-                <label className="form-label">
-                  Customer Type
-                </label>
+                <label className="form-label">Customer Type</label>
 
                 <select
                   className="form-select"
                   name="customerType"
-                  value={
-                    form.customerType
-                  }
+                  value={form.customerType}
                   onChange={handleChange}
                   disabled={!editing}
                 >
-                  <option value="RETAIL">
-                    Retail
-                  </option>
+                  <option value="RETAIL">Retail</option>
 
-                  <option value="WHOLESALE">
-                    Wholesale
-                  </option>
+                  <option value="WHOLESALE">Wholesale</option>
 
-                  <option value="DISTRIBUTOR">
-                    Distributor
-                  </option>
+                  <option value="DISTRIBUTOR">Distributor</option>
                 </select>
               </div>
 
               <div className="col-md-4 mb-3">
-                <label className="form-label">
-                  Phone
-                </label>
+                <label className="form-label">Phone</label>
 
                 <input
                   className="form-control"
@@ -537,9 +523,7 @@ function Customers() {
               </div>
 
               <div className="col-md-4 mb-3">
-                <label className="form-label">
-                  Email
-                </label>
+                <label className="form-label">Email</label>
 
                 <input
                   type="email"
@@ -552,9 +536,7 @@ function Customers() {
               </div>
 
               <div className="col-md-4 mb-3">
-                <label className="form-label">
-                  GSTIN
-                </label>
+                <label className="form-label">GSTIN</label>
 
                 <input
                   className="form-control"
@@ -567,9 +549,7 @@ function Customers() {
               </div>
 
               <div className="col-12 mb-3">
-                <label className="form-label">
-                  Address
-                </label>
+                <label className="form-label">Address</label>
 
                 <textarea
                   className="form-control"
@@ -582,9 +562,7 @@ function Customers() {
               </div>
 
               <div className="col-md-4 mb-3">
-                <label className="form-label">
-                  City
-                </label>
+                <label className="form-label">City</label>
 
                 <input
                   className="form-control"
@@ -596,9 +574,7 @@ function Customers() {
               </div>
 
               <div className="col-md-4 mb-3">
-                <label className="form-label">
-                  State
-                </label>
+                <label className="form-label">State</label>
 
                 <input
                   className="form-control"
@@ -610,9 +586,7 @@ function Customers() {
               </div>
 
               <div className="col-md-4 mb-3">
-                <label className="form-label">
-                  PIN Code
-                </label>
+                <label className="form-label">PIN Code</label>
 
                 <input
                   className="form-control"
@@ -624,9 +598,7 @@ function Customers() {
               </div>
 
               <div className="col-md-3 mb-3">
-                <label className="form-label">
-                  Credit Days
-                </label>
+                <label className="form-label">Credit Days</label>
 
                 <input
                   type="number"
@@ -640,9 +612,7 @@ function Customers() {
               </div>
 
               <div className="col-md-3 mb-3">
-                <label className="form-label">
-                  Credit Limit
-                </label>
+                <label className="form-label">Credit Limit</label>
 
                 <input
                   type="number"
@@ -657,9 +627,7 @@ function Customers() {
               </div>
 
               <div className="col-md-6 mb-3">
-                <label className="form-label">
-                  Notes
-                </label>
+                <label className="form-label">Notes</label>
 
                 <input
                   className="form-control"
@@ -674,13 +642,9 @@ function Customers() {
             <button
               className="btn btn-success"
               onClick={handleSave}
-              disabled={
-                !editing || saving
-              }
+              disabled={!editing || saving}
             >
-              {saving
-                ? "Saving..."
-                : "Save"}
+              {saving ? "Saving..." : "Save"}
             </button>
           </div>
         </div>
@@ -689,9 +653,7 @@ function Customers() {
       <div className="card">
         <div className="card-body">
           <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="mb-0">
-              Customer List
-            </h5>
+            <h5 className="mb-0">Customer List</h5>
 
             <div className="form-check">
               <input
@@ -700,9 +662,7 @@ function Customers() {
                 className="form-check-input"
                 checked={showInactive}
                 onChange={(event) => {
-                  setShowInactive(
-                    event.target.checked
-                  );
+                  setShowInactive(event.target.checked);
 
                   setSelectedId(null);
                   setForm(emptyForm);
@@ -735,82 +695,45 @@ function Customers() {
               </thead>
 
               <tbody>
-                {customers.map(
-                  (customer) => (
-                    <tr
-                      key={customer.id}
-                      onClick={() =>
-                        handleSelect(
-                          customer
-                        )
-                      }
-                      style={{
-                        cursor:
-                          "pointer",
-                      }}
-                      className={
-                        selectedId ===
-                        customer.id
-                          ? "table-primary"
-                          : ""
-                      }
-                    >
-                      <td>
-                        {customer.code}
-                      </td>
+                {filteredCustomers.map((customer) => (
+                  <tr
+                    key={customer.id}
+                    onClick={() => handleSelect(customer)}
+                    style={{
+                      cursor: "pointer",
+                    }}
+                    className={
+                      selectedId === customer.id ? "table-primary" : ""
+                    }
+                  >
+                    <td>{customer.code}</td>
 
-                      <td>
-                        {customer.name}
-                      </td>
+                    <td>{customer.name}</td>
 
-                      <td>
-                        {
-                          customer.customer_type
-                        }
-                      </td>
+                    <td>{customer.customer_type}</td>
 
-                      <td>
-                        {customer.phone ||
-                          "-"}
-                      </td>
+                    <td>{customer.phone || "-"}</td>
 
-                      <td>
-                        {
-                          customer.credit_days
-                        }
-                      </td>
+                    <td>{customer.credit_days}</td>
 
-                      <td>
-                        ₹
-                        {Number(
-                          customer.credit_limit
-                        ).toFixed(2)}
-                      </td>
+                    <td>₹{Number(customer.credit_limit).toFixed(2)}</td>
 
-                      <td>
-                        {customer.is_active ? (
-                          <span className="badge text-bg-success">
-                            Active
-                          </span>
-                        ) : (
-                          <span className="badge text-bg-secondary">
-                            Inactive
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                )}
+                    <td>
+                      {customer.is_active ? (
+                        <span className="badge text-bg-success">Active</span>
+                      ) : (
+                        <span className="badge text-bg-secondary">
+                          Inactive
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
 
-                {customers.length ===
-                  0 && (
+                {filteredCustomers.length === 0 && (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="text-center text-muted"
-                    >
-                      No customers
-                      found.
+                    <td colSpan={7} className="text-center text-muted">
+                      No customers found.
                     </td>
                   </tr>
                 )}

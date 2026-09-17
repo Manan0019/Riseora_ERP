@@ -1,16 +1,15 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 function MainLayout() {
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const user = JSON.parse(
-    localStorage.getItem("riseora_user")
-  );
+ const handleLogout = async () => {
+  await logout();
 
-  const handleLogout = () => {
-    localStorage.removeItem("riseora_user");
-    navigate("/login");
-  };
+  navigate("/login");
+};
 
   return (
     <div className="app-shell">
