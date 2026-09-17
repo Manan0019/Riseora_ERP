@@ -4,6 +4,9 @@ import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes.js";
 import companyRoutes from "./routes/companyRoutes.js";
 import unitRoutes from "./routes/unitRoutes.js";
+import categoryRoutes from "./routes/categoryRoutes.js";
+import supplierRoutes from "./routes/supplierRoutes.js";
+import customerRoutes from "./routes/customerRoutes.js";
 
 import { initDatabase } from "./db/initDatabase.js";
 
@@ -21,6 +24,12 @@ await initDatabase();
 app.use("/api/auth", authRoutes);
 
 app.use("/api/company", companyRoutes);
+
+app.use("/api/categories", categoryRoutes);
+
+app.use("/api/suppliers", supplierRoutes);
+
+app.use("/api/customers", customerRoutes);
 
 app.use("/api/units", unitRoutes);
 
