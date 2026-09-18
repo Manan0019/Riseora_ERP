@@ -1,22 +1,26 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import riseoraLogo from "../assets/riseora-logo.jpeg";
 
 function MainLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
- const handleLogout = async () => {
-  await logout();
-
-  navigate("/login");
-};
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
 
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div>
-          <strong>Riseora ERP</strong>
-        </div>
+        <NavLink to="/dashboard" className="brand-link">
+          <img
+            src={riseoraLogo}
+            alt="Riseora"
+            className="brand-logo"
+          />
+        </NavLink>
 
         <div className="topbar-user">
           <span>
@@ -76,6 +80,15 @@ function MainLayout() {
             </NavLink>
 
             <NavLink
+              to="/items"
+              className={({ isActive }) =>
+                isActive ? "sidebar-link active" : "sidebar-link"
+              }
+            >
+              Items
+            </NavLink>
+
+            <NavLink
               to="/suppliers"
               className={({ isActive }) =>
                 isActive ? "sidebar-link active" : "sidebar-link"
@@ -91,6 +104,19 @@ function MainLayout() {
               }
             >
               Customers
+            </NavLink>
+
+            <div className="sidebar-heading">
+              System
+            </div>
+
+            <NavLink
+              to="/settings"
+              className={({ isActive }) =>
+                isActive ? "sidebar-link active" : "sidebar-link"
+              }
+            >
+              Settings
             </NavLink>
           </nav>
         </aside>

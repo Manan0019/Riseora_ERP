@@ -1,17 +1,14 @@
-import {
-  BrowserRouter,
-  Navigate,
-  Route,
-  Routes,
-} from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Company from "./pages/Company";
 import Units from "./pages/Units";
 import Categories from "./pages/Categories";
+import Items from "./pages/Items";
 import Suppliers from "./pages/Suppliers";
 import Customers from "./pages/Customers";
+import Settings from "./pages/Settings";
 
 import MainLayout from "./layouts/MainLayout";
 
@@ -33,81 +30,33 @@ function App() {
       <Routes>
         <Route
           path="/login"
-          element={
-            user ? (
-              <Navigate
-                to="/dashboard"
-                replace
-              />
-            ) : (
-              <Login />
-            )
-          }
+          element={user ? <Navigate to="/dashboard" replace /> : <Login />}
         />
 
         <Route
           path="/"
-          element={
-            user ? (
-              <MainLayout />
-            ) : (
-              <Navigate
-                to="/login"
-                replace
-              />
-            )
-          }
+          element={user ? <MainLayout /> : <Navigate to="/login" replace />}
         >
-          <Route
-            index
-            element={
-              <Navigate
-                to="/dashboard"
-                replace
-              />
-            }
-          />
+          <Route index element={<Navigate to="/dashboard" replace />} />
 
-          <Route
-            path="dashboard"
-            element={<Dashboard />}
-          />
+          <Route path="dashboard" element={<Dashboard />} />
 
-          <Route
-            path="company"
-            element={<Company />}
-          />
+          <Route path="company" element={<Company />} />
 
-          <Route
-            path="units"
-            element={<Units />}
-          />
+          <Route path="units" element={<Units />} />
 
-          <Route
-            path="categories"
-            element={<Categories />}
-          />
+          <Route path="categories" element={<Categories />} />
 
-          <Route
-            path="suppliers"
-            element={<Suppliers />}
-          />
+          <Route path="items" element={<Items />} />
 
-          <Route
-            path="customers"
-            element={<Customers />}
-          />
+          <Route path="suppliers" element={<Suppliers />} />
+
+          <Route path="customers" element={<Customers />} />
+
+          <Route path="settings" element={<Settings />} />
         </Route>
 
-        <Route
-          path="*"
-          element={
-            <Navigate
-              to="/"
-              replace
-            />
-          }
-        />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

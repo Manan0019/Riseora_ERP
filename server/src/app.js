@@ -9,6 +9,9 @@ import supplierRoutes from "./routes/supplierRoutes.js";
 import customerRoutes from "./routes/customerRoutes.js";
 import session from "express-session";
 import { requireAuth, requireAdmin } from "./middleware/authMiddleware.js";
+import backupRoutes from "./routes/backupRoutes.js";
+import { runStartupBackup } from "./services/startupBackupService.js";
+import itemRoutes from "./routes/itemRoutes.js";
 
 import { initDatabase } from "./db/initDatabase.js";
 
@@ -46,6 +49,10 @@ app.use(
 );
 
 await initDatabase();
+if (process.env.NODE_ENV !== "development") {
+  await runStartupBackup();
+}
+///await runStartupBackup();
 
 app.use("/api/auth", authRoutes);
 
@@ -58,6 +65,8 @@ app.use("/api/suppliers", supplierRoutes);
 app.use("/api/customers", customerRoutes);
 
 app.use("/api/units", unitRoutes);
+
+app.use("/api/backups", requireAuth, requireAdmin, backupRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({
@@ -99,6 +108,13 @@ app.use(
   requireAuth,
   requireAdmin,
   customerRoutes
+);
+
+app.use(
+  "/api/items",
+  requireAuth,
+  requireAdmin,
+  itemRoutes
 );
 
 app.listen(PORT, () => {
