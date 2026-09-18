@@ -202,3 +202,63 @@ export function createPurchase(data) {
 
   return transaction();
 }
+
+export function getPurchases() {
+  return db.prepare(`
+    SELECT
+      p.id,
+      p.purchase_no,
+      p.purchase_date,
+      p.supplier_invoice_no,
+      p.supplier_invoice_date,
+      p.subtotal,
+      p.gst_amount,
+      p.freight_amount,
+      p.other_charges,
+      p.grand_total,
+      p.status,
+      s.code AS supplier_code,
+      s.name AS supplier_name
+    FROM purchases p
+    INNER JOIN suppliers s
+      ON s.id = p.supplier_id
+    ORDER BY p.id DESC
+  `).all();
+}
+
+export function getPurchaseById(id) {
+  const purchase = db.prepare(`
+    SELECT
+      p.*,
+      s.code AS supplier_code,
+      s.name AS supplier_name
+    FROM purchases p
+    INNER JOIN suppliers s
+      ON s.id = p.supplier_id
+    WHERE p.id = ?
+  `).get(id);
+
+  if (!purchase) {
+    return null;
+  }
+
+  const items = db.prepare(`
+    SELECT
+      pi.*,
+      i.code AS item_code,
+      i.name AS item_name,
+      u.code AS unit_code
+    FROM purchase_items pi
+    INNER JOIN items i
+      ON i.id = pi.item_id
+    INNER JOIN units u
+      ON u.id = i.base_unit_id
+    WHERE pi.purchase_id = ?
+    ORDER BY pi.id
+  `).all(id);
+
+  return {
+    ...purchase,
+    items,
+  };
+}
