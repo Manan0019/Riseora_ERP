@@ -109,6 +109,15 @@ function MainLayout() {
               Purchases
             </NavLink>
 
+            <NavLink
+              to="/stock"
+              className={({ isActive }) =>
+                isActive ? "sidebar-link active" : "sidebar-link"
+              }
+            >
+              Current Stock
+            </NavLink>
+
             <div className="sidebar-heading">System</div>
 
             <NavLink

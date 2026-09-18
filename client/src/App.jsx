@@ -10,6 +10,7 @@ import Suppliers from "./pages/Suppliers";
 import Customers from "./pages/Customers";
 import Settings from "./pages/Settings";
 import Purchases from "./pages/Purchases";
+import Stock from "./pages/Stock";
 
 import MainLayout from "./layouts/MainLayout";
 
@@ -57,6 +58,8 @@ function App() {
           <Route path="settings" element={<Settings />} />
 
           <Route path="purchases" element={<Purchases />} />
+
+          <Route path="stock" element={<Stock />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
