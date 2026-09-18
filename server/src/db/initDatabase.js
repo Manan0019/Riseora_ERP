@@ -6,6 +6,7 @@ import { runSupplierMigration } from "./migrations/002_suppliers.js";
 import { runCustomerMigration } from "./migrations/003_customers.js";
 import { runItemMigration } from "./migrations/004_items.js";
 import { runPurchaseInventoryMigration } from "./migrations/005_purchases_inventory.js";
+import { runOpeningStockMigration } from "./migrations/006_opening_stock.js";
 
 export async function initDatabase() {
   runInitialMigration();
@@ -13,6 +14,7 @@ export async function initDatabase() {
   runCustomerMigration();
   runItemMigration();
   runPurchaseInventoryMigration();
+  runOpeningStockMigration();
 
   seedUnits();
   seedItemCategories();

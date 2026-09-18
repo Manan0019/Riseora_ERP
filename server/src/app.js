@@ -14,6 +14,7 @@ import { runStartupBackup } from "./services/startupBackupService.js";
 import itemRoutes from "./routes/itemRoutes.js";
 import purchaseRoutes from "./routes/purchaseRoutes.js";
 import stockRoutes from "./routes/stockRoutes.js";
+import openingStockRoutes from "./routes/openingStockRoutes.js";
 
 import { initDatabase } from "./db/initDatabase.js";
 
@@ -131,6 +132,13 @@ app.use(
   requireAuth,
   requireAdmin,
   stockRoutes
+);
+
+app.use(
+  "/api/opening-stock",
+  requireAuth,
+  requireAdmin,
+  openingStockRoutes
 );
 
 app.listen(PORT, () => {

@@ -12,6 +12,7 @@ import Settings from "./pages/Settings";
 import Purchases from "./pages/Purchases";
 import Stock from "./pages/Stock";
 import PurchaseRegister from "./pages/PurchaseRegister";
+import OpeningStock from "./pages/OpeningStock";
 
 import MainLayout from "./layouts/MainLayout";
 
@@ -63,6 +64,8 @@ function App() {
           <Route path="stock" element={<Stock />} />
 
           <Route path="purchase-register" element={<PurchaseRegister />} />
+
+          <Route path="opening-stock" element={<OpeningStock />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
