@@ -15,17 +15,11 @@ function MainLayout() {
     <div className="app-shell">
       <header className="topbar">
         <NavLink to="/dashboard" className="brand-link">
-          <img
-            src={riseoraLogo}
-            alt="Riseora"
-            className="brand-logo"
-          />
+          <img src={riseoraLogo} alt="Riseora" className="brand-logo" />
         </NavLink>
 
         <div className="topbar-user">
-          <span>
-            {user?.fullName || user?.username}
-          </span>
+          <span>{user?.fullName || user?.username}</span>
 
           <button
             className="btn btn-sm btn-outline-secondary"
@@ -48,9 +42,7 @@ function MainLayout() {
               Dashboard
             </NavLink>
 
-            <div className="sidebar-heading">
-              Masters
-            </div>
+            <div className="sidebar-heading">Masters</div>
 
             <NavLink
               to="/company"
@@ -106,9 +98,18 @@ function MainLayout() {
               Customers
             </NavLink>
 
-            <div className="sidebar-heading">
-              System
-            </div>
+            <div className="sidebar-heading">Purchase & Inventory</div>
+
+            <NavLink
+              to="/purchases"
+              className={({ isActive }) =>
+                isActive ? "sidebar-link active" : "sidebar-link"
+              }
+            >
+              Purchases
+            </NavLink>
+
+            <div className="sidebar-heading">System</div>
 
             <NavLink
               to="/settings"

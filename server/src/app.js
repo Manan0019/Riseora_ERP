@@ -12,6 +12,8 @@ import { requireAuth, requireAdmin } from "./middleware/authMiddleware.js";
 import backupRoutes from "./routes/backupRoutes.js";
 import { runStartupBackup } from "./services/startupBackupService.js";
 import itemRoutes from "./routes/itemRoutes.js";
+import purchaseRoutes from "./routes/purchaseRoutes.js";
+import stockRoutes from "./routes/stockRoutes.js";
 
 import { initDatabase } from "./db/initDatabase.js";
 
@@ -115,6 +117,20 @@ app.use(
   requireAuth,
   requireAdmin,
   itemRoutes
+);
+
+app.use(
+  "/api/purchases",
+  requireAuth,
+  requireAdmin,
+  purchaseRoutes
+);
+
+app.use(
+  "/api/stock",
+  requireAuth,
+  requireAdmin,
+  stockRoutes
 );
 
 app.listen(PORT, () => {

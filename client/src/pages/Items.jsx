@@ -1,49 +1,419 @@
-import {
-  useEffect,
-  useState,
-} from "react";
-
+import { useEffect, useState } from "react";
 import api from "../api/api";
 
-function Items() {
-  const [items, setItems] =
-    useState([]);
+const emptyForm = {
+  code: "",
+  name: "",
+  categoryId: "",
+  baseUnitId: "",
+  reorderLevel: "0",
+  trackLot: false,
+  trackExpiry: false,
+  density: "",
+  notes: "",
+};
 
-  const [error, setError] =
-    useState("");
+function Items() {
+  const [items, setItems] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [units, setUnits] = useState([]);
+
+  const [form, setForm] = useState(emptyForm);
+
+  const [selectedId, setSelectedId] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
+
+  const [search, setSearch] = useState("");
+
+  const [saving, setSaving] = useState(false);
+
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     loadItems();
+  }, [showInactive]);
+
+  useEffect(() => {
+    loadLookups();
   }, []);
 
-  const loadItems =
-    async () => {
-      try {
-        const response =
-          await api.get("/items");
+  const loadItems = async () => {
+    try {
+      setError("");
 
-        setItems(
-          response.data.items
+      const response = await api.get("/items", {
+        params: {
+          includeInactive: showInactive,
+        },
+      });
+
+      setItems(response.data.items);
+    } catch (err) {
+      console.error(err);
+      setError("Unable to load items.");
+    }
+  };
+
+  const loadLookups = async () => {
+    try {
+      const [categoryResponse, unitResponse] =
+        await Promise.all([
+          api.get("/categories"),
+          api.get("/units"),
+        ]);
+
+      setCategories(categoryResponse.data.categories);
+      setUnits(unitResponse.data.units);
+    } catch (err) {
+      console.error(err);
+      setError(
+        "Unable to load categories or units."
+      );
+    }
+  };
+
+  const handleNew = () => {
+    setForm(emptyForm);
+    setSelectedId(null);
+    setEditing(true);
+    setShowForm(true);
+
+    setMessage("");
+    setError("");
+  };
+
+  const handleSelect = (item) => {
+    setSelectedId(item.id);
+
+    setForm({
+      code: item.code || "",
+      name: item.name || "",
+
+      categoryId:
+        String(item.category_id || ""),
+
+      baseUnitId:
+        String(item.base_unit_id || ""),
+
+      reorderLevel:
+        String(item.reorder_level ?? 0),
+
+      trackLot:
+        Boolean(item.track_lot),
+
+      trackExpiry:
+        Boolean(item.track_expiry),
+
+      density:
+        item.density !== null &&
+        item.density !== undefined
+          ? String(item.density)
+          : "",
+
+      notes: item.notes || "",
+    });
+
+    setEditing(false);
+    setShowForm(true);
+
+    setMessage("");
+    setError("");
+  };
+
+  const handleEdit = () => {
+    if (!selectedId) {
+      setError("Please select an item first.");
+      return;
+    }
+
+    const selectedItem = items.find(
+      (item) => item.id === selectedId
+    );
+
+    if (!selectedItem?.is_active) {
+      setError(
+        "Inactive item cannot be edited. Activate it first."
+      );
+      return;
+    }
+
+    setEditing(true);
+    setMessage("");
+    setError("");
+  };
+
+  const handleCancel = () => {
+    setSelectedId(null);
+    setForm(emptyForm);
+    setEditing(false);
+    setShowForm(false);
+
+    setMessage("");
+    setError("");
+  };
+
+  const handleChange = (event) => {
+    const {
+      name,
+      value,
+      type,
+      checked,
+    } = event.target;
+
+    setForm((current) => ({
+      ...current,
+
+      [name]:
+        type === "checkbox"
+          ? checked
+          : name === "code"
+            ? value.toUpperCase()
+            : value,
+    }));
+  };
+
+  const handleSave = async () => {
+    setMessage("");
+    setError("");
+
+    if (!form.code.trim()) {
+      setError("Item code is required.");
+      return;
+    }
+
+    if (!form.name.trim()) {
+      setError("Item name is required.");
+      return;
+    }
+
+    if (!form.categoryId) {
+      setError("Category is required.");
+      return;
+    }
+
+    if (!form.baseUnitId) {
+      setError("Base unit is required.");
+      return;
+    }
+
+    if (Number(form.reorderLevel) < 0) {
+      setError(
+        "Reorder level cannot be negative."
+      );
+      return;
+    }
+
+    if (
+      form.density &&
+      Number(form.density) <= 0
+    ) {
+      setError(
+        "Density must be greater than zero."
+      );
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      if (selectedId) {
+        await api.put(
+          `/items/${selectedId}`,
+          form
         );
-      } catch (err) {
-        console.error(err);
 
-        setError(
-          "Unable to load items."
+        setMessage(
+          "Item updated successfully."
+        );
+      } else {
+        await api.post("/items", form);
+
+        setMessage(
+          "Item created successfully."
         );
       }
-    };
+
+      setSelectedId(null);
+      setForm(emptyForm);
+      setEditing(false);
+      setShowForm(false);
+
+      await loadItems();
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Unable to save item."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeactivate = async () => {
+    if (!selectedId) {
+      setError("Please select an item first.");
+      return;
+    }
+
+    const selectedItem = items.find(
+      (item) => item.id === selectedId
+    );
+
+    if (!selectedItem) {
+      setError(
+        "Selected item could not be found."
+      );
+      return;
+    }
+
+    if (!selectedItem.is_active) {
+      setError(
+        "This item is already inactive."
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Deactivate "${selectedItem.code} - ${selectedItem.name}"?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setMessage("");
+      setError("");
+
+      await api.patch(
+        `/items/${selectedId}/deactivate`
+      );
+
+      setMessage(
+        "Item deactivated successfully."
+      );
+
+      setSelectedId(null);
+      setForm(emptyForm);
+      setEditing(false);
+      setShowForm(false);
+
+      await loadItems();
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Unable to deactivate item."
+      );
+    }
+  };
+
+  const handleActivate = async () => {
+    if (!selectedId) {
+      setError("Please select an item first.");
+      return;
+    }
+
+    const selectedItem = items.find(
+      (item) => item.id === selectedId
+    );
+
+    if (!selectedItem) {
+      setError(
+        "Selected item could not be found."
+      );
+      return;
+    }
+
+    if (selectedItem.is_active) {
+      setError(
+        "This item is already active."
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Activate "${selectedItem.code} - ${selectedItem.name}"?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setMessage("");
+      setError("");
+
+      await api.patch(
+        `/items/${selectedId}/activate`
+      );
+
+      setMessage(
+        "Item activated successfully."
+      );
+
+      setSelectedId(null);
+      setForm(emptyForm);
+      setEditing(false);
+      setShowForm(false);
+
+      await loadItems();
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Unable to activate item."
+      );
+    }
+  };
+
+  const selectedItem = items.find(
+    (item) => item.id === selectedId
+  );
+
+  const filteredItems = items.filter(
+    (item) => {
+      const text =
+        search.toLowerCase();
+
+      return (
+        item.code
+          .toLowerCase()
+          .includes(text) ||
+        item.name
+          .toLowerCase()
+          .includes(text) ||
+        (item.category_name || "")
+          .toLowerCase()
+          .includes(text) ||
+        (item.unit_code || "")
+          .toLowerCase()
+          .includes(text)
+      );
+    }
+  );
 
   return (
     <div>
-      <h2>Item Master</h2>
+      <div className="mb-4">
+        <h2 className="mb-1">
+          Item Master
+        </h2>
 
-      <p className="text-muted">
-        Maintain raw materials,
-        packaging materials,
-        finished goods and
-        consumables.
-      </p>
+        <p className="text-muted mb-0">
+          Maintain raw materials,
+          packaging materials,
+          finished goods and
+          consumables.
+        </p>
+      </div>
+
+      {message && (
+        <div className="alert alert-success">
+          {message}
+        </div>
+      )}
 
       {error && (
         <div className="alert alert-danger">
@@ -51,24 +421,368 @@ function Items() {
         </div>
       )}
 
+      <div className="d-flex gap-2 flex-wrap mb-3">
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={handleNew}
+          disabled={editing}
+        >
+          New
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={handleEdit}
+          disabled={
+            !selectedId ||
+            editing ||
+            !selectedItem?.is_active
+          }
+        >
+          Edit
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-outline-secondary"
+          onClick={handleCancel}
+          disabled={!showForm}
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-outline-danger"
+          onClick={handleDeactivate}
+          disabled={
+            !selectedId ||
+            editing ||
+            !selectedItem?.is_active
+          }
+        >
+          Deactivate
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-outline-success"
+          onClick={handleActivate}
+          disabled={
+            !selectedId ||
+            editing ||
+            selectedItem?.is_active
+          }
+        >
+          Activate
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="card mb-4">
+          <div className="card-body">
+            <h5 className="mb-3">
+              {selectedId
+                ? editing
+                  ? "Edit Item"
+                  : "Item Details"
+                : "New Item"}
+            </h5>
+
+            <div className="row">
+              <div className="col-md-3 mb-3">
+                <label className="form-label">
+                  Item Code *
+                </label>
+
+                <input
+                  type="text"
+                  className="form-control"
+                  name="code"
+                  value={form.code}
+                  onChange={handleChange}
+                  disabled={!editing}
+                  maxLength={30}
+                  autoFocus={editing}
+                />
+              </div>
+
+              <div className="col-md-5 mb-3">
+                <label className="form-label">
+                  Item Name *
+                </label>
+
+                <input
+                  type="text"
+                  className="form-control"
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                  disabled={!editing}
+                />
+              </div>
+
+              <div className="col-md-4 mb-3">
+                <label className="form-label">
+                  Category *
+                </label>
+
+                <select
+                  className="form-select"
+                  name="categoryId"
+                  value={form.categoryId}
+                  onChange={handleChange}
+                  disabled={!editing}
+                >
+                  <option value="">
+                    Select Category
+                  </option>
+
+                  {categories.map(
+                    (category) => (
+                      <option
+                        key={category.id}
+                        value={category.id}
+                      >
+                        {category.code} -{" "}
+                        {category.name}
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+
+              <div className="col-md-4 mb-3">
+                <label className="form-label">
+                  Base Unit *
+                </label>
+
+                <select
+                  className="form-select"
+                  name="baseUnitId"
+                  value={form.baseUnitId}
+                  onChange={handleChange}
+                  disabled={!editing}
+                >
+                  <option value="">
+                    Select Unit
+                  </option>
+
+                  {units.map((unit) => (
+                    <option
+                      key={unit.id}
+                      value={unit.id}
+                    >
+                      {unit.code} -{" "}
+                      {unit.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="col-md-4 mb-3">
+                <label className="form-label">
+                  Reorder Level
+                </label>
+
+                <input
+                  type="number"
+                  min="0"
+                  step="0.001"
+                  className="form-control"
+                  name="reorderLevel"
+                  value={
+                    form.reorderLevel
+                  }
+                  onChange={handleChange}
+                  disabled={!editing}
+                />
+              </div>
+
+              <div className="col-md-4 mb-3">
+                <label className="form-label">
+                  Density
+                </label>
+
+                <input
+                  type="number"
+                  min="0"
+                  step="0.0001"
+                  className="form-control"
+                  name="density"
+                  value={form.density}
+                  onChange={handleChange}
+                  disabled={!editing}
+                  placeholder="Optional"
+                />
+
+                <div className="form-text">
+                  Used only when
+                  weight/volume conversion
+                  is required.
+                </div>
+              </div>
+
+              <div className="col-md-3 mb-3">
+                <div className="form-check mt-4">
+                  <input
+                    id="trackLot"
+                    type="checkbox"
+                    className="form-check-input"
+                    name="trackLot"
+                    checked={form.trackLot}
+                    onChange={handleChange}
+                    disabled={!editing}
+                  />
+
+                  <label
+                    className="form-check-label"
+                    htmlFor="trackLot"
+                  >
+                    Track Batch / Lot
+                  </label>
+                </div>
+              </div>
+
+              <div className="col-md-3 mb-3">
+                <div className="form-check mt-4">
+                  <input
+                    id="trackExpiry"
+                    type="checkbox"
+                    className="form-check-input"
+                    name="trackExpiry"
+                    checked={
+                      form.trackExpiry
+                    }
+                    onChange={handleChange}
+                    disabled={!editing}
+                  />
+
+                  <label
+                    className="form-check-label"
+                    htmlFor="trackExpiry"
+                  >
+                    Track Expiry
+                  </label>
+                </div>
+              </div>
+
+              <div className="col-md-6 mb-3">
+                <label className="form-label">
+                  Notes
+                </label>
+
+                <input
+                  type="text"
+                  className="form-control"
+                  name="notes"
+                  value={form.notes}
+                  onChange={handleChange}
+                  disabled={!editing}
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-success"
+              onClick={handleSave}
+              disabled={
+                !editing || saving
+              }
+            >
+              {saving
+                ? "Saving..."
+                : "Save"}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="card">
         <div className="card-body">
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h5 className="mb-0">
+              Item List
+            </h5>
+
+            <div className="form-check">
+              <input
+                id="showInactiveItems"
+                type="checkbox"
+                className="form-check-input"
+                checked={showInactive}
+                onChange={(event) => {
+                  setShowInactive(
+                    event.target.checked
+                  );
+
+                  setSelectedId(null);
+                  setForm(emptyForm);
+                  setEditing(false);
+                  setShowForm(false);
+                }}
+              />
+
+              <label
+                className="form-check-label"
+                htmlFor="showInactiveItems"
+              >
+                Show Inactive
+              </label>
+            </div>
+          </div>
+
+          <div className="mb-3">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search items..."
+              value={search}
+              onChange={(event) =>
+                setSearch(
+                  event.target.value
+                )
+              }
+            />
+          </div>
+
           <div className="table-responsive">
-            <table className="table table-bordered">
+            <table className="table table-bordered table-hover align-middle">
               <thead className="table-light">
                 <tr>
                   <th>Code</th>
                   <th>Name</th>
                   <th>Category</th>
                   <th>Unit</th>
+                  <th>Reorder</th>
+                  <th>Lot</th>
+                  <th>Expiry</th>
                   <th>Status</th>
                 </tr>
               </thead>
 
               <tbody>
-                {items.map(
+                {filteredItems.map(
                   (item) => (
-                    <tr key={item.id}>
+                    <tr
+                      key={item.id}
+                      onClick={() =>
+                        handleSelect(item)
+                      }
+                      style={{
+                        cursor:
+                          "pointer",
+                      }}
+                      className={
+                        selectedId ===
+                        item.id
+                          ? "table-primary"
+                          : ""
+                      }
+                    >
                       <td>
                         {item.code}
                       </td>
@@ -90,19 +804,43 @@ function Items() {
                       </td>
 
                       <td>
-                        {item.is_active
-                          ? "Active"
-                          : "Inactive"}
+                        {
+                          item.reorder_level
+                        }
+                      </td>
+
+                      <td>
+                        {item.track_lot
+                          ? "Yes"
+                          : "No"}
+                      </td>
+
+                      <td>
+                        {item.track_expiry
+                          ? "Yes"
+                          : "No"}
+                      </td>
+
+                      <td>
+                        {item.is_active ? (
+                          <span className="badge text-bg-success">
+                            Active
+                          </span>
+                        ) : (
+                          <span className="badge text-bg-secondary">
+                            Inactive
+                          </span>
+                        )}
                       </td>
                     </tr>
                   )
                 )}
 
-                {items.length ===
+                {filteredItems.length ===
                   0 && (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={8}
                       className="text-center text-muted"
                     >
                       No items found.
