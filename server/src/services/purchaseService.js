@@ -262,3 +262,72 @@ export function getPurchaseById(id) {
     items,
   };
 }
+
+export function cancelPurchase(id) {
+  const transaction = db.transaction(() => {
+    const purchase = db.prepare(`
+      SELECT *
+      FROM purchases
+      WHERE id = ?
+    `).get(id);
+
+    if (!purchase) {
+      throw new Error("Purchase not found.");
+    }
+
+    if (purchase.status === "CANCELLED") {
+      throw new Error("Purchase is already cancelled.");
+    }
+
+    const items = db.prepare(`
+      SELECT *
+      FROM purchase_items
+      WHERE purchase_id = ?
+    `).all(id);
+
+    for (const item of items) {
+      addStockTransaction({
+        transactionDate: new Date()
+          .toISOString()
+          .slice(0, 10),
+
+        itemId: item.item_id,
+
+        transactionType: "PURCHASE_CANCEL",
+
+        referenceType: "PURCHASE",
+
+        referenceId: purchase.id,
+
+        referenceNo: purchase.purchase_no,
+
+        quantityIn: 0,
+        quantityOut: item.quantity,
+
+        unitCost: item.rate,
+
+        lotNo: item.lot_no || null,
+        expiryDate: item.expiry_date || null,
+
+        notes:
+          `Cancellation of ${purchase.purchase_no}`,
+      });
+    }
+
+    db.prepare(`
+      UPDATE purchases
+      SET
+        status = 'CANCELLED',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(id);
+
+    return {
+      id: purchase.id,
+      purchaseNo: purchase.purchase_no,
+      status: "CANCELLED",
+    };
+  });
+
+  return transaction();
+}

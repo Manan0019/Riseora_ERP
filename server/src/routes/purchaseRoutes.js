@@ -4,18 +4,17 @@ import {
   addPurchase,
   listPurchases,
   getPurchaseDetails,
+  cancelPurchaseEntry,
 } from "../controllers/purchaseController.js";
 
-const router =
-  express.Router();
+const router = express.Router();
+
+router.post("/", addPurchase);
 
 router.get("/", listPurchases);
 
-router.get(
-  "/:id",
-  getPurchaseDetails
-);
+router.get("/:id", getPurchaseDetails);
 
-router.post("/", addPurchase);
+router.patch("/:id/cancel", cancelPurchaseEntry);
 
 export default router;

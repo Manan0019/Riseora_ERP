@@ -2,6 +2,7 @@ import {
   createPurchase,
   getPurchases,
   getPurchaseById,
+  cancelPurchase,
 } from "../services/purchaseService.js";
 
 export function addPurchase(req, res) {
@@ -120,6 +121,29 @@ export function getPurchaseDetails(req, res) {
       success: false,
       message:
         "Unable to load purchase details",
+    });
+  }
+}
+
+export function cancelPurchaseEntry(req, res) {
+  try {
+    const id = Number(req.params.id);
+
+    const result =
+      cancelPurchase(id);
+
+    return res.json({
+      success: true,
+      message:
+        "Purchase cancelled and stock reversed successfully",
+      purchase: result,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message:
+        error.message ||
+        "Unable to cancel purchase",
     });
   }
 }

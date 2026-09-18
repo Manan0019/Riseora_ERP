@@ -107,13 +107,42 @@ function PurchaseRegister() {
       );
     }, [purchases, search]);
 
+    const handleCancelPurchase = async () => {
+      if (!selectedPurchase) {
+        return;
+      }
+
+      if (selectedPurchase.status === "CANCELLED") {
+        setError("This purchase is already cancelled.");
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `Cancel ${selectedPurchase.purchase_no}? Stock from this purchase will be reversed.`,
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        setError("");
+
+        await api.patch(`/purchases/${selectedPurchase.id}/cancel`);
+
+        setSelectedPurchase(null);
+
+        await loadPurchases();
+      } catch (err) {
+        setError(err.response?.data?.message || "Unable to cancel purchase.");
+      }
+    };
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-start mb-4">
         <div>
-          <h2 className="mb-1">
-            Purchase Register
-          </h2>
+          <h2 className="mb-1">Purchase Register</h2>
 
           <p className="text-muted mb-0">
             Review previously recorded purchases.
@@ -130,11 +159,7 @@ function PurchaseRegister() {
         </button>
       </div>
 
-      {error && (
-        <div className="alert alert-danger">
-          {error}
-        </div>
-      )}
+      {error && <div className="alert alert-danger">{error}</div>}
 
       <div className="card mb-4">
         <div className="card-body">
@@ -144,11 +169,7 @@ function PurchaseRegister() {
               className="form-control"
               placeholder="Search by purchase no, supplier or supplier invoice..."
               value={search}
-              onChange={(event) =>
-                setSearch(
-                  event.target.value
-                )
-              }
+              onChange={(event) => setSearch(event.target.value)}
             />
           </div>
 
@@ -170,97 +191,56 @@ function PurchaseRegister() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td
-                      colSpan={8}
-                      className="text-center text-muted"
-                    >
+                    <td colSpan={8} className="text-center text-muted">
                       Loading purchases...
                     </td>
                   </tr>
                 ) : (
                   <>
-                    {filteredPurchases.map(
-                      (purchase) => (
-                        <tr
-                          key={
-                            purchase.id
-                          }
-                          onClick={() =>
-                            loadPurchaseDetails(
-                              purchase.id
-                            )
-                          }
-                          style={{
-                            cursor:
-                              "pointer",
-                          }}
-                        >
-                          <td>
-                            {
-                              purchase.purchase_no
-                            }
-                          </td>
+                    {filteredPurchases.map((purchase) => (
+                      <tr
+                        key={purchase.id}
+                        onClick={() => loadPurchaseDetails(purchase.id)}
+                        style={{
+                          cursor: "pointer",
+                        }}
+                        className={
+                          purchase.status === "CANCELLED"
+                            ? "table-secondary"
+                            : ""
+                        }
+                      >
+                        <td>{purchase.purchase_no}</td>
 
-                          <td>
-                            {
-                              purchase.purchase_date
-                            }
-                          </td>
+                        <td>{purchase.purchase_date}</td>
 
-                          <td>
-                            {
-                              purchase.supplier_name
-                            }
-                          </td>
+                        <td>{purchase.supplier_name}</td>
 
-                          <td>
-                            {purchase.supplier_invoice_no ||
-                              "-"}
-                          </td>
+                        <td>{purchase.supplier_invoice_no || "-"}</td>
 
-                          <td>
-                            ₹
-                            {Number(
-                              purchase.subtotal
-                            ).toFixed(
-                              2
-                            )}
-                          </td>
+                        <td>₹{Number(purchase.subtotal).toFixed(2)}</td>
 
-                          <td>
-                            ₹
-                            {Number(
-                              purchase.gst_amount
-                            ).toFixed(
-                              2
-                            )}
-                          </td>
+                        <td>₹{Number(purchase.gst_amount).toFixed(2)}</td>
 
-                          <td>
-                            ₹
-                            {Number(
-                              purchase.grand_total
-                            ).toFixed(
-                              2
-                            )}
-                          </td>
+                        <td>₹{Number(purchase.grand_total).toFixed(2)}</td>
 
-                          <td>
-                            {
-                              purchase.status
-                            }
-                          </td>
-                        </tr>
-                      )
-                    )}
+                        <td>
+                          {purchase.status === "CANCELLED" ? (
+                            <span className="badge text-bg-danger">
+                              Cancelled
+                            </span>
+                          ) : (
+                            <span className="badge text-bg-success">
+                              Posted
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
 
-                    {filteredPurchases.length ===
-                      0 && (
+                    {filteredPurchases.length === 0 && (
                       <tr>
-                        <td
-                          colSpan={8}
-                          className="text-center text-muted"
-                        >
+                        <td colSpan={8} className="text-center text-muted">
                           No purchases found.
                         </td>
                       </tr>
@@ -276,63 +256,48 @@ function PurchaseRegister() {
       {selectedPurchase && (
         <div className="card">
           <div className="card-body">
-            <h5 className="mb-3">
-              Purchase Details
-            </h5>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h5 className="mb-0">Purchase Details</h5>
+
+              {selectedPurchase.status !== "CANCELLED" && (
+                <button
+                  type="button"
+                  className="btn btn-outline-danger"
+                  onClick={handleCancelPurchase}
+                >
+                  Cancel Purchase
+                </button>
+              )}
+            </div>
 
             {detailsLoading ? (
-              <p>
-                Loading details...
-              </p>
+              <p>Loading details...</p>
             ) : (
               <>
                 <div className="row mb-3">
                   <div className="col-md-3">
-                    <strong>
-                      Purchase No
-                    </strong>
+                    <strong>Purchase No</strong>
 
-                    <div>
-                      {
-                        selectedPurchase.purchase_no
-                      }
-                    </div>
+                    <div>{selectedPurchase.purchase_no}</div>
                   </div>
 
                   <div className="col-md-3">
-                    <strong>
-                      Supplier
-                    </strong>
+                    <strong>Supplier</strong>
 
-                    <div>
-                      {
-                        selectedPurchase.supplier_name
-                      }
-                    </div>
+                    <div>{selectedPurchase.supplier_name}</div>
                   </div>
 
                   <div className="col-md-3">
-                    <strong>
-                      Date
-                    </strong>
+                    <strong>Date</strong>
 
-                    <div>
-                      {
-                        selectedPurchase.purchase_date
-                      }
-                    </div>
+                    <div>{selectedPurchase.purchase_date}</div>
                   </div>
 
                   <div className="col-md-3">
-                    <strong>
-                      Total
-                    </strong>
+                    <strong>Total</strong>
 
                     <div>
-                      ₹
-                      {Number(
-                        selectedPurchase.grand_total
-                      ).toFixed(2)}
+                      ₹{Number(selectedPurchase.grand_total).toFixed(2)}
                     </div>
                   </div>
                 </div>
@@ -353,71 +318,27 @@ function PurchaseRegister() {
                     </thead>
 
                     <tbody>
-                      {selectedPurchase.items.map(
-                        (item) => (
-                          <tr
-                            key={
-                              item.id
-                            }
-                          >
-                            <td>
-                              {
-                                item.item_code
-                              }{" "}
-                              -{" "}
-                              {
-                                item.item_name
-                              }
-                            </td>
+                      {selectedPurchase.items.map((item) => (
+                        <tr key={item.id}>
+                          <td>
+                            {item.item_code} - {item.item_name}
+                          </td>
 
-                            <td>
-                              {
-                                item.quantity
-                              }
-                            </td>
+                          <td>{item.quantity}</td>
 
-                            <td>
-                              {
-                                item.unit_code
-                              }
-                            </td>
+                          <td>{item.unit_code}</td>
 
-                            <td>
-                              ₹
-                              {Number(
-                                item.rate
-                              ).toFixed(
-                                2
-                              )}
-                            </td>
+                          <td>₹{Number(item.rate).toFixed(2)}</td>
 
-                            <td>
-                              {
-                                item.gst_rate
-                              }
-                            </td>
+                          <td>{item.gst_rate}</td>
 
-                            <td>
-                              {item.lot_no ||
-                                "-"}
-                            </td>
+                          <td>{item.lot_no || "-"}</td>
 
-                            <td>
-                              {item.expiry_date ||
-                                "-"}
-                            </td>
+                          <td>{item.expiry_date || "-"}</td>
 
-                            <td>
-                              ₹
-                              {Number(
-                                item.line_total
-                              ).toFixed(
-                                2
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      )}
+                          <td>₹{Number(item.line_total).toFixed(2)}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
