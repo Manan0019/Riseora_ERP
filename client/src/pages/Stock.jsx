@@ -7,6 +7,10 @@ function Stock() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [ledger, setLedger] = useState([]);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+
   useEffect(() => {
     loadStock();
   }, []);
@@ -38,15 +42,28 @@ function Stock() {
       return (
         item.code.toLowerCase().includes(text) ||
         item.name.toLowerCase().includes(text) ||
-        (item.category_name || "")
-          .toLowerCase()
-          .includes(text) ||
-        (item.unit_code || "")
-          .toLowerCase()
-          .includes(text)
+        (item.category_name || "").toLowerCase().includes(text) ||
+        (item.unit_code || "").toLowerCase().includes(text)
       );
     });
   }, [stock, search]);
+
+  const loadLedger = async (item) => {
+    try {
+      setSelectedItem(item);
+      setLedgerLoading(true);
+      setError("");
+
+      const response = await api.get(`/stock/item/${item.id}/ledger`);
+
+      setLedger(response.data.ledger);
+    } catch (err) {
+      console.error(err);
+      setError("Unable to load stock ledger.");
+    } finally {
+      setLedgerLoading(false);
+    }
+  };
 
   return (
     <div>
@@ -69,12 +86,9 @@ function Stock() {
         </button>
       </div>
 
-      {error && (
-        <div className="alert alert-danger">
-          {error}
-        </div>
-      )}
+      {error && <div className="alert alert-danger">{error}</div>}
 
+      {/* CURRENT STOCK */}
       <div className="card">
         <div className="card-body">
           <div className="mb-3">
@@ -83,9 +97,7 @@ function Stock() {
               className="form-control"
               placeholder="Search by code, item, category or unit..."
               value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
+              onChange={(event) => setSearch(event.target.value)}
             />
           </div>
 
@@ -104,26 +116,30 @@ function Stock() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td
-                      colSpan={5}
-                      className="text-center text-muted"
-                    >
+                    <td colSpan={5} className="text-center text-muted">
                       Loading stock...
                     </td>
                   </tr>
                 ) : (
                   <>
                     {filteredStock.map((item) => (
-                      <tr key={item.id}>
+                      <tr
+                        key={item.id}
+                        onClick={() => loadLedger(item)}
+                        style={{
+                          cursor: "pointer",
+                        }}
+                        className={
+                          selectedItem?.id === item.id ? "table-primary" : ""
+                        }
+                      >
                         <td>{item.code}</td>
+
                         <td>{item.name}</td>
+
                         <td>{item.category_name}</td>
 
-                        <td>
-                          {Number(
-                            item.current_stock || 0
-                          ).toFixed(3)}
-                        </td>
+                        <td>{Number(item.current_stock || 0).toFixed(3)}</td>
 
                         <td>{item.unit_code}</td>
                       </tr>
@@ -131,10 +147,7 @@ function Stock() {
 
                     {filteredStock.length === 0 && (
                       <tr>
-                        <td
-                          colSpan={5}
-                          className="text-center text-muted"
-                        >
+                        <td colSpan={5} className="text-center text-muted">
                           No stock records found.
                         </td>
                       </tr>
@@ -146,6 +159,84 @@ function Stock() {
           </div>
         </div>
       </div>
+
+      {/* STOCK LEDGER - MUST BE OUTSIDE CURRENT STOCK TABLE */}
+      {selectedItem && (
+        <div className="card mt-4">
+          <div className="card-body">
+            <div className="mb-3">
+              <h5 className="mb-1">Stock Ledger</h5>
+
+              <div className="text-muted">
+                {selectedItem.code} - {selectedItem.name}
+              </div>
+            </div>
+
+            {ledgerLoading ? (
+              <p>Loading ledger...</p>
+            ) : (
+              <div className="table-responsive">
+                <table className="table table-bordered table-hover align-middle">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Date</th>
+                      <th>Type</th>
+                      <th>Reference</th>
+                      <th>Lot</th>
+                      <th>In</th>
+                      <th>Out</th>
+                      <th>Unit Cost</th>
+                      <th>Balance</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {(() => {
+                      let runningBalance = 0;
+
+                      return ledger.map((entry) => {
+                        runningBalance +=
+                          Number(entry.quantity_in || 0) -
+                          Number(entry.quantity_out || 0);
+
+                        return (
+                          <tr key={entry.id}>
+                            <td>{entry.transaction_date}</td>
+
+                            <td>{entry.transaction_type}</td>
+
+                            <td>{entry.reference_no || "-"}</td>
+
+                            <td>{entry.lot_no || "-"}</td>
+
+                            <td>{Number(entry.quantity_in || 0).toFixed(3)}</td>
+
+                            <td>
+                              {Number(entry.quantity_out || 0).toFixed(3)}
+                            </td>
+
+                            <td>₹{Number(entry.unit_cost || 0).toFixed(2)}</td>
+
+                            <td>{runningBalance.toFixed(3)}</td>
+                          </tr>
+                        );
+                      });
+                    })()}
+
+                    {ledger.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="text-center text-muted">
+                          No stock movements found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
