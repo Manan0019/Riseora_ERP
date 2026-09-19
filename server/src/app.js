@@ -20,6 +20,7 @@ import formulaRoutes from "./routes/formulaRoutes.js";
 import productionRoutes from "./routes/productionRoutes.js";
 import salesRoutes from "./routes/salesRoutes.js";
 import customerLedgerRoutes from "./routes/customerLedgerRoutes.js";
+import supplierLedgerRoutes from "./routes/supplierLedgerRoutes.js";
 
 import { initDatabase } from "./db/initDatabase.js";
 
@@ -179,6 +180,13 @@ app.use(
   requireAuth,
   requireAdmin,
   customerLedgerRoutes
+);
+
+app.use(
+  "/api/supplier-ledger",
+  requireAuth,
+  requireAdmin,
+  supplierLedgerRoutes
 );
 
 app.listen(PORT, () => {

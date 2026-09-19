@@ -20,6 +20,7 @@ import ProductionRegister from "./pages/ProductionRegister";
 import Sales from "./pages/Sales";
 import SalesRegister from "./pages/SalesRegister";
 import CustomerLedger from "./pages/CustomerLedger";
+import SupplierLedger from "./pages/SupplierLedger";
 
 import MainLayout from "./layouts/MainLayout";
 
@@ -89,6 +90,8 @@ function App() {
           <Route path="sales-register" element={<SalesRegister />} />
 
           <Route path="customer-ledger" element={<CustomerLedger />} />
+
+          <Route path="supplier-ledger" element={<SupplierLedger />} />
           
         </Route>
       </Routes>

@@ -119,6 +119,15 @@ function MainLayout() {
             </NavLink>
 
             <NavLink
+              to="/supplier-ledger"
+              className={({ isActive }) =>
+                isActive ? "sidebar-link active" : "sidebar-link"
+              }
+            >
+              Supplier Ledger
+            </NavLink>
+
+            <NavLink
               to="/opening-stock"
               className={({ isActive }) =>
                 isActive ? "sidebar-link active" : "sidebar-link"
