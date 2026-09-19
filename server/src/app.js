@@ -18,6 +18,7 @@ import openingStockRoutes from "./routes/openingStockRoutes.js";
 import stockAdjustmentRoutes from "./routes/stockAdjustmentRoutes.js";
 import formulaRoutes from "./routes/formulaRoutes.js";
 import productionRoutes from "./routes/productionRoutes.js";
+import salesRoutes from "./routes/salesRoutes.js";
 
 import { initDatabase } from "./db/initDatabase.js";
 
@@ -163,6 +164,13 @@ app.use(
   requireAuth,
   requireAdmin,
   productionRoutes
+);
+
+app.use(
+  "/api/sales",
+  requireAuth,
+  requireAdmin,
+  salesRoutes
 );
 
 app.listen(PORT, () => {

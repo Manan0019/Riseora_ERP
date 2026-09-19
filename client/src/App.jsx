@@ -17,6 +17,7 @@ import StockAdjustment from "./pages/StockAdjustment";
 import Formulas from "./pages/Formulas";
 import Production from "./pages/Production";
 import ProductionRegister from "./pages/ProductionRegister";
+import Sales from "./pages/Sales";
 
 import MainLayout from "./layouts/MainLayout";
 
@@ -78,6 +79,8 @@ function App() {
           <Route path="production" element={<Production />} />
 
           <Route path="production-register" element={<ProductionRegister />} />
+
+          <Route path="sales" element={<Sales />} />
         
         </Route>
 

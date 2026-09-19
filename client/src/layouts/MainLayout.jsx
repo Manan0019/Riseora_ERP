@@ -174,6 +174,17 @@ function MainLayout() {
               Production Register
             </NavLink>
 
+            <div className="sidebar-heading">Sales</div>
+
+            <NavLink
+              to="/sales"
+              className={({ isActive }) =>
+                isActive ? "sidebar-link active" : "sidebar-link"
+              }
+            >
+              Sales Invoice
+            </NavLink>
+
             <div className="sidebar-heading">System</div>
 
             <NavLink
