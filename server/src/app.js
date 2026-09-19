@@ -21,6 +21,7 @@ import productionRoutes from "./routes/productionRoutes.js";
 import salesRoutes from "./routes/salesRoutes.js";
 import customerLedgerRoutes from "./routes/customerLedgerRoutes.js";
 import supplierLedgerRoutes from "./routes/supplierLedgerRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
 
 import { initDatabase } from "./db/initDatabase.js";
 
@@ -187,6 +188,13 @@ app.use(
   requireAuth,
   requireAdmin,
   supplierLedgerRoutes
+);
+
+app.use(
+  "/api/dashboard",
+  requireAuth,
+  requireAdmin,
+  dashboardRoutes
 );
 
 app.listen(PORT, () => {
