@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import riseoraLogoVerti from "../assets/riseora-Logo-Vertical.jpeg";
 
 function Login() {
   const navigate = useNavigate();
@@ -43,24 +44,17 @@ function Login() {
     <div className="login-page">
       <div className="login-card">
         <div className="mb-4">
-          <h3 className="mb-1">Riseora ERP</h3>
-          <p className="text-muted mb-0">
-            Sign in to continue
-          </p>
+          <div className="login-brand">
+            <img src={riseoraLogoVerti} alt="Riseora" className="login-logo" />
+          </div>
+          <p className="text-muted mb-0">Sign in to continue</p>
         </div>
 
-        {error && (
-          <div className="alert alert-danger py-2">
-            {error}
-          </div>
-        )}
+        {error && <div className="alert alert-danger py-2">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
-            <label
-              htmlFor="username"
-              className="form-label"
-            >
+            <label htmlFor="username" className="form-label">
               Username
             </label>
 
@@ -69,18 +63,13 @@ function Login() {
               type="text"
               className="form-control"
               value={username}
-              onChange={(e) =>
-                setUsername(e.target.value)
-              }
+              onChange={(e) => setUsername(e.target.value)}
               autoFocus
             />
           </div>
 
           <div className="mb-3">
-            <label
-              htmlFor="password"
-              className="form-label"
-            >
+            <label htmlFor="password" className="form-label">
               Password
             </label>
 
@@ -89,9 +78,7 @@ function Login() {
               type="password"
               className="form-control"
               value={password}
-              onChange={(e) =>
-                setPassword(e.target.value)
-              }
+              onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 

@@ -37,6 +37,28 @@ body {
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.06);
 }
+
+.login-brand {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.login-logo {
+  width: 190px;
+  max-width: 80%;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.login-subtitle {
+  text-align: center;
+  color: #6c757d;
+  margin-bottom: 24px;
+}
+
 .app-shell {
   min-height: 100vh;
   display: flex;

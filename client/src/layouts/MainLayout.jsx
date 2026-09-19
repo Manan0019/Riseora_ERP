@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import riseoraLogo from "../assets/riseora-logo.jpeg";
+import riseoraLogoHori from "../assets/riseora-logo-Horizontal.jpeg";
 
 function MainLayout() {
   const { user, logout } = useAuth();
@@ -15,7 +15,7 @@ function MainLayout() {
     <div className="app-shell">
       <header className="topbar">
         <NavLink to="/dashboard" className="brand-link">
-          <img src={riseoraLogo} alt="Riseora" className="brand-logo" />
+          <img src={riseoraLogoHori} alt="Riseora" className="brand-logo" />
         </NavLink>
 
         <div className="topbar-user">
