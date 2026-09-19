@@ -8,6 +8,7 @@ import { runItemMigration } from "./migrations/004_items.js";
 import { runPurchaseInventoryMigration } from "./migrations/005_purchases_inventory.js";
 import { runOpeningStockMigration } from "./migrations/006_opening_stock.js";
 import { runStockAdjustmentMigration } from "./migrations/007_stock_adjustments.js";
+import { runFormulaMigration } from "./migrations/008_formulas.js";
 
 export async function initDatabase() {
   runInitialMigration();
@@ -17,6 +18,7 @@ export async function initDatabase() {
   runPurchaseInventoryMigration();
   runOpeningStockMigration();
   runStockAdjustmentMigration();
+  runFormulaMigration();
 
   seedUnits();
   seedItemCategories();

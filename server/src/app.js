@@ -16,6 +16,7 @@ import purchaseRoutes from "./routes/purchaseRoutes.js";
 import stockRoutes from "./routes/stockRoutes.js";
 import openingStockRoutes from "./routes/openingStockRoutes.js";
 import stockAdjustmentRoutes from "./routes/stockAdjustmentRoutes.js";
+import formulaRoutes from "./routes/formulaRoutes.js";
 
 import { initDatabase } from "./db/initDatabase.js";
 
@@ -147,6 +148,13 @@ app.use(
   requireAuth,
   requireAdmin,
   stockAdjustmentRoutes
+);
+
+app.use(
+  "/api/formulas",
+  requireAuth,
+  requireAdmin,
+  formulaRoutes
 );
 
 app.listen(PORT, () => {

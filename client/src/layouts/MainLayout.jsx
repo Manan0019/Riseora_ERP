@@ -145,6 +145,17 @@ function MainLayout() {
               Current Stock
             </NavLink>
 
+            <div className="sidebar-heading">Manufacturing</div>
+
+            <NavLink
+              to="/formulas"
+              className={({ isActive }) =>
+                isActive ? "sidebar-link active" : "sidebar-link"
+              }
+            >
+              Formula Master
+            </NavLink>
+
             <div className="sidebar-heading">System</div>
 
             <NavLink
