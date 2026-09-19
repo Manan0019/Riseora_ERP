@@ -156,6 +156,15 @@ function MainLayout() {
               Formula Master
             </NavLink>
 
+            <NavLink
+              to="/production"
+              className={({ isActive }) =>
+                isActive ? "sidebar-link active" : "sidebar-link"
+              }
+            >
+              Production Entry
+            </NavLink>
+
             <div className="sidebar-heading">System</div>
 
             <NavLink

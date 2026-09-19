@@ -15,6 +15,7 @@ import PurchaseRegister from "./pages/PurchaseRegister";
 import OpeningStock from "./pages/OpeningStock";
 import StockAdjustment from "./pages/StockAdjustment";
 import Formulas from "./pages/Formulas";
+import Production from "./pages/Production";
 
 import MainLayout from "./layouts/MainLayout";
 
@@ -72,6 +73,9 @@ function App() {
           <Route path="stock-adjustment" element={<StockAdjustment />} />
 
           <Route path="formulas" element={<Formulas />} />
+
+          <Route path="production" element={<Production />} />
+          
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

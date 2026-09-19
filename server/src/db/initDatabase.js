@@ -9,6 +9,7 @@ import { runPurchaseInventoryMigration } from "./migrations/005_purchases_invent
 import { runOpeningStockMigration } from "./migrations/006_opening_stock.js";
 import { runStockAdjustmentMigration } from "./migrations/007_stock_adjustments.js";
 import { runFormulaMigration } from "./migrations/008_formulas.js";
+import { runProductionMigration } from "./migrations/009_production.js";
 
 export async function initDatabase() {
   runInitialMigration();
@@ -19,6 +20,7 @@ export async function initDatabase() {
   runOpeningStockMigration();
   runStockAdjustmentMigration();
   runFormulaMigration();
+  runProductionMigration();
 
   seedUnits();
   seedItemCategories();
