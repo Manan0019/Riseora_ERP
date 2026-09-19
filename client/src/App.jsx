@@ -13,6 +13,7 @@ import Purchases from "./pages/Purchases";
 import Stock from "./pages/Stock";
 import PurchaseRegister from "./pages/PurchaseRegister";
 import OpeningStock from "./pages/OpeningStock";
+import StockAdjustment from "./pages/StockAdjustment";
 
 import MainLayout from "./layouts/MainLayout";
 
@@ -66,6 +67,8 @@ function App() {
           <Route path="purchase-register" element={<PurchaseRegister />} />
 
           <Route path="opening-stock" element={<OpeningStock />} />
+
+          <Route path="stock-adjustment" element={<StockAdjustment />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

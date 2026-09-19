@@ -128,6 +128,15 @@ function MainLayout() {
             </NavLink>
 
             <NavLink
+              to="/stock-adjustment"
+              className={({ isActive }) =>
+                isActive ? "sidebar-link active" : "sidebar-link"
+              }
+            >
+              Stock Adjustment
+            </NavLink>
+
+            <NavLink
               to="/stock"
               className={({ isActive }) =>
                 isActive ? "sidebar-link active" : "sidebar-link"
