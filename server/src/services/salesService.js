@@ -549,3 +549,104 @@ export function addSalesPayment(
 
   return transaction();
 }
+
+export function cancelSale(invoiceId) {
+  const transaction = db.transaction(() => {
+    const invoice = db.prepare(`
+      SELECT *
+      FROM sales_invoices
+      WHERE id = ?
+    `).get(invoiceId);
+
+    if (!invoice) {
+      throw new Error(
+        "Sales invoice not found."
+      );
+    }
+
+    if (
+      invoice.status === "CANCELLED"
+    ) {
+      throw new Error(
+        "Sales invoice is already cancelled."
+      );
+    }
+
+    if (
+      Number(
+        invoice.amount_paid || 0
+      ) > 0
+    ) {
+      throw new Error(
+        "This invoice has received payment. Record a refund/credit note before cancellation."
+      );
+    }
+
+    const items = db.prepare(`
+      SELECT *
+      FROM sales_items
+      WHERE sales_invoice_id = ?
+    `).all(invoiceId);
+
+    for (const item of items) {
+      addStockTransaction({
+        transactionDate:
+          new Date()
+            .toISOString()
+            .slice(0, 10),
+
+        itemId:
+          item.item_id,
+
+        transactionType:
+          "SALE_CANCEL",
+
+        referenceType:
+          "SALE",
+
+        referenceId:
+          invoice.id,
+
+        referenceNo:
+          invoice.invoice_no,
+
+        quantityIn:
+          item.quantity,
+
+        quantityOut: 0,
+
+        unitCost: 0,
+
+        lotNo:
+          item.lot_no || null,
+
+        expiryDate: null,
+
+        notes:
+          `Cancellation of ${invoice.invoice_no}`,
+      });
+    }
+
+    db.prepare(`
+      UPDATE sales_invoices
+      SET
+        status = 'CANCELLED',
+        payment_status = 'CANCELLED',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(invoiceId);
+
+    return {
+      invoiceId:
+        invoice.id,
+
+      invoiceNo:
+        invoice.invoice_no,
+
+      status:
+        "CANCELLED",
+    };
+  });
+
+  return transaction();
+}

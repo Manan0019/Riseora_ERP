@@ -212,13 +212,75 @@ function SalesRegister() {
       }
     };
 
+const handleCancelInvoice =
+  async () => {
+    if (!selectedInvoice) {
+      return;
+    }
+
+    if (
+      selectedInvoice.status ===
+      "CANCELLED"
+    ) {
+      setError(
+        "This invoice is already cancelled."
+      );
+
+      return;
+    }
+
+    if (
+      Number(
+        selectedInvoice.amount_paid ||
+          0
+      ) > 0
+    ) {
+      setError(
+        "This invoice has received payment and cannot be cancelled directly."
+      );
+
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        `Cancel ${selectedInvoice.invoice_no}? Sold stock will be returned to inventory.`
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setError("");
+      setMessage("");
+
+      await api.patch(
+        `/sales/${selectedInvoice.id}/cancel`
+      );
+
+      setMessage(
+        "Sales invoice cancelled successfully."
+      );
+
+      setSelectedInvoice(null);
+
+      await loadInvoices();
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        err.response?.data?.message ||
+          "Unable to cancel invoice."
+      );
+    }
+  };
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-start mb-4">
         <div>
-          <h2 className="mb-1">
-            Sales Register
-          </h2>
+          <h2 className="mb-1">Sales Register</h2>
 
           <p className="text-muted mb-0">
             Review invoices and collect customer payments.
@@ -228,28 +290,16 @@ function SalesRegister() {
         <button
           type="button"
           className="btn btn-outline-primary"
-          onClick={
-            loadInvoices
-          }
-          disabled={
-            loading
-          }
+          onClick={loadInvoices}
+          disabled={loading}
         >
           Refresh
         </button>
       </div>
 
-      {message && (
-        <div className="alert alert-success">
-          {message}
-        </div>
-      )}
+      {message && <div className="alert alert-success">{message}</div>}
 
-      {error && (
-        <div className="alert alert-danger">
-          {error}
-        </div>
-      )}
+      {error && <div className="alert alert-danger">{error}</div>}
 
       <div className="card mb-4">
         <div className="card-body">
@@ -258,11 +308,7 @@ function SalesRegister() {
             className="form-control mb-3"
             placeholder="Search invoice or customer..."
             value={search}
-            onChange={(event) =>
-              setSearch(
-                event.target.value
-              )
-            }
+            onChange={(event) => setSearch(event.target.value)}
           />
 
           <div className="table-responsive">
@@ -283,129 +329,68 @@ function SalesRegister() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td
-                      colSpan={8}
-                      className="text-center text-muted"
-                    >
+                    <td colSpan={8} className="text-center text-muted">
                       Loading invoices...
                     </td>
                   </tr>
                 ) : (
                   <>
-                    {filteredInvoices.map(
-                      (invoice) => {
-                        const balance =
-                          Number(
-                            invoice.grand_total ||
-                              0
-                          ) -
-                          Number(
-                            invoice.amount_paid ||
-                              0
-                          );
+                    {filteredInvoices.map((invoice) => {
+                      const balance =
+                        Number(invoice.grand_total || 0) -
+                        Number(invoice.amount_paid || 0);
 
-                        return (
-                          <tr
-                            key={
-                              invoice.id
-                            }
-                            onClick={() =>
-                              loadInvoiceDetails(
-                                invoice.id
-                              )
-                            }
-                            style={{
-                              cursor:
-                                "pointer",
-                            }}
-                            className={
-                              selectedInvoice?.id ===
-                              invoice.id
-                                ? "table-primary"
-                                : invoice.status ===
-                                    "CANCELLED"
-                                  ? "table-secondary"
-                                  : ""
-                            }
-                          >
-                            <td>
-                              {
-                                invoice.invoice_no
-                              }
-                            </td>
-
-                            <td>
-                              {
-                                invoice.invoice_date
-                              }
-                            </td>
-
-                            <td>
-                              {
-                                invoice.customer_name
-                              }
-                            </td>
-
-                            <td>
-                              ₹
-                              {Number(
-                                invoice.grand_total
-                              ).toFixed(
-                                2
-                              )}
-                            </td>
-
-                            <td>
-                              ₹
-                              {Number(
-                                invoice.amount_paid
-                              ).toFixed(
-                                2
-                              )}
-                            </td>
-
-                            <td>
-                              ₹
-                              {balance.toFixed(
-                                2
-                              )}
-                            </td>
-
-                            <td>
-                              {invoice.payment_status ===
-                              "PAID" ? (
-                                <span className="badge text-bg-success">
-                                  Paid
-                                </span>
-                              ) : invoice.payment_status ===
-                                "PARTIAL" ? (
-                                <span className="badge text-bg-warning">
-                                  Partial
-                                </span>
-                              ) : (
-                                <span className="badge text-bg-danger">
-                                  Unpaid
-                                </span>
-                              )}
-                            </td>
-
-                            <td>
-                              {
-                                invoice.status
-                              }
-                            </td>
-                          </tr>
-                        );
-                      }
-                    )}
-
-                    {filteredInvoices.length ===
-                      0 && (
-                      <tr>
-                        <td
-                          colSpan={8}
-                          className="text-center text-muted"
+                      return (
+                        <tr
+                          key={invoice.id}
+                          onClick={() => loadInvoiceDetails(invoice.id)}
+                          style={{
+                            cursor: "pointer",
+                          }}
+                          className={
+                            selectedInvoice?.id === invoice.id
+                              ? "table-primary"
+                              : invoice.status === "CANCELLED"
+                                ? "table-secondary"
+                                : ""
+                          }
                         >
+                          <td>{invoice.invoice_no}</td>
+
+                          <td>{invoice.invoice_date}</td>
+
+                          <td>{invoice.customer_name}</td>
+
+                          <td>₹{Number(invoice.grand_total).toFixed(2)}</td>
+
+                          <td>₹{Number(invoice.amount_paid).toFixed(2)}</td>
+
+                          <td>₹{balance.toFixed(2)}</td>
+
+                          <td>
+                            {invoice.payment_status === "PAID" ? (
+                              <span className="badge text-bg-success">
+                                Paid
+                              </span>
+                            ) : invoice.payment_status === "PARTIAL" ? (
+                              <span className="badge text-bg-warning">
+                                Partial
+                              </span>
+                            ) : (
+                              <span className="badge text-bg-danger">
+                                Unpaid
+                              </span>
+                            )}
+                          </td>
+
+                          <td>{invoice.status}</td>
+                        </tr>
+                      );
+                    })}
+
+                    {filteredInvoices.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="text-center text-muted">
                           No sales invoices found.
                         </td>
                       </tr>
@@ -421,98 +406,74 @@ function SalesRegister() {
       {selectedInvoice && (
         <div className="card">
           <div className="card-body">
-            <h5 className="mb-3">
-              Invoice Details
-            </h5>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h5 className="mb-0">Invoice Details</h5>
+
+              {selectedInvoice.status !== "CANCELLED" &&
+                Number(selectedInvoice.amount_paid || 0) === 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-outline-danger"
+                    onClick={handleCancelInvoice}
+                  >
+                    Cancel Invoice
+                  </button>
+                )}
+            </div>
+
+            {selectedInvoice.status !== "CANCELLED" &&
+              Number(selectedInvoice.amount_paid || 0) > 0 && (
+                <div className="alert alert-warning">
+                  Payment has been received on this invoice. Use refund / credit
+                  note flow instead of direct cancellation.
+                </div>
+              )}
 
             {detailsLoading ? (
-              <p>
-                Loading invoice details...
-              </p>
+              <p>Loading invoice details...</p>
             ) : (
               <>
                 <div className="row mb-4">
                   <div className="col-md-3">
-                    <strong>
-                      Invoice
-                    </strong>
+                    <strong>Invoice</strong>
 
-                    <div>
-                      {
-                        selectedInvoice.invoice_no
-                      }
-                    </div>
+                    <div>{selectedInvoice.invoice_no}</div>
                   </div>
 
                   <div className="col-md-3">
-                    <strong>
-                      Customer
-                    </strong>
+                    <strong>Customer</strong>
 
-                    <div>
-                      {
-                        selectedInvoice.customer_name
-                      }
-                    </div>
+                    <div>{selectedInvoice.customer_name}</div>
                   </div>
 
                   <div className="col-md-2">
-                    <strong>
-                      Total
-                    </strong>
+                    <strong>Total</strong>
 
-                    <div>
-                      ₹
-                      {Number(
-                        selectedInvoice.grand_total
-                      ).toFixed(
-                        2
-                      )}
-                    </div>
+                    <div>₹{Number(selectedInvoice.grand_total).toFixed(2)}</div>
                   </div>
 
                   <div className="col-md-2">
-                    <strong>
-                      Paid
-                    </strong>
+                    <strong>Paid</strong>
 
-                    <div>
-                      ₹
-                      {Number(
-                        selectedInvoice.amount_paid
-                      ).toFixed(
-                        2
-                      )}
-                    </div>
+                    <div>₹{Number(selectedInvoice.amount_paid).toFixed(2)}</div>
                   </div>
 
                   <div className="col-md-2">
-                    <strong>
-                      Balance
-                    </strong>
+                    <strong>Balance</strong>
 
                     <div>
-                      ₹
-                      {Number(
-                        selectedInvoice.balance_amount
-                      ).toFixed(
-                        2
-                      )}
+                      ₹{Number(selectedInvoice.balance_amount).toFixed(2)}
                     </div>
                   </div>
                 </div>
 
-                <h6>
-                  Invoice Items
-                </h6>
+                <h6>Invoice Items</h6>
 
                 <div className="table-responsive mb-4">
                   <table className="table table-bordered">
                     <thead className="table-light">
                       <tr>
-                        <th>
-                          Product
-                        </th>
+                        <th>Product</th>
                         <th>Qty</th>
                         <th>Unit</th>
                         <th>Rate</th>
@@ -522,69 +483,28 @@ function SalesRegister() {
                     </thead>
 
                     <tbody>
-                      {selectedInvoice.items.map(
-                        (item) => (
-                          <tr
-                            key={
-                              item.id
-                            }
-                          >
-                            <td>
-                              {
-                                item.item_code
-                              }{" "}
-                              -{" "}
-                              {
-                                item.item_name
-                              }
-                            </td>
+                      {selectedInvoice.items.map((item) => (
+                        <tr key={item.id}>
+                          <td>
+                            {item.item_code} - {item.item_name}
+                          </td>
 
-                            <td>
-                              {
-                                item.quantity
-                              }
-                            </td>
+                          <td>{item.quantity}</td>
 
-                            <td>
-                              {
-                                item.unit_code
-                              }
-                            </td>
+                          <td>{item.unit_code}</td>
 
-                            <td>
-                              ₹
-                              {Number(
-                                item.rate
-                              ).toFixed(
-                                2
-                              )}
-                            </td>
+                          <td>₹{Number(item.rate).toFixed(2)}</td>
 
-                            <td>
-                              {
-                                item.gst_rate
-                              }
-                              %
-                            </td>
+                          <td>{item.gst_rate}%</td>
 
-                            <td>
-                              ₹
-                              {Number(
-                                item.line_total
-                              ).toFixed(
-                                2
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      )}
+                          <td>₹{Number(item.line_total).toFixed(2)}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
 
-                <h6>
-                  Payment History
-                </h6>
+                <h6>Payment History</h6>
 
                 <div className="table-responsive mb-4">
                   <table className="table table-bordered">
@@ -598,53 +518,21 @@ function SalesRegister() {
                     </thead>
 
                     <tbody>
-                      {selectedInvoice.payments.map(
-                        (
-                          payment
-                        ) => (
-                          <tr
-                            key={
-                              payment.id
-                            }
-                          >
-                            <td>
-                              {
-                                payment.payment_date
-                              }
-                            </td>
+                      {selectedInvoice.payments.map((payment) => (
+                        <tr key={payment.id}>
+                          <td>{payment.payment_date}</td>
 
-                            <td>
-                              ₹
-                              {Number(
-                                payment.amount
-                              ).toFixed(
-                                2
-                              )}
-                            </td>
+                          <td>₹{Number(payment.amount).toFixed(2)}</td>
 
-                            <td>
-                              {
-                                payment.payment_mode
-                              }
-                            </td>
+                          <td>{payment.payment_mode}</td>
 
-                            <td>
-                              {payment.reference_no ||
-                                "-"}
-                            </td>
-                          </tr>
-                        )
-                      )}
+                          <td>{payment.reference_no || "-"}</td>
+                        </tr>
+                      ))}
 
-                      {selectedInvoice
-                        .payments
-                        .length ===
-                        0 && (
+                      {selectedInvoice.payments.length === 0 && (
                         <tr>
-                          <td
-                            colSpan={4}
-                            className="text-center text-muted"
-                          >
+                          <td colSpan={4} className="text-center text-muted">
                             No payments recorded.
                           </td>
                         </tr>
@@ -653,40 +541,26 @@ function SalesRegister() {
                   </table>
                 </div>
 
-                {selectedInvoice.status !==
-                  "CANCELLED" &&
-                  Number(
-                    selectedInvoice.balance_amount
-                  ) >
-                    0 && (
+                {selectedInvoice.status !== "CANCELLED" &&
+                  Number(selectedInvoice.balance_amount) > 0 && (
                     <div className="border rounded p-3">
-                      <h6>
-                        Receive Payment
-                      </h6>
+                      <h6>Receive Payment</h6>
 
                       <div className="row">
                         <div className="col-md-3 mb-3">
-                          <label className="form-label">
-                            Date
-                          </label>
+                          <label className="form-label">Date</label>
 
                           <input
                             type="date"
                             className="form-control"
                             name="paymentDate"
-                            value={
-                              paymentForm.paymentDate
-                            }
-                            onChange={
-                              handlePaymentChange
-                            }
+                            value={paymentForm.paymentDate}
+                            onChange={handlePaymentChange}
                           />
                         </div>
 
                         <div className="col-md-3 mb-3">
-                          <label className="form-label">
-                            Amount
-                          </label>
+                          <label className="form-label">Amount</label>
 
                           <input
                             type="number"
@@ -694,83 +568,51 @@ function SalesRegister() {
                             step="0.01"
                             className="form-control"
                             name="amount"
-                            value={
-                              paymentForm.amount
-                            }
-                            onChange={
-                              handlePaymentChange
-                            }
+                            value={paymentForm.amount}
+                            onChange={handlePaymentChange}
                           />
                         </div>
 
                         <div className="col-md-3 mb-3">
-                          <label className="form-label">
-                            Mode
-                          </label>
+                          <label className="form-label">Mode</label>
 
                           <select
                             className="form-select"
                             name="paymentMode"
-                            value={
-                              paymentForm.paymentMode
-                            }
-                            onChange={
-                              handlePaymentChange
-                            }
+                            value={paymentForm.paymentMode}
+                            onChange={handlePaymentChange}
                           >
-                            <option value="CASH">
-                              Cash
-                            </option>
+                            <option value="CASH">Cash</option>
 
-                            <option value="UPI">
-                              UPI
-                            </option>
+                            <option value="UPI">UPI</option>
 
-                            <option value="BANK">
-                              Bank Transfer
-                            </option>
+                            <option value="BANK">Bank Transfer</option>
 
-                            <option value="CARD">
-                              Card
-                            </option>
+                            <option value="CARD">Card</option>
 
-                            <option value="CHEQUE">
-                              Cheque
-                            </option>
+                            <option value="CHEQUE">Cheque</option>
                           </select>
                         </div>
 
                         <div className="col-md-3 mb-3">
-                          <label className="form-label">
-                            Reference
-                          </label>
+                          <label className="form-label">Reference</label>
 
                           <input
                             className="form-control"
                             name="referenceNo"
-                            value={
-                              paymentForm.referenceNo
-                            }
-                            onChange={
-                              handlePaymentChange
-                            }
+                            value={paymentForm.referenceNo}
+                            onChange={handlePaymentChange}
                           />
                         </div>
 
                         <div className="col-12 mb-3">
-                          <label className="form-label">
-                            Notes
-                          </label>
+                          <label className="form-label">Notes</label>
 
                           <input
                             className="form-control"
                             name="notes"
-                            value={
-                              paymentForm.notes
-                            }
-                            onChange={
-                              handlePaymentChange
-                            }
+                            value={paymentForm.notes}
+                            onChange={handlePaymentChange}
                           />
                         </div>
                       </div>
@@ -778,16 +620,10 @@ function SalesRegister() {
                       <button
                         type="button"
                         className="btn btn-success"
-                        onClick={
-                          savePayment
-                        }
-                        disabled={
-                          savingPayment
-                        }
+                        onClick={savePayment}
+                        disabled={savingPayment}
                       >
-                        {savingPayment
-                          ? "Saving..."
-                          : "Receive Payment"}
+                        {savingPayment ? "Saving..." : "Receive Payment"}
                       </button>
                     </div>
                   )}

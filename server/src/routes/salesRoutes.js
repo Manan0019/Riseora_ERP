@@ -5,6 +5,7 @@ import {
   listSales,
   salesDetails,
   receiveSalesPayment,
+  cancelSalesInvoice,
 } from "../controllers/salesController.js";
 
 const router =
@@ -28,6 +29,11 @@ router.get(
 router.post(
   "/:id/payments",
   receiveSalesPayment
+);
+
+router.patch(
+  "/:id/cancel",
+  cancelSalesInvoice
 );
 
 export default router;

@@ -3,6 +3,7 @@ import {
   getSalesInvoices,
   getSalesInvoiceById,
   addSalesPayment,
+  cancelSale,
 } from "../services/salesService.js";
 
 export function addSale(
@@ -217,6 +218,38 @@ export function receiveSalesPayment(
       message:
         error.message ||
         "Unable to record payment.",
+    });
+  }
+}
+
+export function cancelSalesInvoice(
+  req,
+  res
+) {
+  try {
+    const result =
+      cancelSale(
+        Number(req.params.id)
+      );
+
+    return res.json({
+      success: true,
+      message:
+        "Sales invoice cancelled and stock restored successfully.",
+      invoice:
+        result,
+    });
+  } catch (error) {
+    console.error(
+      "Sales cancellation error:",
+      error
+    );
+
+    return res.status(400).json({
+      success: false,
+      message:
+        error.message ||
+        "Unable to cancel sales invoice.",
     });
   }
 }
