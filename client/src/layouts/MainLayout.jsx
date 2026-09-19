@@ -165,6 +165,15 @@ function MainLayout() {
               Production Entry
             </NavLink>
 
+            <NavLink
+              to="/production-register"
+              className={({ isActive }) =>
+                isActive ? "sidebar-link active" : "sidebar-link"
+              }
+            >
+              Production Register
+            </NavLink>
+
             <div className="sidebar-heading">System</div>
 
             <NavLink

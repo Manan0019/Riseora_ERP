@@ -3,6 +3,9 @@ import express from "express";
 import {
   calculateProduction,
   addProduction,
+  listProductionBatches,
+  productionBatchDetails,
+  cancelProduction,
 } from "../controllers/productionController.js";
 
 const router =
@@ -13,9 +16,24 @@ router.get(
   calculateProduction
 );
 
+router.get(
+  "/",
+  listProductionBatches
+);
+
+router.get(
+  "/:id",
+  productionBatchDetails
+);
+
 router.post(
   "/",
   addProduction
+);
+
+router.patch(
+  "/:id/cancel",
+  cancelProduction
 );
 
 export default router;

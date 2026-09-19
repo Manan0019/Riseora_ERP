@@ -355,3 +355,259 @@ export function createProductionBatch(
 
   return transaction();
 }
+
+export function getProductionBatches() {
+  return db.prepare(`
+    SELECT
+      pb.id,
+      pb.batch_no,
+      pb.production_date,
+      pb.planned_batch_size,
+      pb.actual_output_qty,
+      pb.finished_lot_no,
+      pb.mfg_date,
+      pb.expiry_date,
+      pb.status,
+      pb.created_at,
+
+      f.code AS formula_code,
+      f.name AS formula_name,
+      f.version_no,
+
+      i.code AS finished_item_code,
+      i.name AS finished_item_name,
+
+      u.code AS batch_unit_code
+
+    FROM production_batches pb
+
+    INNER JOIN formulas f
+      ON f.id = pb.formula_id
+
+    INNER JOIN items i
+      ON i.id = pb.finished_item_id
+
+    INNER JOIN units u
+      ON u.id = pb.batch_unit_id
+
+    ORDER BY
+      pb.production_date DESC,
+      pb.id DESC
+  `).all();
+}
+
+export function getProductionBatchById(id) {
+  const batch = db.prepare(`
+    SELECT
+      pb.*,
+
+      f.code AS formula_code,
+      f.name AS formula_name,
+      f.version_no,
+
+      i.code AS finished_item_code,
+      i.name AS finished_item_name,
+
+      u.code AS batch_unit_code
+
+    FROM production_batches pb
+
+    INNER JOIN formulas f
+      ON f.id = pb.formula_id
+
+    INNER JOIN items i
+      ON i.id = pb.finished_item_id
+
+    INNER JOIN units u
+      ON u.id = pb.batch_unit_id
+
+    WHERE pb.id = ?
+  `).get(id);
+
+  if (!batch) {
+    return null;
+  }
+
+  const consumption = db.prepare(`
+    SELECT
+      pc.id,
+      pc.item_id,
+      pc.planned_quantity,
+      pc.actual_quantity,
+      pc.unit_id,
+      pc.lot_no,
+      pc.unit_cost,
+
+      i.code AS item_code,
+      i.name AS item_name,
+
+      u.code AS unit_code
+
+    FROM production_consumption pc
+
+    INNER JOIN items i
+      ON i.id = pc.item_id
+
+    INNER JOIN units u
+      ON u.id = pc.unit_id
+
+    WHERE pc.production_batch_id = ?
+
+    ORDER BY pc.id
+  `).all(id);
+
+  return {
+    ...batch,
+    consumption,
+  };
+}
+
+export function cancelProductionBatch(id) {
+  const transaction = db.transaction(() => {
+    const batch = db.prepare(`
+      SELECT *
+      FROM production_batches
+      WHERE id = ?
+    `).get(id);
+
+    if (!batch) {
+      throw new Error(
+        "Production batch not found."
+      );
+    }
+
+    if (
+      batch.status === "CANCELLED"
+    ) {
+      throw new Error(
+        "Production batch is already cancelled."
+      );
+    }
+
+    const consumption =
+      db.prepare(`
+        SELECT *
+        FROM production_consumption
+        WHERE production_batch_id = ?
+      `).all(id);
+
+    const finishedStock =
+      Number(
+        getItemStock(
+          batch.finished_item_id
+        )
+      );
+
+    if (
+      Number(
+        batch.actual_output_qty
+      ) >
+      finishedStock
+    ) {
+      throw new Error(
+        "Production batch cannot be cancelled because the produced finished stock is no longer fully available."
+      );
+    }
+
+    for (
+      const item of consumption
+    ) {
+      addStockTransaction({
+        transactionDate:
+          new Date()
+            .toISOString()
+            .slice(0, 10),
+
+        itemId:
+          item.item_id,
+
+        transactionType:
+          "PRODUCTION_CANCEL_CONSUMPTION",
+
+        referenceType:
+          "PRODUCTION",
+
+        referenceId:
+          batch.id,
+
+        referenceNo:
+          batch.batch_no,
+
+        quantityIn:
+          item.actual_quantity,
+
+        quantityOut: 0,
+
+        unitCost:
+          item.unit_cost,
+
+        lotNo:
+          item.lot_no || null,
+
+        expiryDate: null,
+
+        notes:
+          `Reversal of consumption for ${batch.batch_no}`,
+      });
+    }
+
+    addStockTransaction({
+      transactionDate:
+        new Date()
+          .toISOString()
+          .slice(0, 10),
+
+      itemId:
+        batch.finished_item_id,
+
+      transactionType:
+        "PRODUCTION_CANCEL_OUTPUT",
+
+      referenceType:
+        "PRODUCTION",
+
+      referenceId:
+        batch.id,
+
+      referenceNo:
+        batch.batch_no,
+
+      quantityIn: 0,
+
+      quantityOut:
+        batch.actual_output_qty,
+
+      unitCost: 0,
+
+      lotNo:
+        batch.finished_lot_no || null,
+
+      expiryDate:
+        batch.expiry_date || null,
+
+      notes:
+        `Reversal of output for ${batch.batch_no}`,
+    });
+
+    db.prepare(`
+      UPDATE production_batches
+      SET
+        status = 'CANCELLED',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(id);
+
+    return {
+      id:
+        batch.id,
+
+      batchNo:
+        batch.batch_no,
+
+      status:
+        "CANCELLED",
+    };
+  });
+
+  return transaction();
+}

@@ -16,6 +16,7 @@ import OpeningStock from "./pages/OpeningStock";
 import StockAdjustment from "./pages/StockAdjustment";
 import Formulas from "./pages/Formulas";
 import Production from "./pages/Production";
+import ProductionRegister from "./pages/ProductionRegister";
 
 import MainLayout from "./layouts/MainLayout";
 
@@ -75,7 +76,9 @@ function App() {
           <Route path="formulas" element={<Formulas />} />
 
           <Route path="production" element={<Production />} />
-          
+
+          <Route path="production-register" element={<ProductionRegister />} />
+        
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
