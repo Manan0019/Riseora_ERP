@@ -19,6 +19,7 @@ import stockAdjustmentRoutes from "./routes/stockAdjustmentRoutes.js";
 import formulaRoutes from "./routes/formulaRoutes.js";
 import productionRoutes from "./routes/productionRoutes.js";
 import salesRoutes from "./routes/salesRoutes.js";
+import customerLedgerRoutes from "./routes/customerLedgerRoutes.js";
 
 import { initDatabase } from "./db/initDatabase.js";
 
@@ -171,6 +172,13 @@ app.use(
   requireAuth,
   requireAdmin,
   salesRoutes
+);
+
+app.use(
+  "/api/customer-ledger",
+  requireAuth,
+  requireAdmin,
+  customerLedgerRoutes
 );
 
 app.listen(PORT, () => {

@@ -19,6 +19,7 @@ import Production from "./pages/Production";
 import ProductionRegister from "./pages/ProductionRegister";
 import Sales from "./pages/Sales";
 import SalesRegister from "./pages/SalesRegister";
+import CustomerLedger from "./pages/CustomerLedger";
 
 import MainLayout from "./layouts/MainLayout";
 
@@ -86,6 +87,8 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
 
           <Route path="sales-register" element={<SalesRegister />} />
+
+          <Route path="customer-ledger" element={<CustomerLedger />} />
           
         </Route>
       </Routes>

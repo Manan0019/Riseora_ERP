@@ -194,6 +194,15 @@ function MainLayout() {
               Sales Register
             </NavLink>
 
+            <NavLink
+              to="/customer-ledger"
+              className={({ isActive }) =>
+                isActive ? "sidebar-link active" : "sidebar-link"
+              }
+            >
+              Customer Ledger
+            </NavLink>
+
             <div className="sidebar-heading">System</div>
 
             <NavLink
