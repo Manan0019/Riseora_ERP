@@ -185,6 +185,15 @@ function MainLayout() {
               Sales Invoice
             </NavLink>
 
+            <NavLink
+              to="/sales-register"
+              className={({ isActive }) =>
+                isActive ? "sidebar-link active" : "sidebar-link"
+              }
+            >
+              Sales Register
+            </NavLink>
+
             <div className="sidebar-heading">System</div>
 
             <NavLink

@@ -339,3 +339,213 @@ export function createSale(data) {
 
   return transaction();
 }
+
+export function getSalesInvoices() {
+  return db.prepare(`
+    SELECT
+      si.id,
+      si.invoice_no,
+      si.invoice_date,
+      si.subtotal,
+      si.discount_amount,
+      si.gst_amount,
+      si.other_charges,
+      si.grand_total,
+      si.amount_paid,
+      si.payment_status,
+      si.status,
+      si.customer_reference,
+
+      c.code AS customer_code,
+      c.name AS customer_name
+
+    FROM sales_invoices si
+
+    INNER JOIN customers c
+      ON c.id = si.customer_id
+
+    ORDER BY
+      si.invoice_date DESC,
+      si.id DESC
+  `).all();
+}
+
+export function getSalesInvoiceById(id) {
+  const invoice = db.prepare(`
+    SELECT
+      si.*,
+
+      c.code AS customer_code,
+      c.name AS customer_name,
+      c.phone AS customer_phone,
+      c.gstin AS customer_gstin
+
+    FROM sales_invoices si
+
+    INNER JOIN customers c
+      ON c.id = si.customer_id
+
+    WHERE si.id = ?
+  `).get(id);
+
+  if (!invoice) {
+    return null;
+  }
+
+  const items = db.prepare(`
+    SELECT
+      si.*,
+
+      i.code AS item_code,
+      i.name AS item_name,
+
+      u.code AS unit_code
+
+    FROM sales_items si
+
+    INNER JOIN items i
+      ON i.id = si.item_id
+
+    INNER JOIN units u
+      ON u.id = i.base_unit_id
+
+    WHERE si.sales_invoice_id = ?
+
+    ORDER BY si.id
+  `).all(id);
+
+  const payments = db.prepare(`
+    SELECT *
+    FROM sales_payments
+    WHERE sales_invoice_id = ?
+      AND status = 'POSTED'
+    ORDER BY
+      payment_date,
+      id
+  `).all(id);
+
+  return {
+    ...invoice,
+    items,
+    payments,
+    balance_amount:
+      Number(invoice.grand_total || 0) -
+      Number(invoice.amount_paid || 0),
+  };
+}
+
+export function addSalesPayment(
+  invoiceId,
+  data
+) {
+  const transaction = db.transaction(() => {
+    const invoice = db.prepare(`
+      SELECT *
+      FROM sales_invoices
+      WHERE id = ?
+    `).get(invoiceId);
+
+    if (!invoice) {
+      throw new Error(
+        "Sales invoice not found."
+      );
+    }
+
+    if (
+      invoice.status === "CANCELLED"
+    ) {
+      throw new Error(
+        "Payment cannot be added to a cancelled invoice."
+      );
+    }
+
+    const paymentAmount =
+      Number(data.amount);
+
+    if (paymentAmount <= 0) {
+      throw new Error(
+        "Payment amount must be greater than zero."
+      );
+    }
+
+    const balance =
+      Number(
+        invoice.grand_total
+      ) -
+      Number(
+        invoice.amount_paid
+      );
+
+    if (
+      paymentAmount >
+      balance
+    ) {
+      throw new Error(
+        `Payment cannot exceed outstanding balance of ₹${balance.toFixed(
+          2
+        )}.`
+      );
+    }
+
+    db.prepare(`
+      INSERT INTO sales_payments (
+        sales_invoice_id,
+        payment_date,
+        amount,
+        payment_mode,
+        reference_no,
+        notes
+      )
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      invoiceId,
+      data.paymentDate,
+      paymentAmount,
+      data.paymentMode || "CASH",
+      data.referenceNo || null,
+      data.notes || null
+    );
+
+    const newAmountPaid =
+      Number(
+        invoice.amount_paid
+      ) +
+      paymentAmount;
+
+    const newPaymentStatus =
+      getPaymentStatus(
+        Number(
+          invoice.grand_total
+        ),
+        newAmountPaid
+      );
+
+    db.prepare(`
+      UPDATE sales_invoices
+      SET
+        amount_paid = ?,
+        payment_status = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      newAmountPaid,
+      newPaymentStatus,
+      invoiceId
+    );
+
+    return {
+      invoiceId,
+      amountPaid:
+        newAmountPaid,
+      balanceAmount:
+        Number(
+          invoice.grand_total
+        ) -
+        newAmountPaid,
+      paymentStatus:
+        newPaymentStatus,
+    };
+  });
+
+  return transaction();
+}

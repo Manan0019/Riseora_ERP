@@ -18,6 +18,7 @@ import Formulas from "./pages/Formulas";
 import Production from "./pages/Production";
 import ProductionRegister from "./pages/ProductionRegister";
 import Sales from "./pages/Sales";
+import SalesRegister from "./pages/SalesRegister";
 
 import MainLayout from "./layouts/MainLayout";
 
@@ -81,10 +82,12 @@ function App() {
           <Route path="production-register" element={<ProductionRegister />} />
 
           <Route path="sales" element={<Sales />} />
-        
-        </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+
+          <Route path="sales-register" element={<SalesRegister />} />
+          
+        </Route>
       </Routes>
     </BrowserRouter>
   );
