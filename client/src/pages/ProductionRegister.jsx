@@ -1,29 +1,19 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import api from "../api/api";
 
 function ProductionRegister() {
-  const [batches, setBatches] =
-    useState([]);
+  const [batches, setBatches] = useState([]);
 
-  const [selectedBatch, setSelectedBatch] =
-    useState(null);
+  const [selectedBatch, setSelectedBatch] = useState(null);
 
-  const [search, setSearch] =
-    useState("");
+  const [search, setSearch] = useState("");
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [detailsLoading, setDetailsLoading] =
-    useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
-  const [error, setError] =
-    useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     loadBatches();
@@ -34,20 +24,13 @@ function ProductionRegister() {
       setLoading(true);
       setError("");
 
-      const response =
-        await api.get(
-          "/production"
-        );
+      const response = await api.get("/production");
 
-      setBatches(
-        response.data.batches || []
-      );
+      setBatches(response.data.batches || []);
     } catch (err) {
       console.error(err);
 
-      setError(
-        "Unable to load production register."
-      );
+      setError("Unable to load production register.");
     } finally {
       setLoading(false);
     }
@@ -102,6 +85,49 @@ function ProductionRegister() {
 
     return (getLoss(batch) / planned) * 100;
   };
+
+  const costSummary = useMemo(() => {
+    if (!selectedBatch?.consumption) {
+      return {
+        rawCost: 0,
+        packagingCost: 0,
+        otherCost: 0,
+        totalCost: 0,
+        unitCost: 0,
+      };
+    }
+
+    let rawCost = 0;
+    let packagingCost = 0;
+    let otherCost = 0;
+
+    selectedBatch.consumption.forEach((item) => {
+      const amount =
+        Number(item.actual_quantity || 0) * Number(item.unit_cost || 0);
+
+      if (item.category_code === "RAW") {
+        rawCost += amount;
+      } else if (item.category_code === "PACK") {
+        packagingCost += amount;
+      } else {
+        otherCost += amount;
+      }
+    });
+
+    const totalCost = rawCost + packagingCost + otherCost;
+
+    const actualOutput = Number(selectedBatch.actual_output_qty || 0);
+
+    const unitCost = actualOutput > 0 ? totalCost / actualOutput : 0;
+
+    return {
+      rawCost,
+      packagingCost,
+      otherCost,
+      totalCost,
+      unitCost,
+    };
+  }, [selectedBatch]);
 
   const handleCancelBatch = async () => {
     if (!selectedBatch) {
@@ -334,19 +360,77 @@ function ProductionRegister() {
                   </div>
                 </div>
 
-                <h6>Ingredient Consumption</h6>
+                {selectedBatch.status !== "CANCELLED" && (
+                  <div className="mb-4">
+                    <h6 className="mb-3">Production Costing</h6>
+
+                    <div className="row g-3">
+                      <div className="col-md-3">
+                        <div className="border rounded p-3 h-100">
+                          <div className="text-muted small">
+                            Raw Material Cost
+                          </div>
+
+                          <div className="fs-5 fw-semibold">
+                            ₹{costSummary.rawCost.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-md-3">
+                        <div className="border rounded p-3 h-100">
+                          <div className="text-muted small">Packaging Cost</div>
+
+                          <div className="fs-5 fw-semibold">
+                            ₹{costSummary.packagingCost.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-md-3">
+                        <div className="border rounded p-3 h-100">
+                          <div className="text-muted small">
+                            Total Production Cost
+                          </div>
+
+                          <div className="fs-5 fw-semibold">
+                            ₹{costSummary.totalCost.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-md-3">
+                        <div className="border rounded p-3 h-100">
+                          <div className="text-muted small">
+                            Finished Unit Cost
+                          </div>
+
+                          <div className="fs-5 fw-semibold">
+                            ₹{costSummary.unitCost.toFixed(2)}
+                            {" / "}
+                            {selectedBatch.batch_unit_code}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <h6>Component Consumption & Costing</h6>
 
                 <div className="table-responsive">
                   <table className="table table-bordered align-middle">
                     <thead className="table-light">
                       <tr>
-                        <th>Ingredient</th>
+                        <th>Component</th>
+                        <th>Type</th>
                         <th>Planned Qty</th>
                         <th>Actual Qty</th>
                         <th>Unit</th>
                         <th>Difference</th>
                         <th>Lot No.</th>
                         <th>Unit Cost</th>
+                        <th>Amount</th>
                       </tr>
                     </thead>
 
@@ -355,6 +439,20 @@ function ProductionRegister() {
                         <tr key={item.id}>
                           <td>
                             {item.item_code} - {item.item_name}
+                          </td>
+
+                          <td>
+                            {item.category_code === "RAW" ? (
+                              <span className="badge text-bg-primary">Raw</span>
+                            ) : item.category_code === "PACK" ? (
+                              <span className="badge text-bg-warning">
+                                Packaging
+                              </span>
+                            ) : (
+                              <span className="badge text-bg-secondary">
+                                {item.category_code || "-"}
+                              </span>
+                            )}
                           </td>
 
                           <td>{Number(item.planned_quantity).toFixed(3)}</td>
@@ -373,12 +471,20 @@ function ProductionRegister() {
                           <td>{item.lot_no || "-"}</td>
 
                           <td>₹{Number(item.unit_cost || 0).toFixed(2)}</td>
+
+                          <td className="fw-semibold">
+                            ₹
+                            {(
+                              Number(item.actual_quantity || 0) *
+                              Number(item.unit_cost || 0)
+                            ).toFixed(2)}
+                          </td>
                         </tr>
                       ))}
 
                       {selectedBatch.consumption.length === 0 && (
                         <tr>
-                          <td colSpan={7} className="text-center text-muted">
+                          <td colSpan={9} className="text-center text-muted">
                             No consumption details found.
                           </td>
                         </tr>

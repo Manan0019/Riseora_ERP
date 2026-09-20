@@ -812,8 +812,9 @@ export function getProductionBatchById(
     return null;
   }
 
-  const consumption =
-    db.prepare(`
+  const consumption = db
+    .prepare(
+      `
       SELECT
         pc.id,
         pc.item_id,
@@ -826,24 +827,30 @@ export function getProductionBatchById(
         i.code AS item_code,
         i.name AS item_name,
 
+        c.code AS category_code,
+        c.name AS category_name,
+
         u.code AS unit_code
 
       FROM production_consumption pc
 
       INNER JOIN items i
-        ON i.id =
-           pc.item_id
+        ON i.id = pc.item_id
+
+      INNER JOIN item_categories c
+        ON c.id = i.category_id
 
       INNER JOIN units u
-        ON u.id =
-           pc.unit_id
+        ON u.id = pc.unit_id
 
       WHERE
         pc.production_batch_id = ?
 
       ORDER BY
         pc.id
-    `).all(id);
+    `,
+    )
+    .all(id);
 
   return {
     ...batch,
