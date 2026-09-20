@@ -110,6 +110,8 @@ function Stock() {
                   <th>Category</th>
                   <th>Current Stock</th>
                   <th>Unit</th>
+                  <th>Average Cost</th>
+                  <th>Inventory Value</th>
                 </tr>
               </thead>
 
@@ -126,9 +128,7 @@ function Stock() {
                       <tr
                         key={item.id}
                         onClick={() => loadLedger(item)}
-                        style={{
-                          cursor: "pointer",
-                        }}
+                        style={{ cursor: "pointer" }}
                         className={
                           selectedItem?.id === item.id ? "table-primary" : ""
                         }
@@ -142,12 +142,16 @@ function Stock() {
                         <td>{Number(item.current_stock || 0).toFixed(3)}</td>
 
                         <td>{item.unit_code}</td>
+
+                        <td>₹{Number(item.average_cost || 0).toFixed(2)}</td>
+
+                        <td>₹{Number(item.inventory_value || 0).toFixed(2)}</td>
                       </tr>
                     ))}
 
                     {filteredStock.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="text-center text-muted">
+                        <td colSpan={7} className="text-center text-muted">
                           No stock records found.
                         </td>
                       </tr>

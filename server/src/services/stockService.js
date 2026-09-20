@@ -40,7 +40,9 @@ export function getCurrentStock() {
       i.code,
       i.name,
 
+      c.code AS category_code,
       c.name AS category_name,
+
       u.code AS unit_code,
 
       COALESCE(
@@ -49,7 +51,17 @@ export function getCurrentStock() {
           st.quantity_out
         ),
         0
-      ) AS current_stock
+      ) AS current_stock,
+
+      COALESCE(
+        ics.average_cost,
+        0
+      ) AS average_cost,
+
+      COALESCE(
+        ics.inventory_value,
+        0
+      ) AS inventory_value
 
     FROM items i
 
@@ -62,16 +74,24 @@ export function getCurrentStock() {
     LEFT JOIN stock_transactions st
       ON st.item_id = i.id
 
-    WHERE i.is_active = 1
+    LEFT JOIN inventory_cost_state ics
+      ON ics.item_id = i.id
+
+    WHERE
+      i.is_active = 1
 
     GROUP BY
       i.id,
       i.code,
       i.name,
+      c.code,
       c.name,
-      u.code
+      u.code,
+      ics.average_cost,
+      ics.inventory_value
 
-    ORDER BY i.name
+    ORDER BY
+      i.name
   `).all();
 }
 
