@@ -1,5 +1,6 @@
 import db from "../db/database.js";
 import { addStockTransaction } from "./stockService.js";
+import { addInventoryValue } from "./costService.js";
 
 function generateOpeningNumber() {
   const year = new Date().getFullYear();
@@ -65,6 +66,8 @@ export function createOpeningStock(data) {
         item.lotNo || null,
         item.expiryDate || null
       );
+
+addInventoryValue(Number(item.itemId), quantity, unitCost);
 
       addStockTransaction({
         transactionDate:

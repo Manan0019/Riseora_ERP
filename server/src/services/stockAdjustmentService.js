@@ -3,6 +3,10 @@ import {
   addStockTransaction,
   getItemStock,
 } from "./stockService.js";
+import {
+  addInventoryValue,
+  removeInventoryValue,
+} from "./costService.js";
 
 function generateAdjustmentNumber() {
   const year = new Date().getFullYear();
@@ -25,7 +29,9 @@ export function createStockAdjustment(data) {
     const adjustmentNo =
       generateAdjustmentNumber();
 
-    const result = db.prepare(`
+    const result = db
+      .prepare(
+        `
       INSERT INTO stock_adjustments (
         adjustment_no,
         adjustment_date,
@@ -34,16 +40,17 @@ export function createStockAdjustment(data) {
         notes
       )
       VALUES (?, ?, ?, ?, ?)
-    `).run(
-      adjustmentNo,
-      data.adjustmentDate,
-      data.adjustmentType,
-      data.reason,
-      data.notes || null
-    );
+    `,
+      )
+      .run(
+        adjustmentNo,
+        data.adjustmentDate,
+        data.adjustmentType,
+        data.reason,
+        data.notes || null,
+      );
 
-    const adjustmentId =
-      Number(result.lastInsertRowid);
+    const adjustmentId = Number(result.lastInsertRowid);
 
     const insertLine = db.prepare(`
       INSERT INTO stock_adjustment_items (
@@ -58,79 +65,41 @@ export function createStockAdjustment(data) {
     `);
 
     for (const item of data.items) {
-      const itemId =
-        Number(item.itemId);
+      let transactionUnitCost = unitCost;
 
-      const quantity =
-        Number(item.quantity);
+      if (data.adjustmentType === "IN") {
+        addInventoryValue(itemId, quantity, unitCost);
+      } else {
+        const costResult = removeInventoryValue(itemId, quantity);
 
-      const unitCost =
-        Number(item.unitCost || 0);
-
-      if (
-        data.adjustmentType === "OUT"
-      ) {
-        const currentStock =
-          Number(
-            getItemStock(itemId)
-          );
-
-        if (quantity > currentStock) {
-          throw new Error(
-            `Adjustment quantity cannot exceed current stock. Current stock: ${currentStock}`
-          );
-        }
+        transactionUnitCost = costResult.unitCost;
       }
 
-      insertLine.run(
-        adjustmentId,
-        itemId,
-        quantity,
-        unitCost,
-        item.lotNo || null,
-        item.expiryDate || null
-      );
-
       addStockTransaction({
-        transactionDate:
-          data.adjustmentDate,
+        transactionDate: data.adjustmentDate,
 
         itemId,
 
         transactionType:
-          data.adjustmentType === "IN"
-            ? "ADJUSTMENT_IN"
-            : "ADJUSTMENT_OUT",
+          data.adjustmentType === "IN" ? "ADJUSTMENT_IN" : "ADJUSTMENT_OUT",
 
-        referenceType:
-          "STOCK_ADJUSTMENT",
+        referenceType: "STOCK_ADJUSTMENT",
 
-        referenceId:
-          adjustmentId,
+        referenceId: adjustmentId,
 
-        referenceNo:
-          adjustmentNo,
+        referenceNo: adjustmentNo,
 
-        quantityIn:
-          data.adjustmentType === "IN"
-            ? quantity
-            : 0,
+        quantityIn: data.adjustmentType === "IN" ? quantity : 0,
 
-        quantityOut:
-          data.adjustmentType === "OUT"
-            ? quantity
-            : 0,
+        quantityOut: data.adjustmentType === "OUT" ? quantity : 0,
 
-        unitCost,
+        unitCost: transactionUnitCost,
 
-        lotNo:
-          item.lotNo || null,
+        lotNo: item.lotNo || null,
 
-        expiryDate:
-          item.expiryDate || null,
+        expiryDate: item.expiryDate || null,
 
-        notes:
-          data.reason,
+        notes: data.reason,
       });
     }
 
