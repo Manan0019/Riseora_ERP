@@ -1,49 +1,34 @@
 import db from "../db/database.js";
 
-import {
-  addStockTransaction,
-  getItemStock,
-} from "./stockService.js";
+import { addStockTransaction, getItemStock } from "./stockService.js";
 
-import {
-  addInventoryValue,
-  removeInventoryValue,
-} from "./costService.js";
+import { addInventoryValue, removeInventoryValue } from "./costService.js";
 
 function generateInvoiceNumber() {
-  const year =
-    new Date().getFullYear();
+  const year = new Date().getFullYear();
 
-  const lastInvoice =
-    db.prepare(`
+  const lastInvoice = db
+    .prepare(
+      `
       SELECT id
       FROM sales_invoices
       ORDER BY id DESC
       LIMIT 1
-    `).get();
+    `,
+    )
+    .get();
 
-  const nextNumber =
-    (lastInvoice?.id || 0) + 1;
+  const nextNumber = (lastInvoice?.id || 0) + 1;
 
-  return `INV-${year}-${String(
-    nextNumber
-  ).padStart(5, "0")}`;
+  return `INV-${year}-${String(nextNumber).padStart(5, "0")}`;
 }
 
-function getPaymentStatus(
-  grandTotal,
-  amountPaid
-) {
-  if (
-    amountPaid <= 0
-  ) {
+function getPaymentStatus(grandTotal, amountPaid) {
+  if (amountPaid <= 0) {
     return "UNPAID";
   }
 
-  if (
-    amountPaid >=
-    grandTotal
-  ) {
+  if (amountPaid >= grandTotal) {
     return "PAID";
   }
 
@@ -51,184 +36,146 @@ function getPaymentStatus(
 }
 
 export function createSale(data) {
-  const transaction =
-    db.transaction(() => {
-      const invoiceNo =
-        generateInvoiceNumber();
+  const transaction = db.transaction(() => {
+    if (!Array.isArray(data.items) || data.items.length === 0) {
+      throw new Error("At least one product is required.");
+    }
 
-      let subtotal = 0;
-      let gstAmount = 0;
+    /*
+     * Prevent duplicate product rows.
+     *
+     * This is important because the
+     * current stock transaction model
+     * identifies COGS by invoice + item.
+     */
+    const itemIds = data.items.map((item) => Number(item.itemId));
 
-      const calculatedItems =
-        data.items.map((item) => {
-          const itemId =
-            Number(
-              item.itemId
-            );
+    const duplicateItemId = itemIds.find(
+      (itemId, index) => itemIds.indexOf(itemId) !== index,
+    );
 
-          const quantity =
-            Number(
-              item.quantity
-            );
+    if (duplicateItemId) {
+      throw new Error(
+        "The same product cannot be entered more than once on one sales invoice. Please combine the quantities into one line.",
+      );
+    }
 
-          const rate =
-            Number(
-              item.rate
-            );
+    const invoiceNo = generateInvoiceNumber();
 
-          const discountAmount =
-            Number(
-              item.discountAmount ||
-                0
-            );
+    let subtotal = 0;
+    let gstAmount = 0;
 
-          const gstRate =
-            Number(
-              item.gstRate ||
-                0
-            );
+    const calculatedItems = data.items.map((item) => {
+      const itemId = Number(item.itemId);
 
-          if (
-            quantity <= 0
-          ) {
-            throw new Error(
-              "Sale quantity must be greater than zero."
-            );
-          }
+      const quantity = Number(item.quantity);
 
-          if (
-            rate < 0
-          ) {
-            throw new Error(
-              "Sale rate cannot be negative."
-            );
-          }
+      const rate = Number(item.rate);
 
-          const currentStock =
-            Number(
-              getItemStock(
-                itemId
-              )
-            );
+      const discountAmount = Number(item.discountAmount || 0);
 
-          if (
-            quantity >
-            currentStock
-          ) {
-            throw new Error(
-              `Insufficient stock. Available stock: ${currentStock.toFixed(
-                3
-              )}`
-            );
-          }
+      const gstRate = Number(item.gstRate || 0);
 
-          const grossAmount =
-            quantity * rate;
+      if (!itemId || itemId <= 0) {
+        throw new Error("Please select a valid product.");
+      }
 
-          if (
-            discountAmount >
-            grossAmount
-          ) {
-            throw new Error(
-              "Discount cannot exceed line amount."
-            );
-          }
+      if (quantity <= 0) {
+        throw new Error("Sale quantity must be greater than zero.");
+      }
 
-          const taxableAmount =
-            grossAmount -
-            discountAmount;
+      if (rate < 0) {
+        throw new Error("Sale rate cannot be negative.");
+      }
 
-          const lineGst =
-            taxableAmount *
-            (gstRate / 100);
+      if (discountAmount < 0) {
+        throw new Error("Discount cannot be negative.");
+      }
 
-          const lineTotal =
-            taxableAmount +
-            lineGst;
+      if (gstRate < 0) {
+        throw new Error("GST rate cannot be negative.");
+      }
 
-          subtotal +=
-            taxableAmount;
+      const currentStock = Number(getItemStock(itemId));
 
-          gstAmount +=
-            lineGst;
-
-          return {
-            itemId,
-            quantity,
-            rate,
-            discountAmount,
-            taxableAmount,
-            gstRate,
-
-            gstAmount:
-              lineGst,
-
-            lineTotal,
-
-            lotNo:
-              item.lotNo ||
-              null,
-          };
-        });
-
-      const invoiceDiscount =
-        Number(
-          data.discountAmount ||
-            0
-        );
-
-      const otherCharges =
-        Number(
-          data.otherCharges ||
-            0
-        );
-
-      if (
-        invoiceDiscount >
-        subtotal
-      ) {
+      if (quantity > currentStock) {
         throw new Error(
-          "Invoice discount cannot exceed subtotal."
+          `Insufficient stock. Available stock: ${currentStock.toFixed(3)}`,
         );
       }
 
-      const grandTotal =
-        subtotal -
-        invoiceDiscount +
-        gstAmount +
-        otherCharges;
+      const grossAmount = quantity * rate;
 
-      const amountPaid =
-        Number(
-          data.amountPaid ||
-            0
-        );
-
-      if (
-        amountPaid < 0
-      ) {
-        throw new Error(
-          "Amount paid cannot be negative."
-        );
+      if (discountAmount > grossAmount) {
+        throw new Error("Discount cannot exceed line amount.");
       }
 
-      if (
-        amountPaid >
-        grandTotal
-      ) {
-        throw new Error(
-          "Amount paid cannot exceed invoice total."
-        );
-      }
+      const taxableAmount = grossAmount - discountAmount;
 
-      const paymentStatus =
-        getPaymentStatus(
-          grandTotal,
-          amountPaid
-        );
+      const lineGst = taxableAmount * (gstRate / 100);
 
-      const invoiceResult =
-        db.prepare(`
+      const lineTotal = taxableAmount + lineGst;
+
+      subtotal += taxableAmount;
+
+      gstAmount += lineGst;
+
+      return {
+        itemId,
+        quantity,
+        rate,
+        discountAmount,
+        taxableAmount,
+        gstRate,
+
+        gstAmount: lineGst,
+
+        lineTotal,
+
+        lotNo: item.lotNo || null,
+      };
+    });
+
+    const invoiceDiscount = Number(data.discountAmount || 0);
+
+    const otherCharges = Number(data.otherCharges || 0);
+
+    if (invoiceDiscount < 0) {
+      throw new Error("Invoice discount cannot be negative.");
+    }
+
+    if (invoiceDiscount > subtotal) {
+      throw new Error("Invoice discount cannot exceed subtotal.");
+    }
+
+    if (otherCharges < 0) {
+      throw new Error("Other charges cannot be negative.");
+    }
+
+    /*
+     * subtotal already contains
+     * line-level discounts.
+     *
+     * Invoice-level discount is
+     * deducted separately.
+     */
+    const grandTotal = subtotal - invoiceDiscount + gstAmount + otherCharges;
+
+    const amountPaid = Number(data.amountPaid || 0);
+
+    if (amountPaid < 0) {
+      throw new Error("Amount paid cannot be negative.");
+    }
+
+    if (amountPaid > grandTotal) {
+      throw new Error("Amount paid cannot exceed invoice total.");
+    }
+
+    const paymentStatus = getPaymentStatus(grandTotal, amountPaid);
+
+    const invoiceResult = db
+      .prepare(
+        `
           INSERT INTO sales_invoices (
             invoice_no,
             invoice_date,
@@ -244,44 +191,30 @@ export function createSale(data) {
             notes
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          invoiceNo,
+        `,
+      )
+      .run(
+        invoiceNo,
+        data.invoiceDate,
 
-          data.invoiceDate,
+        Number(data.customerId),
 
-          Number(
-            data.customerId
-          ),
+        data.customerReference || null,
 
-          data.customerReference ||
-            null,
+        subtotal,
+        invoiceDiscount,
+        gstAmount,
+        otherCharges,
+        grandTotal,
+        amountPaid,
+        paymentStatus,
 
-          subtotal,
+        data.notes || null,
+      );
 
-          invoiceDiscount,
+    const salesInvoiceId = Number(invoiceResult.lastInsertRowid);
 
-          gstAmount,
-
-          otherCharges,
-
-          grandTotal,
-
-          amountPaid,
-
-          paymentStatus,
-
-          data.notes ||
-            null
-        );
-
-      const salesInvoiceId =
-        Number(
-          invoiceResult
-            .lastInsertRowid
-        );
-
-      const insertItem =
-        db.prepare(`
+    const insertItem = db.prepare(`
           INSERT INTO sales_items (
             sales_invoice_id,
             item_id,
@@ -297,85 +230,74 @@ export function createSale(data) {
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
-      for (
-        const item of
-          calculatedItems
-      ) {
-        insertItem.run(
-          salesInvoiceId,
-          item.itemId,
-          item.quantity,
-          item.rate,
-          item.discountAmount,
-          item.taxableAmount,
-          item.gstRate,
-          item.gstAmount,
-          item.lineTotal,
-          item.lotNo
-        );
+    let totalCogs = 0;
 
-        /*
-         * SALES COGS
-         *
-         * Remove inventory using current
-         * weighted moving average cost.
-         */
-        const costResult =
-          removeInventoryValue(
-            item.itemId,
-            item.quantity
-          );
-
-        /*
-         * Stock transaction stores the
-         * actual COGS unit cost.
-         */
-        addStockTransaction({
-          transactionDate:
-            data.invoiceDate,
-
-          itemId:
-            item.itemId,
-
-          transactionType:
-            "SALE",
-
-          referenceType:
-            "SALE",
-
-          referenceId:
-            salesInvoiceId,
-
-          referenceNo:
-            invoiceNo,
-
-          quantityIn: 0,
-
-          quantityOut:
-            item.quantity,
-
-          unitCost:
-            costResult.unitCost,
-
-          lotNo:
-            item.lotNo,
-
-          expiryDate:
-            null,
-
-          notes:
-            `Sale ${invoiceNo}`,
-        });
-      }
+    /*
+     * Post every sales line.
+     */
+    for (const item of calculatedItems) {
+      insertItem.run(
+        salesInvoiceId,
+        item.itemId,
+        item.quantity,
+        item.rate,
+        item.discountAmount,
+        item.taxableAmount,
+        item.gstRate,
+        item.gstAmount,
+        item.lineTotal,
+        item.lotNo,
+      );
 
       /*
-       * Record payment made while
-       * creating invoice.
+       * SALES COGS
+       *
+       * Remove finished goods using
+       * the current weighted average
+       * inventory cost.
        */
-      if (
-        amountPaid > 0
-      ) {
-        db.prepare(`
+      const costResult = removeInventoryValue(item.itemId, item.quantity);
+
+      totalCogs += Number(costResult.valueRemoved || 0);
+
+      /*
+       * Store the COGS unit cost
+       * in the stock transaction.
+       */
+      addStockTransaction({
+        transactionDate: data.invoiceDate,
+
+        itemId: item.itemId,
+
+        transactionType: "SALE",
+
+        referenceType: "SALE",
+
+        referenceId: salesInvoiceId,
+
+        referenceNo: invoiceNo,
+
+        quantityIn: 0,
+
+        quantityOut: item.quantity,
+
+        unitCost: costResult.unitCost,
+
+        lotNo: item.lotNo,
+
+        expiryDate: null,
+
+        notes: `Sale ${invoiceNo}`,
+      });
+    }
+
+    /*
+     * Record initial payment
+     * received with invoice.
+     */
+    if (amountPaid > 0) {
+      db.prepare(
+        `
           INSERT INTO sales_payments (
             sales_invoice_id,
             payment_date,
@@ -385,44 +307,56 @@ export function createSale(data) {
             notes
           )
           VALUES (?, ?, ?, ?, ?, ?)
-        `).run(
-          salesInvoiceId,
-
-          data.invoiceDate,
-
-          amountPaid,
-
-          data.paymentMode ||
-            "CASH",
-
-          data.paymentReference ||
-            null,
-
-          "Payment received with invoice"
-        );
-      }
-
-      return {
+        `,
+      ).run(
         salesInvoiceId,
-        invoiceNo,
-        subtotal,
-        gstAmount,
-        grandTotal,
+
+        data.invoiceDate,
+
         amountPaid,
 
-        balanceAmount:
-          grandTotal -
-          amountPaid,
+        data.paymentMode || "CASH",
 
-        paymentStatus,
-      };
-    });
+        data.paymentReference || null,
+
+        "Payment received with invoice",
+      );
+    }
+
+    const netSales = subtotal - invoiceDiscount;
+
+    const grossProfit = netSales - totalCogs;
+
+    const grossMarginPercent =
+      netSales > 0 ? (grossProfit / netSales) * 100 : 0;
+
+    return {
+      salesInvoiceId,
+      invoiceNo,
+      subtotal,
+      gstAmount,
+      invoiceDiscount,
+      grandTotal,
+      amountPaid,
+
+      balanceAmount: grandTotal - amountPaid,
+
+      paymentStatus,
+
+      totalCogs,
+      netSales,
+      grossProfit,
+      grossMarginPercent,
+    };
+  });
 
   return transaction();
 }
 
 export function getSalesInvoices() {
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT
       si.id,
       si.invoice_no,
@@ -452,14 +386,15 @@ export function getSalesInvoices() {
     ORDER BY
       si.invoice_date DESC,
       si.id DESC
-  `).all();
+  `,
+    )
+    .all();
 }
 
-export function getSalesInvoiceById(
-  id
-) {
-  const invoice =
-    db.prepare(`
+export function getSalesInvoiceById(id) {
+  const invoice = db
+    .prepare(
+      `
       SELECT
         si.*,
 
@@ -475,14 +410,24 @@ export function getSalesInvoiceById(
            si.customer_id
 
       WHERE si.id = ?
-    `).get(id);
+    `,
+    )
+    .get(id);
 
   if (!invoice) {
     return null;
   }
 
-  const items =
-    db.prepare(`
+  /*
+   * Get sales items.
+   *
+   * cogs_unit_cost is read from
+   * the corresponding SALE stock
+   * transaction.
+   */
+  const items = db
+    .prepare(
+      `
       SELECT
         si.*,
 
@@ -493,11 +438,14 @@ export function getSalesInvoiceById(
 
         COALESCE(
           (
-            SELECT st.unit_cost
+            SELECT
+              st.unit_cost
+
             FROM stock_transactions st
 
             WHERE
-              st.reference_type = 'SALE'
+              st.reference_type =
+                'SALE'
 
               AND
               st.reference_id =
@@ -534,43 +482,40 @@ export function getSalesInvoiceById(
 
       ORDER BY
         si.id
-    `).all(id);
+    `,
+    )
+    .all(id);
 
-  const itemsWithCogs =
-    items.map((item) => {
-      const cogsUnitCost =
-        Number(
-          item.cogs_unit_cost ||
-            0
-        );
+  const itemsWithCogs = items.map((item) => {
+    const quantity = Number(item.quantity || 0);
 
-      const cogsAmount =
-        Number(
-          item.quantity ||
-            0
-        ) *
-        cogsUnitCost;
+    const taxableAmount = Number(item.taxable_amount || 0);
 
-      return {
-        ...item,
+    const cogsUnitCost = Number(item.cogs_unit_cost || 0);
 
-        cogs_unit_cost:
-          cogsUnitCost,
+    const cogsAmount = quantity * cogsUnitCost;
 
-        cogs_amount:
-          cogsAmount,
+    const grossProfit = taxableAmount - cogsAmount;
 
-        gross_profit:
-          Number(
-            item.taxable_amount ||
-              0
-          ) -
-          cogsAmount,
-      };
-    });
+    const grossMarginPercent =
+      taxableAmount > 0 ? (grossProfit / taxableAmount) * 100 : 0;
 
-  const payments =
-    db.prepare(`
+    return {
+      ...item,
+
+      cogs_unit_cost: cogsUnitCost,
+
+      cogs_amount: cogsAmount,
+
+      gross_profit: grossProfit,
+
+      gross_margin_percent: grossMarginPercent,
+    };
+  });
+
+  const payments = db
+    .prepare(
+      `
       SELECT *
       FROM sales_payments
 
@@ -583,119 +528,85 @@ export function getSalesInvoiceById(
       ORDER BY
         payment_date,
         id
-    `).all(id);
+    `,
+    )
+    .all(id);
 
-  const totalCogs =
-    itemsWithCogs.reduce(
-      (total, item) =>
-        total +
-        Number(
-          item.cogs_amount ||
-            0
-        ),
-      0
-    );
+  const totalCogs = itemsWithCogs.reduce(
+    (total, item) => total + Number(item.cogs_amount || 0),
+    0,
+  );
 
-  const grossProfit =
-    Number(
-      invoice.subtotal ||
-        0
-    ) -
-    Number(
-      invoice.discount_amount ||
-        0
-    ) -
-    totalCogs;
+  /*
+   * subtotal already includes
+   * line discounts.
+   *
+   * discount_amount is the
+   * invoice-level discount.
+   */
+  const netSales =
+    Number(invoice.subtotal || 0) - Number(invoice.discount_amount || 0);
+
+  const grossProfit = netSales - totalCogs;
+
+  const grossMarginPercent = netSales > 0 ? (grossProfit / netSales) * 100 : 0;
 
   return {
     ...invoice,
 
-    items:
-      itemsWithCogs,
+    items: itemsWithCogs,
 
     payments,
 
     balance_amount:
-      Number(
-        invoice.grand_total ||
-          0
-      ) -
-      Number(
-        invoice.amount_paid ||
-          0
-      ),
+      Number(invoice.grand_total || 0) - Number(invoice.amount_paid || 0),
 
-    total_cogs:
-      totalCogs,
+    net_sales: netSales,
 
-    gross_profit:
-      grossProfit,
+    total_cogs: totalCogs,
+
+    gross_profit: grossProfit,
+
+    gross_margin_percent: grossMarginPercent,
   };
 }
 
-export function addSalesPayment(
-  invoiceId,
-  data
-) {
-  const transaction =
-    db.transaction(() => {
-      const invoice =
-        db.prepare(`
+export function addSalesPayment(invoiceId, data) {
+  const transaction = db.transaction(() => {
+    const invoice = db
+      .prepare(
+        `
           SELECT *
           FROM sales_invoices
           WHERE id = ?
-        `).get(
-          invoiceId
-        );
+        `,
+      )
+      .get(invoiceId);
 
-      if (!invoice) {
-        throw new Error(
-          "Sales invoice not found."
-        );
-      }
+    if (!invoice) {
+      throw new Error("Sales invoice not found.");
+    }
 
-      if (
-        invoice.status ===
-        "CANCELLED"
-      ) {
-        throw new Error(
-          "Payment cannot be added to a cancelled invoice."
-        );
-      }
+    if (invoice.status === "CANCELLED") {
+      throw new Error("Payment cannot be added to a cancelled invoice.");
+    }
 
-      const paymentAmount =
-        Number(
-          data.amount
-        );
+    const paymentAmount = Number(data.amount);
 
-      if (
-        paymentAmount <= 0
-      ) {
-        throw new Error(
-          "Payment amount must be greater than zero."
-        );
-      }
+    if (paymentAmount <= 0) {
+      throw new Error("Payment amount must be greater than zero.");
+    }
 
-      const balance =
-        Number(
-          invoice.grand_total
-        ) -
-        Number(
-          invoice.amount_paid
-        );
+    const balance = Number(invoice.grand_total) - Number(invoice.amount_paid);
 
-      if (
-        paymentAmount >
-        balance
-      ) {
-        throw new Error(
-          `Payment cannot exceed outstanding balance of ₹${balance.toFixed(
-            2
-          )}.`
-        );
-      }
+    if (paymentAmount > balance) {
+      throw new Error(
+        `Payment cannot exceed outstanding balance of ₹${balance.toFixed(2)}.`,
+      );
+    }
 
-      db.prepare(`
+    db.prepare(
+      `
         INSERT INTO sales_payments (
           sales_invoice_id,
           payment_date,
@@ -705,138 +616,112 @@ export function addSalesPayment(
           notes
         )
         VALUES (?, ?, ?, ?, ?, ?)
-      `).run(
-        invoiceId,
+      `,
+    ).run(
+      invoiceId,
 
-        data.paymentDate,
+      data.paymentDate,
 
-        paymentAmount,
+      paymentAmount,
 
-        data.paymentMode ||
-          "CASH",
+      data.paymentMode || "CASH",
 
-        data.referenceNo ||
-          null,
+      data.referenceNo || null,
 
-        data.notes ||
-          null
-      );
+      data.notes || null,
+    );
 
-      const newAmountPaid =
-        Number(
-          invoice.amount_paid
-        ) +
-        paymentAmount;
+    const newAmountPaid = Number(invoice.amount_paid) + paymentAmount;
 
-      const newPaymentStatus =
-        getPaymentStatus(
-          Number(
-            invoice.grand_total
-          ),
-          newAmountPaid
-        );
+    const newPaymentStatus = getPaymentStatus(
+      Number(invoice.grand_total),
+      newAmountPaid,
+    );
 
-      db.prepare(`
+    db.prepare(
+      `
         UPDATE sales_invoices
         SET
           amount_paid = ?,
           payment_status = ?,
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `).run(
-        newAmountPaid,
-        newPaymentStatus,
-        invoiceId
-      );
+      `,
+    ).run(newAmountPaid, newPaymentStatus, invoiceId);
 
-      return {
-        invoiceId,
+    return {
+      invoiceId,
 
-        amountPaid:
-          newAmountPaid,
+      amountPaid: newAmountPaid,
 
-        balanceAmount:
-          Number(
-            invoice.grand_total
-          ) -
-          newAmountPaid,
+      balanceAmount: Number(invoice.grand_total) - newAmountPaid,
 
-        paymentStatus:
-          newPaymentStatus,
-      };
-    });
+      paymentStatus: newPaymentStatus,
+    };
+  });
 
   return transaction();
 }
 
-export function cancelSale(
-  invoiceId
-) {
-  const transaction =
-    db.transaction(() => {
-      const invoice =
-        db.prepare(`
+export function cancelSale(invoiceId) {
+  const transaction = db.transaction(() => {
+    const invoice = db
+      .prepare(
+        `
           SELECT *
           FROM sales_invoices
           WHERE id = ?
-        `).get(
-          invoiceId
-        );
+        `,
+      )
+      .get(invoiceId);
 
-      if (!invoice) {
-        throw new Error(
-          "Sales invoice not found."
-        );
-      }
+    if (!invoice) {
+      throw new Error("Sales invoice not found.");
+    }
 
-      if (
-        invoice.status ===
-        "CANCELLED"
-      ) {
-        throw new Error(
-          "Sales invoice is already cancelled."
-        );
-      }
+    if (invoice.status === "CANCELLED") {
+      throw new Error("Sales invoice is already cancelled.");
+    }
 
-      /*
-       * Payment safety.
-       */
-      if (
-        Number(
-          invoice.amount_paid ||
-            0
-        ) > 0
-      ) {
-        throw new Error(
-          "This invoice has received payment. Record a refund/credit note before cancellation."
-        );
-      }
+    /*
+     * Payment safety.
+     *
+     * We do not silently delete or
+     * reverse money received.
+     */
+    if (Number(invoice.amount_paid || 0) > 0) {
+      throw new Error(
+        "This invoice has received payment. Record a refund/credit note before cancellation.",
+      );
+    }
 
-      const items =
-        db.prepare(`
+    const items = db
+      .prepare(
+        `
           SELECT *
           FROM sales_items
           WHERE sales_invoice_id = ?
-        `).all(
-          invoiceId
-        );
+        `,
+      )
+      .all(invoiceId);
 
-      for (
-        const item of items
-      ) {
-        /*
-         * Find the COGS unit cost that
-         * was used when the sale was made.
-         */
-        const saleCost =
-          db.prepare(`
+    for (const item of items) {
+      /*
+       * Find the exact unit cost used
+       * when the original sale removed
+       * this item from inventory.
+       */
+      const saleCost = db
+        .prepare(
+          `
             SELECT
               unit_cost
 
             FROM stock_transactions
 
             WHERE
-              reference_type = 'SALE'
+              reference_type =
+                'SALE'
 
               AND
               reference_id = ?
@@ -845,100 +730,74 @@ export function cancelSale(
               item_id = ?
 
               AND
-              transaction_type = 'SALE'
+              transaction_type =
+                'SALE'
 
             ORDER BY
               id
 
             LIMIT 1
-          `).get(
-            invoice.id,
-            item.item_id
-          );
+          `,
+        )
+        .get(invoice.id, item.item_id);
 
-        const originalUnitCost =
-          Number(
-            saleCost
-              ?.unit_cost ||
-              0
-          );
+      const originalUnitCost = Number(saleCost?.unit_cost || 0);
 
-        /*
-         * Restore quantity + original
-         * inventory value.
-         */
-        addInventoryValue(
-          item.item_id,
-          item.quantity,
-          originalUnitCost
-        );
+      /*
+       * Restore quantity AND
+       * inventory value.
+       */
+      addInventoryValue(item.item_id, Number(item.quantity), originalUnitCost);
 
-        /*
-         * Restore stock quantity ledger.
-         */
-        addStockTransaction({
-          transactionDate:
-            new Date()
-              .toISOString()
-              .slice(0, 10),
+      /*
+       * Stock ledger reversal.
+       */
+      addStockTransaction({
+        transactionDate: new Date().toISOString().slice(0, 10),
 
-          itemId:
-            item.item_id,
+        itemId: item.item_id,
 
-          transactionType:
-            "SALE_CANCEL",
+        transactionType: "SALE_CANCEL",
 
-          referenceType:
-            "SALE",
+        referenceType: "SALE",
 
-          referenceId:
-            invoice.id,
+        referenceId: invoice.id,
 
-          referenceNo:
-            invoice.invoice_no,
+        referenceNo: invoice.invoice_no,
 
-          quantityIn:
-            item.quantity,
+        quantityIn: item.quantity,
 
-          quantityOut: 0,
+        quantityOut: 0,
 
-          unitCost:
-            originalUnitCost,
+        unitCost: originalUnitCost,
 
-          lotNo:
-            item.lot_no ||
-            null,
+        lotNo: item.lot_no || null,
 
-          expiryDate:
-            null,
+        expiryDate: null,
 
-          notes:
-            `Cancellation of ${invoice.invoice_no}`,
-        });
-      }
+        notes: `Cancellation of ${invoice.invoice_no}`,
+      });
+    }
 
-      db.prepare(`
+    db.prepare(
+      `
         UPDATE sales_invoices
         SET
           status = 'CANCELLED',
           payment_status = 'CANCELLED',
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `).run(
-        invoiceId
-      );
+      `,
+    ).run(invoiceId);
 
-      return {
-        invoiceId:
-          invoice.id,
+    return {
+      invoiceId: invoice.id,
 
-        invoiceNo:
-          invoice.invoice_no,
+      invoiceNo: invoice.invoice_no,
 
-        status:
-          "CANCELLED",
-      };
-    });
+      status: "CANCELLED",
+    };
+  });
 
   return transaction();
 }

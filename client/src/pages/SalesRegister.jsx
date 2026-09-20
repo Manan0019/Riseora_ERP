@@ -1,49 +1,33 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import api from "../api/api";
 
 function SalesRegister() {
-  const today =
-    new Date()
-      .toISOString()
-      .slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
 
-  const [invoices, setInvoices] =
-    useState([]);
+  const [invoices, setInvoices] = useState([]);
 
-  const [selectedInvoice, setSelectedInvoice] =
-    useState(null);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
 
-  const [search, setSearch] =
-    useState("");
+  const [search, setSearch] = useState("");
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [detailsLoading, setDetailsLoading] =
-    useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
-  const [paymentForm, setPaymentForm] =
-    useState({
-      paymentDate: today,
-      amount: "",
-      paymentMode: "CASH",
-      referenceNo: "",
-      notes: "",
-    });
+  const [paymentForm, setPaymentForm] = useState({
+    paymentDate: today,
+    amount: "",
+    paymentMode: "CASH",
+    referenceNo: "",
+    notes: "",
+  });
 
-  const [savingPayment, setSavingPayment] =
-    useState(false);
+  const [savingPayment, setSavingPayment] = useState(false);
 
-  const [message, setMessage] =
-    useState("");
+  const [message, setMessage] = useState("");
 
-  const [error, setError] =
-    useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     loadInvoices();
@@ -54,198 +38,151 @@ function SalesRegister() {
       setLoading(true);
       setError("");
 
-      const response =
-        await api.get("/sales");
+      const response = await api.get("/sales");
 
-      setInvoices(
-        response.data.invoices || []
-      );
+      setInvoices(response.data.invoices || []);
     } catch (err) {
       console.error(err);
 
-      setError(
-        "Unable to load sales register."
-      );
+      setError("Unable to load sales register.");
     } finally {
       setLoading(false);
     }
   };
 
-  const loadInvoiceDetails =
-    async (id) => {
-      try {
-        setDetailsLoading(true);
-        setError("");
-        setMessage("");
+  const loadInvoiceDetails = async (id) => {
+    try {
+      setDetailsLoading(true);
 
-        const response =
-          await api.get(
-            `/sales/${id}`
-          );
+      setError("");
+      setMessage("");
 
-        setSelectedInvoice(
-          response.data.invoice
-        );
+      const response = await api.get(`/sales/${id}`);
 
-        setPaymentForm({
-          paymentDate: today,
-          amount: "",
-          paymentMode: "CASH",
-          referenceNo: "",
-          notes: "",
-        });
-      } catch (err) {
-        console.error(err);
+      setSelectedInvoice(response.data.invoice);
 
-        setError(
-          "Unable to load invoice details."
-        );
-      } finally {
-        setDetailsLoading(false);
-      }
-    };
+      setPaymentForm({
+        paymentDate: today,
 
-  const filteredInvoices =
-    useMemo(() => {
-      const text =
-        search
-          .trim()
-          .toLowerCase();
+        amount: "",
 
-      if (!text) {
-        return invoices;
-      }
+        paymentMode: "CASH",
 
-      return invoices.filter(
-        (invoice) =>
-          (
-            invoice.invoice_no ||
-            ""
-          )
-            .toLowerCase()
-            .includes(text) ||
-          (
-            invoice.customer_name ||
-            ""
-          )
-            .toLowerCase()
-            .includes(text)
+        referenceNo: "",
+
+        notes: "",
+      });
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        err.response?.data?.message || "Unable to load invoice details.",
       );
-    }, [invoices, search]);
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
 
-  const handlePaymentChange =
-    (event) => {
-      const {
-        name,
-        value,
-      } = event.target;
+  const filteredInvoices = useMemo(() => {
+    const text = search.trim().toLowerCase();
 
-      setPaymentForm(
-        (current) => ({
-          ...current,
-          [name]: value,
-        })
-      );
-    };
+    if (!text) {
+      return invoices;
+    }
 
-  const savePayment =
-    async () => {
-      if (!selectedInvoice) {
-        return;
-      }
+    return invoices.filter(
+      (invoice) =>
+        (invoice.invoice_no || "").toLowerCase().includes(text) ||
+        (invoice.customer_name || "").toLowerCase().includes(text),
+    );
+  }, [invoices, search]);
 
-      const amount =
-        Number(
-          paymentForm.amount
-        );
+  const handlePaymentChange = (event) => {
+    const { name, value } = event.target;
 
-      if (amount <= 0) {
-        setError(
-          "Payment amount must be greater than zero."
-        );
+    setPaymentForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
 
-        return;
-      }
-
-      try {
-        setSavingPayment(true);
-        setError("");
-        setMessage("");
-
-        await api.post(
-          `/sales/${selectedInvoice.id}/payments`,
-          {
-            paymentDate:
-              paymentForm.paymentDate,
-
-            amount,
-
-            paymentMode:
-              paymentForm.paymentMode,
-
-            referenceNo:
-              paymentForm.referenceNo.trim(),
-
-            notes:
-              paymentForm.notes.trim(),
-          }
-        );
-
-        setMessage(
-          "Payment recorded successfully."
-        );
-
-        await loadInvoices();
-
-        await loadInvoiceDetails(
-          selectedInvoice.id
-        );
-      } catch (err) {
-        console.error(err);
-
-        setError(
-          err.response?.data?.message ||
-            "Unable to record payment."
-        );
-      } finally {
-        setSavingPayment(false);
-      }
-    };
-
-const handleCancelInvoice =
-  async () => {
+  const savePayment = async () => {
     if (!selectedInvoice) {
       return;
     }
 
-    if (
-      selectedInvoice.status ===
-      "CANCELLED"
-    ) {
+    const amount = Number(paymentForm.amount);
+
+    if (amount <= 0) {
+      setError("Payment amount must be greater than zero.");
+
+      return;
+    }
+
+    const balance = Number(selectedInvoice.balance_amount || 0);
+
+    if (amount > balance) {
       setError(
-        "This invoice is already cancelled."
+        `Payment cannot exceed outstanding balance of ₹${balance.toFixed(2)}.`,
       );
 
       return;
     }
 
-    if (
-      Number(
-        selectedInvoice.amount_paid ||
-          0
-      ) > 0
-    ) {
+    try {
+      setSavingPayment(true);
+
+      setError("");
+      setMessage("");
+
+      await api.post(`/sales/${selectedInvoice.id}/payments`, {
+        paymentDate: paymentForm.paymentDate,
+
+        amount,
+
+        paymentMode: paymentForm.paymentMode,
+
+        referenceNo: paymentForm.referenceNo.trim(),
+
+        notes: paymentForm.notes.trim(),
+      });
+
+      setMessage("Payment recorded successfully.");
+
+      await loadInvoices();
+
+      await loadInvoiceDetails(selectedInvoice.id);
+    } catch (err) {
+      console.error(err);
+
+      setError(err.response?.data?.message || "Unable to record payment.");
+    } finally {
+      setSavingPayment(false);
+    }
+  };
+
+  const handleCancelInvoice = async () => {
+    if (!selectedInvoice) {
+      return;
+    }
+
+    if (selectedInvoice.status === "CANCELLED") {
+      setError("This invoice is already cancelled.");
+
+      return;
+    }
+
+    if (Number(selectedInvoice.amount_paid || 0) > 0) {
       setError(
-        "This invoice has received payment and cannot be cancelled directly."
+        "This invoice has received payment and cannot be cancelled directly.",
       );
 
       return;
     }
 
-    const confirmed =
-      window.confirm(
-        `Cancel ${selectedInvoice.invoice_no}? Sold stock will be returned to inventory.`
-      );
+    const confirmed = window.confirm(
+      `Cancel ${selectedInvoice.invoice_no}? Sold stock will be returned to inventory.`,
+    );
 
     if (!confirmed) {
       return;
@@ -255,13 +192,9 @@ const handleCancelInvoice =
       setError("");
       setMessage("");
 
-      await api.patch(
-        `/sales/${selectedInvoice.id}/cancel`
-      );
+      await api.patch(`/sales/${selectedInvoice.id}/cancel`);
 
-      setMessage(
-        "Sales invoice cancelled successfully."
-      );
+      setMessage("Sales invoice cancelled successfully.");
 
       setSelectedInvoice(null);
 
@@ -269,10 +202,7 @@ const handleCancelInvoice =
     } catch (err) {
       console.error(err);
 
-      setError(
-        err.response?.data?.message ||
-          "Unable to cancel invoice."
-      );
+      setError(err.response?.data?.message || "Unable to cancel invoice.");
     }
   };
 
@@ -283,7 +213,7 @@ const handleCancelInvoice =
           <h2 className="mb-1">Sales Register</h2>
 
           <p className="text-muted mb-0">
-            Review invoices and collect customer payments.
+            Review invoices, COGS, profitability and customer payments.
           </p>
         </div>
 
@@ -301,6 +231,7 @@ const handleCancelInvoice =
 
       {error && <div className="alert alert-danger">{error}</div>}
 
+      {/* SALES REGISTER */}
       <div className="card mb-4">
         <div className="card-body">
           <input
@@ -316,12 +247,19 @@ const handleCancelInvoice =
               <thead className="table-light">
                 <tr>
                   <th>Invoice</th>
+
                   <th>Date</th>
+
                   <th>Customer</th>
+
                   <th>Total</th>
+
                   <th>Paid</th>
+
                   <th>Balance</th>
+
                   <th>Payment Status</th>
+
                   <th>Invoice Status</th>
                 </tr>
               </thead>
@@ -337,8 +275,10 @@ const handleCancelInvoice =
                   <>
                     {filteredInvoices.map((invoice) => {
                       const balance =
-                        Number(invoice.grand_total || 0) -
-                        Number(invoice.amount_paid || 0);
+                        invoice.status === "CANCELLED"
+                          ? 0
+                          : Number(invoice.grand_total || 0) -
+                            Number(invoice.amount_paid || 0);
 
                       return (
                         <tr
@@ -361,14 +301,22 @@ const handleCancelInvoice =
 
                           <td>{invoice.customer_name}</td>
 
-                          <td>₹{Number(invoice.grand_total).toFixed(2)}</td>
+                          <td>
+                            ₹{Number(invoice.grand_total || 0).toFixed(2)}
+                          </td>
 
-                          <td>₹{Number(invoice.amount_paid).toFixed(2)}</td>
+                          <td>
+                            ₹{Number(invoice.amount_paid || 0).toFixed(2)}
+                          </td>
 
                           <td>₹{balance.toFixed(2)}</td>
 
                           <td>
-                            {invoice.payment_status === "PAID" ? (
+                            {invoice.status === "CANCELLED" ? (
+                              <span className="badge text-bg-secondary">
+                                Cancelled
+                              </span>
+                            ) : invoice.payment_status === "PAID" ? (
                               <span className="badge text-bg-success">
                                 Paid
                               </span>
@@ -403,6 +351,7 @@ const handleCancelInvoice =
         </div>
       </div>
 
+      {/* INVOICE DETAILS */}
       {selectedInvoice && (
         <div className="card">
           <div className="card-body">
@@ -429,81 +378,219 @@ const handleCancelInvoice =
                 </div>
               )}
 
+            {selectedInvoice.status === "CANCELLED" && (
+              <div className="alert alert-secondary">
+                This invoice has been cancelled. Its sales stock movement has
+                been reversed.
+              </div>
+            )}
+
             {detailsLoading ? (
               <p>Loading invoice details...</p>
             ) : (
               <>
-                <div className="row mb-4">
+                {/* BASIC INVOICE SUMMARY */}
+                <div className="row g-3 mb-4">
                   <div className="col-md-3">
-                    <strong>Invoice</strong>
+                    <div className="border rounded p-3 h-100">
+                      <div className="text-muted small">Invoice</div>
 
-                    <div>{selectedInvoice.invoice_no}</div>
+                      <div className="fw-semibold">
+                        {selectedInvoice.invoice_no}
+                      </div>
+                    </div>
                   </div>
 
                   <div className="col-md-3">
-                    <strong>Customer</strong>
+                    <div className="border rounded p-3 h-100">
+                      <div className="text-muted small">Customer</div>
 
-                    <div>{selectedInvoice.customer_name}</div>
+                      <div className="fw-semibold">
+                        {selectedInvoice.customer_name}
+                      </div>
+                    </div>
                   </div>
 
                   <div className="col-md-2">
-                    <strong>Total</strong>
+                    <div className="border rounded p-3 h-100">
+                      <div className="text-muted small">Invoice Total</div>
 
-                    <div>₹{Number(selectedInvoice.grand_total).toFixed(2)}</div>
+                      <div className="fw-semibold">
+                        ₹{Number(selectedInvoice.grand_total || 0).toFixed(2)}
+                      </div>
+                    </div>
                   </div>
 
                   <div className="col-md-2">
-                    <strong>Paid</strong>
+                    <div className="border rounded p-3 h-100">
+                      <div className="text-muted small">Paid</div>
 
-                    <div>₹{Number(selectedInvoice.amount_paid).toFixed(2)}</div>
+                      <div className="fw-semibold">
+                        ₹{Number(selectedInvoice.amount_paid || 0).toFixed(2)}
+                      </div>
+                    </div>
                   </div>
 
                   <div className="col-md-2">
-                    <strong>Balance</strong>
+                    <div className="border rounded p-3 h-100">
+                      <div className="text-muted small">Balance</div>
 
-                    <div>
-                      ₹{Number(selectedInvoice.balance_amount).toFixed(2)}
+                      <div className="fw-semibold">
+                        ₹
+                        {(selectedInvoice.status === "CANCELLED"
+                          ? 0
+                          : Number(selectedInvoice.balance_amount || 0)
+                        ).toFixed(2)}
+                      </div>
                     </div>
                   </div>
                 </div>
 
+                {/* PROFITABILITY */}
+                {selectedInvoice.status === "POSTED" && (
+                  <>
+                    <h6 className="mb-3">Sales Profitability</h6>
+
+                    <div className="row g-3 mb-4">
+                      <div className="col-md-3">
+                        <div className="border rounded p-3 h-100">
+                          <div className="text-muted small">Net Sales</div>
+
+                          <div className="fw-bold fs-5">
+                            ₹{Number(selectedInvoice.net_sales || 0).toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-md-3">
+                        <div className="border rounded p-3 h-100">
+                          <div className="text-muted small">COGS</div>
+
+                          <div className="fw-bold fs-5">
+                            ₹
+                            {Number(selectedInvoice.total_cogs || 0).toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-md-3">
+                        <div className="border rounded p-3 h-100">
+                          <div className="text-muted small">Gross Profit</div>
+
+                          <div className="fw-bold fs-5">
+                            ₹
+                            {Number(selectedInvoice.gross_profit || 0).toFixed(
+                              2,
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-md-3">
+                        <div className="border rounded p-3 h-100">
+                          <div className="text-muted small">Gross Margin</div>
+
+                          <div className="fw-bold fs-5">
+                            {Number(
+                              selectedInvoice.gross_margin_percent || 0,
+                            ).toFixed(2)}
+                            %
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* INVOICE ITEMS */}
                 <h6>Invoice Items</h6>
 
                 <div className="table-responsive mb-4">
-                  <table className="table table-bordered">
+                  <table className="table table-bordered align-middle">
                     <thead className="table-light">
                       <tr>
                         <th>Product</th>
+
                         <th>Qty</th>
+
                         <th>Unit</th>
+
                         <th>Rate</th>
+
+                        <th>Discount</th>
+
+                        <th>Net Sales</th>
+
+                        <th>COGS / Unit</th>
+
+                        <th>COGS</th>
+
+                        <th>Gross Profit</th>
+
+                        <th>Margin %</th>
+
                         <th>GST</th>
-                        <th>Total</th>
+
+                        <th>Line Total</th>
                       </tr>
                     </thead>
 
                     <tbody>
-                      {selectedInvoice.items.map((item) => (
+                      {selectedInvoice.items?.map((item) => (
                         <tr key={item.id}>
                           <td>
-                            {item.item_code} - {item.item_name}
+                            <div>{item.item_name}</div>
+
+                            <small className="text-muted">
+                              {item.item_code}
+                            </small>
                           </td>
 
-                          <td>{item.quantity}</td>
+                          <td>{Number(item.quantity || 0).toFixed(3)}</td>
 
                           <td>{item.unit_code}</td>
 
-                          <td>₹{Number(item.rate).toFixed(2)}</td>
+                          <td>₹{Number(item.rate || 0).toFixed(2)}</td>
 
-                          <td>{item.gst_rate}%</td>
+                          <td>
+                            ₹{Number(item.discount_amount || 0).toFixed(2)}
+                          </td>
 
-                          <td>₹{Number(item.line_total).toFixed(2)}</td>
+                          <td>
+                            ₹{Number(item.taxable_amount || 0).toFixed(2)}
+                          </td>
+
+                          <td>
+                            ₹{Number(item.cogs_unit_cost || 0).toFixed(2)}
+                          </td>
+
+                          <td>₹{Number(item.cogs_amount || 0).toFixed(2)}</td>
+
+                          <td>₹{Number(item.gross_profit || 0).toFixed(2)}</td>
+
+                          <td>
+                            {Number(item.gross_margin_percent || 0).toFixed(2)}%
+                          </td>
+
+                          <td>{Number(item.gst_rate || 0).toFixed(2)}%</td>
+
+                          <td>₹{Number(item.line_total || 0).toFixed(2)}</td>
                         </tr>
                       ))}
+
+                      {(!selectedInvoice.items ||
+                        selectedInvoice.items.length === 0) && (
+                        <tr>
+                          <td colSpan={12} className="text-center text-muted">
+                            No invoice items found.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
 
+                {/* PAYMENT HISTORY */}
                 <h6>Payment History</h6>
 
                 <div className="table-responsive mb-4">
@@ -511,28 +598,36 @@ const handleCancelInvoice =
                     <thead className="table-light">
                       <tr>
                         <th>Date</th>
+
                         <th>Amount</th>
+
                         <th>Mode</th>
+
                         <th>Reference</th>
+
+                        <th>Notes</th>
                       </tr>
                     </thead>
 
                     <tbody>
-                      {selectedInvoice.payments.map((payment) => (
+                      {selectedInvoice.payments?.map((payment) => (
                         <tr key={payment.id}>
                           <td>{payment.payment_date}</td>
 
-                          <td>₹{Number(payment.amount).toFixed(2)}</td>
+                          <td>₹{Number(payment.amount || 0).toFixed(2)}</td>
 
                           <td>{payment.payment_mode}</td>
 
                           <td>{payment.reference_no || "-"}</td>
+
+                          <td>{payment.notes || "-"}</td>
                         </tr>
                       ))}
 
-                      {selectedInvoice.payments.length === 0 && (
+                      {(!selectedInvoice.payments ||
+                        selectedInvoice.payments.length === 0) && (
                         <tr>
-                          <td colSpan={4} className="text-center text-muted">
+                          <td colSpan={5} className="text-center text-muted">
                             No payments recorded.
                           </td>
                         </tr>
@@ -541,10 +636,11 @@ const handleCancelInvoice =
                   </table>
                 </div>
 
+                {/* RECEIVE PAYMENT */}
                 {selectedInvoice.status !== "CANCELLED" &&
-                  Number(selectedInvoice.balance_amount) > 0 && (
+                  Number(selectedInvoice.balance_amount || 0) > 0 && (
                     <div className="border rounded p-3">
-                      <h6>Receive Payment</h6>
+                      <h6 className="mb-3">Receive Payment</h6>
 
                       <div className="row">
                         <div className="col-md-3 mb-3">
@@ -565,12 +661,20 @@ const handleCancelInvoice =
                           <input
                             type="number"
                             min="0"
+                            max={selectedInvoice.balance_amount}
                             step="0.01"
                             className="form-control"
                             name="amount"
                             value={paymentForm.amount}
                             onChange={handlePaymentChange}
                           />
+
+                          <div className="form-text">
+                            Outstanding: ₹
+                            {Number(
+                              selectedInvoice.balance_amount || 0,
+                            ).toFixed(2)}
+                          </div>
                         </div>
 
                         <div className="col-md-3 mb-3">
@@ -602,6 +706,7 @@ const handleCancelInvoice =
                             name="referenceNo"
                             value={paymentForm.referenceNo}
                             onChange={handlePaymentChange}
+                            placeholder="UPI / bank / cheque reference"
                           />
                         </div>
 
@@ -625,6 +730,13 @@ const handleCancelInvoice =
                       >
                         {savingPayment ? "Saving..." : "Receive Payment"}
                       </button>
+                    </div>
+                  )}
+
+                {selectedInvoice.status !== "CANCELLED" &&
+                  Number(selectedInvoice.balance_amount || 0) === 0 && (
+                    <div className="alert alert-success mb-0">
+                      This invoice is fully paid.
                     </div>
                   )}
               </>
