@@ -1,49 +1,120 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import api from "../api/api";
 
-const emptyIngredient = () => ({
-  ingredientItemId: "",
-  quantity: "",
-  unitId: "",
-  percentage: "",
-  notes: "",
-});
+const emptyIngredient =
+  () => ({
+    ingredientItemId: "",
+    quantity: "",
+    unitId: "",
+    percentage: "",
+    notes: "",
+  });
 
-const emptyForm = () => ({
-  code: "",
-  name: "",
-  finishedItemId: "",
-  versionNo: "1",
-  batchSize: "",
-  batchUnitId: "",
-  notes: "",
-});
+const emptyForm =
+  () => ({
+    code: "",
+    name: "",
+    finishedItemId: "",
+    versionNo: "1",
+    batchSize: "",
+    batchUnitId: "",
+    notes: "",
+  });
 
 function Formulas() {
-  const [formulas, setFormulas] = useState([]);
-  const [items, setItems] = useState([]);
-  const [units, setUnits] = useState([]);
+  const [
+    formulas,
+    setFormulas,
+  ] = useState([]);
 
-  const [form, setForm] = useState(emptyForm());
+  const [
+    items,
+    setItems,
+  ] = useState([]);
 
-  const [ingredients, setIngredients] = useState([
+  const [
+    units,
+    setUnits,
+  ] = useState([]);
+
+  const [
+    form,
+    setForm,
+  ] = useState(
+    emptyForm()
+  );
+
+  const [
+    ingredients,
+    setIngredients,
+  ] = useState([
     emptyIngredient(),
   ]);
 
-  const [selectedId, setSelectedId] = useState(null);
-  const [editing, setEditing] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [showInactive, setShowInactive] = useState(false);
+  const [
+    mode,
+    setMode,
+  ] = useState(null);
 
-  const [search, setSearch] = useState("");
+  const [
+    selectedId,
+    setSelectedId,
+  ] = useState(null);
 
-  const [scaleBatchSize, setScaleBatchSize] = useState("");
+  const [
+    sourceFormulaId,
+    setSourceFormulaId,
+  ] = useState(null);
 
-  const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [
+    selectedFormulaInfo,
+    setSelectedFormulaInfo,
+  ] = useState(null);
 
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [
+    showForm,
+    setShowForm,
+  ] = useState(false);
+
+  const [
+    showInactive,
+    setShowInactive,
+  ] = useState(false);
+
+  const [
+    search,
+    setSearch,
+  ] = useState("");
+
+  const [
+    scaleBatchSize,
+    setScaleBatchSize,
+  ] = useState("");
+
+  const [
+    saving,
+    setSaving,
+  ] = useState(false);
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    message,
+    setMessage,
+  ] = useState("");
+
+  const [
+    error,
+    setError,
+  ] = useState("");
 
   useEffect(() => {
     loadFormulas();
@@ -53,402 +124,802 @@ function Formulas() {
     loadLookups();
   }, []);
 
-  const finishedItems = useMemo(
-    () =>
-      items.filter(
-        (item) => item.category_code === "FG"
-      ),
-    [items]
-  );
+  const finishedItems =
+    useMemo(
+      () =>
+        items.filter(
+          (item) =>
+            item.category_code ===
+            "FG"
+        ),
+      [items]
+    );
 
-  const componentItems = useMemo(
-    () =>
-      items.filter(
-        (item) =>
-          item.category_code === "RAW" ||
-          item.category_code === "PACK"
-      ),
-    [items]
-  );
+  const componentItems =
+    useMemo(
+      () =>
+        items.filter(
+          (item) =>
+            item.category_code ===
+              "RAW" ||
+            item.category_code ===
+              "PACK"
+        ),
+      [items]
+    );
 
-  const getComponentTypeLabel = (item) => {
-    if (!item) {
-      return "-";
-    }
+  const isReadOnly =
+    mode === "VIEW";
 
-    if (item.category_code === "RAW") {
-      return "Raw Material";
-    }
+  const isNewVersion =
+    mode ===
+    "NEW_VERSION";
 
-    if (item.category_code === "PACK") {
-      return "Packaging";
-    }
+  const getComponentTypeLabel =
+    (item) => {
+      if (!item) {
+        return "-";
+      }
 
-    return item.category_name || item.category_code || "-";
-  };
+      if (
+        item.category_code ===
+        "RAW"
+      ) {
+        return "Raw Material";
+      }
 
-  const loadFormulas = async () => {
-    try {
-      setLoading(true);
-      setError("");
+      if (
+        item.category_code ===
+        "PACK"
+      ) {
+        return "Packaging";
+      }
 
-      const response = await api.get("/formulas", {
-        params: {
-          includeInactive: showInactive,
-        },
-      });
-
-      setFormulas(response.data.formulas || []);
-    } catch (err) {
-      console.error(err);
-
-      setError("Unable to load formulas.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadLookups = async () => {
-    try {
-      const [itemResponse, unitResponse] =
-        await Promise.all([
-          api.get("/items"),
-          api.get("/units"),
-        ]);
-
-      setItems(itemResponse.data.items || []);
-      setUnits(unitResponse.data.units || []);
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        "Unable to load items or units."
+      return (
+        item.category_name ||
+        item.category_code ||
+        "-"
       );
-    }
-  };
+    };
 
-  const handleFormChange = (event) => {
-    const { name, value } = event.target;
+  const loadFormulas =
+    async () => {
+      try {
+        setLoading(true);
+        setError("");
 
-    setForm((current) => ({
-      ...current,
-      [name]:
-        name === "code"
-          ? value.toUpperCase()
-          : value,
-    }));
-  };
-
-  const handleIngredientChange = (
-    index,
-    field,
-    value
-  ) => {
-    setIngredients((current) =>
-      current.map((ingredient, ingredientIndex) => {
-        if (ingredientIndex !== index) {
-          return ingredient;
-        }
-
-        if (field === "ingredientItemId") {
-          const selectedItem = componentItems.find(
-            (item) => item.id === Number(value)
+        const response =
+          await api.get(
+            "/formulas",
+            {
+              params: {
+                includeInactive:
+                  showInactive,
+              },
+            }
           );
 
-          return {
-            ...ingredient,
-            ingredientItemId: value,
-            unitId: selectedItem?.base_unit_id
-              ? String(selectedItem.base_unit_id)
-              : ingredient.unitId,
-          };
-        }
+        setFormulas(
+          response.data
+            .formulas || []
+        );
+      } catch (err) {
+        console.error(err);
 
-        return {
-          ...ingredient,
-          [field]: value,
-        };
-      })
-    );
-  };
+        setError(
+          "Unable to load formulas."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const addIngredient = () => {
-    setIngredients((current) => [
-      ...current,
-      emptyIngredient(),
-    ]);
-  };
+  const loadLookups =
+    async () => {
+      try {
+        const [
+          itemResponse,
+          unitResponse,
+        ] =
+          await Promise.all([
+            api.get(
+              "/items"
+            ),
 
-  const removeIngredient = (index) => {
-    if (ingredients.length === 1) {
+            api.get(
+              "/units"
+            ),
+          ]);
+
+        setItems(
+          itemResponse.data
+            .items || []
+        );
+
+        setUnits(
+          unitResponse.data
+            .units || []
+        );
+      } catch (err) {
+        console.error(err);
+
+        setError(
+          "Unable to load items or units."
+        );
+      }
+    };
+
+  const resetEditor =
+    () => {
+      setMode(null);
+
+      setSelectedId(
+        null
+      );
+
+      setSourceFormulaId(
+        null
+      );
+
+      setSelectedFormulaInfo(
+        null
+      );
+
+      setShowForm(false);
+
+      setForm(
+        emptyForm()
+      );
+
       setIngredients([
         emptyIngredient(),
       ]);
 
-      return;
-    }
+      setScaleBatchSize(
+        ""
+      );
+    };
 
-    setIngredients((current) =>
-      current.filter(
-        (_, ingredientIndex) =>
-          ingredientIndex !== index
-      )
-    );
-  };
-
-  const handleNew = () => {
-    setSelectedId(null);
-    setEditing(true);
-    setShowForm(true);
-
-    setForm(emptyForm());
-    setIngredients([
-      emptyIngredient(),
-    ]);
-
-    setScaleBatchSize("");
-
-    setMessage("");
-    setError("");
-  };
-
-  const handleCancel = () => {
-    setSelectedId(null);
-    setEditing(false);
-    setShowForm(false);
-
-    setForm(emptyForm());
-    setIngredients([
-      emptyIngredient(),
-    ]);
-
-    setScaleBatchSize("");
-
-    setMessage("");
-    setError("");
-  };
-
-  const loadFormulaForEdit = async (id) => {
-    try {
+  const handleNew =
+    () => {
+      setMessage("");
       setError("");
 
-      const response =
-        await api.get(
-          `/formulas/${id}`
-        );
+      setMode("NEW");
 
-      const formula =
-        response.data.formula;
+      setSelectedId(
+        null
+      );
 
-      setSelectedId(formula.id);
-      setEditing(true);
+      setSourceFormulaId(
+        null
+      );
+
+      setSelectedFormulaInfo(
+        null
+      );
+
       setShowForm(true);
 
-      setForm({
-        code: formula.code || "",
-        name: formula.name || "",
-        finishedItemId:
-          String(
-            formula.finished_item_id ||
-              ""
-          ),
-        versionNo:
-          String(
-            formula.version_no || 1
-          ),
-        batchSize:
-          String(
-            formula.batch_size || ""
-          ),
-        batchUnitId:
-          String(
-            formula.batch_unit_id ||
-              ""
-          ),
-        notes:
-          formula.notes || "",
-      });
+      setForm(
+        emptyForm()
+      );
+
+      setIngredients([
+        emptyIngredient(),
+      ]);
+
+      setScaleBatchSize(
+        ""
+      );
+    };
+
+  const handleCancel =
+    () => {
+      resetEditor();
+
+      setMessage("");
+      setError("");
+    };
+
+  const handleFormChange =
+    (event) => {
+      const {
+        name,
+        value,
+      } =
+        event.target;
+
+      if (
+        (
+          name === "code" &&
+          mode !== "NEW"
+        ) ||
+        name ===
+          "versionNo"
+      ) {
+        return;
+      }
+
+      setForm(
+        (current) => ({
+          ...current,
+
+          [name]:
+            name === "code"
+              ? value.toUpperCase()
+              : value,
+        })
+      );
+    };
+
+  const handleIngredientChange =
+    (
+      index,
+      field,
+      value
+    ) => {
+      if (
+        isReadOnly
+      ) {
+        return;
+      }
 
       setIngredients(
-        formula.ingredients?.length
+        (current) =>
+          current.map(
+            (
+              ingredient,
+              ingredientIndex
+            ) => {
+              if (
+                ingredientIndex !==
+                index
+              ) {
+                return ingredient;
+              }
+
+              if (
+                field ===
+                "ingredientItemId"
+              ) {
+                const selectedItem =
+                  componentItems.find(
+                    (item) =>
+                      item.id ===
+                      Number(
+                        value
+                      )
+                  );
+
+                return {
+                  ...ingredient,
+
+                  ingredientItemId:
+                    value,
+
+                  unitId:
+                    selectedItem
+                      ?.base_unit_id
+                      ? String(
+                          selectedItem
+                            .base_unit_id
+                        )
+                      : "",
+                };
+              }
+
+              return {
+                ...ingredient,
+
+                [field]:
+                  value,
+              };
+            }
+          )
+      );
+    };
+
+  const addIngredient =
+    () => {
+      if (
+        isReadOnly
+      ) {
+        return;
+      }
+
+      setIngredients(
+        (current) => [
+          ...current,
+          emptyIngredient(),
+        ]
+      );
+    };
+
+  const removeIngredient =
+    (index) => {
+      if (
+        isReadOnly
+      ) {
+        return;
+      }
+
+      if (
+        ingredients.length ===
+        1
+      ) {
+        setIngredients([
+          emptyIngredient(),
+        ]);
+
+        return;
+      }
+
+      setIngredients(
+        (current) =>
+          current.filter(
+            (
+              _,
+              ingredientIndex
+            ) =>
+              ingredientIndex !==
+              index
+          )
+      );
+    };
+
+  const applyFormulaToEditor =
+    (
+      formula,
+      requestedMode
+    ) => {
+      setShowForm(true);
+
+      setMode(
+        requestedMode
+      );
+
+      setSelectedFormulaInfo(
+        formula
+      );
+
+      if (
+        requestedMode ===
+        "NEW_VERSION"
+      ) {
+        setSelectedId(
+          null
+        );
+
+        setSourceFormulaId(
+          formula.id
+        );
+
+        const sameCodeVersions =
+          formulas.filter(
+            (item) =>
+              item.code ===
+              formula.code
+          );
+
+        const highestVersion =
+          sameCodeVersions.length >
+          0
+            ? Math.max(
+                ...sameCodeVersions.map(
+                  (item) =>
+                    Number(
+                      item.version_no ||
+                        0
+                    )
+                )
+              )
+            : Number(
+                formula.version_no ||
+                  0
+              );
+
+        const nextVersion =
+          highestVersion + 1;
+
+        setForm({
+          code:
+            formula.code ||
+            "",
+
+          name:
+            formula.name ||
+            "",
+
+          finishedItemId:
+            String(
+              formula
+                .finished_item_id ||
+                ""
+            ),
+
+          versionNo:
+            String(
+              nextVersion
+            ),
+
+          batchSize:
+            String(
+              formula.batch_size ||
+                ""
+            ),
+
+          batchUnitId:
+            String(
+              formula
+                .batch_unit_id ||
+                ""
+            ),
+
+          notes:
+            formula.notes ||
+            "",
+        });
+      } else {
+        setSelectedId(
+          formula.id
+        );
+
+        setSourceFormulaId(
+          null
+        );
+
+        setForm({
+          code:
+            formula.code ||
+            "",
+
+          name:
+            formula.name ||
+            "",
+
+          finishedItemId:
+            String(
+              formula
+                .finished_item_id ||
+                ""
+            ),
+
+          versionNo:
+            String(
+              formula.version_no ||
+                1
+            ),
+
+          batchSize:
+            String(
+              formula.batch_size ||
+                ""
+            ),
+
+          batchUnitId:
+            String(
+              formula
+                .batch_unit_id ||
+                ""
+            ),
+
+          notes:
+            formula.notes ||
+            "",
+        });
+      }
+
+      setIngredients(
+        formula.ingredients
+          ?.length
           ? formula.ingredients.map(
-              (ingredient) => ({
+              (
+                ingredient
+              ) => ({
                 ingredientItemId:
                   String(
-                    ingredient.ingredient_item_id
+                    ingredient
+                      .ingredient_item_id
                   ),
+
                 quantity:
                   String(
-                    ingredient.quantity
+                    ingredient
+                      .quantity
                   ),
+
                 unitId:
                   String(
-                    ingredient.unit_id
+                    ingredient
+                      .unit_id
                   ),
+
                 percentage:
-                  ingredient.percentage ==
+                  ingredient
+                    .percentage ==
                   null
                     ? ""
                     : String(
-                        ingredient.percentage
+                        ingredient
+                          .percentage
                       ),
+
                 notes:
-                  ingredient.notes || "",
+                  ingredient
+                    .notes ||
+                  "",
               })
             )
-          : [emptyIngredient()]
+          : [
+              emptyIngredient(),
+            ]
       );
 
       setScaleBatchSize(
         String(
-          formula.batch_size || ""
+          formula.batch_size ||
+            ""
         )
       );
-    } catch (err) {
-      console.error(err);
+    };
 
-      setError(
-        "Unable to load formula details."
+  const loadFormula =
+    async (
+      id,
+      requestedMode
+    ) => {
+      try {
+        setError("");
+        setMessage("");
+
+        const response =
+          await api.get(
+            `/formulas/${id}`
+          );
+
+        const formula =
+          response.data
+            .formula;
+
+        if (
+          requestedMode ===
+            "EDIT" &&
+          Number(
+            formula.is_locked ||
+              0
+          ) === 1
+        ) {
+          applyFormulaToEditor(
+            formula,
+            "VIEW"
+          );
+
+          setError(
+            `Version ${formula.version_no} has already been used in production and is locked. Use Create New Version to change the recipe.`
+          );
+
+          return;
+        }
+
+        applyFormulaToEditor(
+          formula,
+          requestedMode
+        );
+      } catch (err) {
+        console.error(err);
+
+        setError(
+          err.response?.data
+            ?.message ||
+            "Unable to load formula details."
+        );
+      }
+    };
+
+  const handleEdit =
+    (formula) => {
+      loadFormula(
+        formula.id,
+
+        Number(
+          formula.is_locked ||
+            0
+        ) === 1
+          ? "VIEW"
+          : "EDIT"
       );
-    }
-  };
+    };
 
-  const validate = () => {
-    if (!form.code.trim()) {
-      return "Formula code is required.";
-    }
-
-    if (!form.name.trim()) {
-      return "Formula name is required.";
-    }
-
-    if (!form.finishedItemId) {
-      return "Finished product is required.";
-    }
-
-    const finishedItem = items.find(
-      (item) =>
-        item.id === Number(form.finishedItemId)
-    );
-
-    if (
-      finishedItem &&
-      finishedItem.category_code !== "FG"
-    ) {
-      return "Finished product must belong to the Finished Goods category.";
-    }
-
-    if (
-      Number(form.versionNo) <= 0
-    ) {
-      return "Version number must be greater than zero.";
-    }
-
-    if (
-      Number(form.batchSize) <= 0
-    ) {
-      return "Batch size must be greater than zero.";
-    }
-
-    if (!form.batchUnitId) {
-      return "Batch unit is required.";
-    }
-
-    const componentIds = ingredients
-      .map((ingredient) =>
-        Number(ingredient.ingredientItemId)
-      )
-      .filter((id) => id > 0);
-
-    const duplicateComponentId =
-      componentIds.find(
-        (id, index) =>
-          componentIds.indexOf(id) !== index
+  const handleCreateNewVersion =
+    (formula) => {
+      loadFormula(
+        formula.id,
+        "NEW_VERSION"
       );
+    };
 
-    if (duplicateComponentId) {
-      return "The same raw material or packaging item cannot be added more than once. Combine the quantity into one row.";
-    }
-
-    for (
-      let index = 0;
-      index < ingredients.length;
-      index++
-    ) {
-      const ingredient =
-        ingredients[index];
-
+  const validate =
+    () => {
       if (
-        !ingredient.ingredientItemId
+        !form.code.trim()
       ) {
-        return `Ingredient is required in row ${
-          index + 1
-        }.`;
+        return "Formula code is required.";
       }
 
-      const componentItem = componentItems.find(
-        (item) =>
-          item.id ===
-          Number(ingredient.ingredientItemId)
-      );
+      if (
+        !form.name.trim()
+      ) {
+        return "Formula name is required.";
+      }
 
-      if (!componentItem) {
-        return `Only Raw Material or Packaging items can be used in row ${
-          index + 1
-        }.`;
+      if (
+        !form.finishedItemId
+      ) {
+        return "Finished product is required.";
+      }
+
+      const finishedItem =
+        finishedItems.find(
+          (item) =>
+            item.id ===
+            Number(
+              form.finishedItemId
+            )
+        );
+
+      if (
+        !finishedItem
+      ) {
+        return "Finished product must belong to the FG category.";
       }
 
       if (
         Number(
-          ingredient.quantity
+          form.batchSize
         ) <= 0
       ) {
-        return `Quantity must be greater than zero in row ${
-          index + 1
-        }.`;
-      }
-
-      if (!ingredient.unitId) {
-        return `Unit is required in row ${
-          index + 1
-        }.`;
+        return "Batch size must be greater than zero.";
       }
 
       if (
-        ingredient.percentage !== "" &&
-        (
-          Number(
-            ingredient.percentage
-          ) < 0 ||
-          Number(
-            ingredient.percentage
-          ) > 100
-        )
+        !form.batchUnitId
       ) {
-        return `Percentage must be between 0 and 100 in row ${
-          index + 1
-        }.`;
+        return "Batch unit is required.";
       }
-    }
 
-    return null;
-  };
+      if (
+        !Array.isArray(
+          ingredients
+        ) ||
+        ingredients.length ===
+          0
+      ) {
+        return "At least one formula component is required.";
+      }
 
-  const handleSave = async () => {
-    setMessage("");
-    setError("");
+      const componentIds =
+        ingredients
+          .map(
+            (
+              ingredient
+            ) =>
+              Number(
+                ingredient
+                  .ingredientItemId
+              )
+          )
+          .filter(
+            (id) =>
+              id > 0
+          );
 
-    const validationError =
-      validate();
+      const duplicateId =
+        componentIds.find(
+          (
+            id,
+            index
+          ) =>
+            componentIds.indexOf(
+              id
+            ) !== index
+        );
 
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
+      if (
+        duplicateId
+      ) {
+        return "The same raw material or packaging item cannot be added more than once. Combine its quantity into one row.";
+      }
 
-    const payload = {
+      for (
+        let index = 0;
+        index <
+        ingredients.length;
+        index++
+      ) {
+        const ingredient =
+          ingredients[
+            index
+          ];
+
+        if (
+          !ingredient
+            .ingredientItemId
+        ) {
+          return `Component is required in row ${
+            index + 1
+          }.`;
+        }
+
+        const componentItem =
+          componentItems.find(
+            (item) =>
+              item.id ===
+              Number(
+                ingredient
+                  .ingredientItemId
+              )
+          );
+
+        if (
+          !componentItem
+        ) {
+          return `Only RAW or PACK items can be used in row ${
+            index + 1
+          }.`;
+        }
+
+        if (
+          Number(
+            ingredient.quantity
+          ) <= 0
+        ) {
+          return `Quantity must be greater than zero in row ${
+            index + 1
+          }.`;
+        }
+
+        if (
+          !ingredient.unitId
+        ) {
+          return `Unit is required in row ${
+            index + 1
+          }.`;
+        }
+
+        if (
+          ingredient
+            .percentage !==
+            "" &&
+          ingredient
+            .percentage !=
+            null &&
+          (
+            Number(
+              ingredient
+                .percentage
+            ) < 0 ||
+            Number(
+              ingredient
+                .percentage
+            ) > 100
+          )
+        ) {
+          return `Percentage must be between 0 and 100 in row ${
+            index + 1
+          }.`;
+        }
+      }
+
+      return null;
+    };
+
+  const buildPayload =
+    () => ({
       code:
-        form.code.trim(),
+        form.code
+          .trim()
+          .toUpperCase(),
 
       name:
         form.name.trim(),
@@ -460,7 +931,8 @@ function Formulas() {
 
       versionNo:
         Number(
-          form.versionNo
+          form.versionNo ||
+            1
         ),
 
       batchSize:
@@ -478,132 +950,219 @@ function Formulas() {
 
       ingredients:
         ingredients.map(
-          (ingredient) => ({
+          (
+            ingredient
+          ) => ({
             ingredientItemId:
               Number(
-                ingredient.ingredientItemId
+                ingredient
+                  .ingredientItemId
               ),
 
             quantity:
               Number(
-                ingredient.quantity
+                ingredient
+                  .quantity
               ),
 
             unitId:
               Number(
-                ingredient.unitId
+                ingredient
+                  .unitId
               ),
 
             percentage:
-              ingredient.percentage === ""
+              ingredient
+                .percentage ===
+              ""
                 ? ""
                 : Number(
-                    ingredient.percentage
+                    ingredient
+                      .percentage
                   ),
 
             notes:
-              ingredient.notes.trim(),
+              ingredient.notes
+                .trim(),
           })
         ),
-    };
+    });
 
-    try {
-      setSaving(true);
+  const handleSave =
+    async () => {
+      setMessage("");
+      setError("");
 
-      if (selectedId) {
-        await api.put(
-          `/formulas/${selectedId}`,
-          payload
+      if (
+        isReadOnly
+      ) {
+        setError(
+          "This formula version is read-only because it has already been used in production."
         );
 
-        setMessage(
-          "Formula updated successfully."
-        );
-      } else {
-        await api.post(
-          "/formulas",
-          payload
-        );
-
-        setMessage(
-          "Formula saved successfully."
-        );
+        return;
       }
 
-      setSelectedId(null);
-      setEditing(false);
-      setShowForm(false);
+      const validationError =
+        validate();
 
-      setForm(emptyForm());
-      setIngredients([
-        emptyIngredient(),
-      ]);
+      if (
+        validationError
+      ) {
+        setError(
+          validationError
+        );
 
-      setScaleBatchSize("");
+        return;
+      }
 
-      await loadFormulas();
-    } catch (err) {
-      console.error(err);
+      const payload =
+        buildPayload();
 
-      setError(
-        err.response?.data?.message ||
-          "Unable to save formula."
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
+      try {
+        setSaving(true);
 
-  const handleDeactivate = async (
-    formula
-  ) => {
-    const confirmed =
-      window.confirm(
-        `Deactivate ${formula.name}?`
-      );
+        if (
+          mode === "NEW"
+        ) {
+          const response =
+            await api.post(
+              "/formulas",
+              payload
+            );
 
-    if (!confirmed) {
-      return;
-    }
+          setMessage(
+            response.data
+              .message ||
+              "Formula Version 1 saved successfully."
+          );
+        } else if (
+          mode === "EDIT"
+        ) {
+          const response =
+            await api.put(
+              `/formulas/${selectedId}`,
+              payload
+            );
 
-    try {
-      await api.patch(
-        `/formulas/${formula.id}/deactivate`
-      );
+          setMessage(
+            response.data
+              .message ||
+              "Formula updated successfully."
+          );
+        } else if (
+          mode ===
+          "NEW_VERSION"
+        ) {
+          const response =
+            await api.post(
+              `/formulas/${sourceFormulaId}/new-version`,
+              payload
+            );
 
-      setMessage(
-        "Formula deactivated successfully."
-      );
+          setMessage(
+            response.data
+              .message ||
+              "New formula version created successfully."
+          );
+        }
 
-      await loadFormulas();
-    } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Unable to deactivate formula."
-      );
-    }
-  };
+        resetEditor();
 
-  const handleActivate = async (
-    formula
-  ) => {
-    try {
-      await api.patch(
-        `/formulas/${formula.id}/activate`
-      );
+        await loadFormulas();
+      } catch (err) {
+        console.error(err);
 
-      setMessage(
-        "Formula activated successfully."
-      );
+        setError(
+          err.response?.data
+            ?.message ||
+            "Unable to save formula."
+        );
+      } finally {
+        setSaving(false);
+      }
+    };
 
-      await loadFormulas();
-    } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Unable to activate formula."
-      );
-    }
-  };
+  const handleDeactivate =
+    async (
+      formula
+    ) => {
+      const confirmed =
+        window.confirm(
+          `Deactivate ${formula.code} V${formula.version_no}?`
+        );
+
+      if (
+        !confirmed
+      ) {
+        return;
+      }
+
+      try {
+        setError("");
+        setMessage("");
+
+        await api.patch(
+          `/formulas/${formula.id}/deactivate`
+        );
+
+        setMessage(
+          "Formula deactivated successfully."
+        );
+
+        await loadFormulas();
+      } catch (err) {
+        console.error(err);
+
+        setError(
+          err.response?.data
+            ?.message ||
+            "Unable to deactivate formula."
+        );
+      }
+    };
+
+  const handleActivate =
+    async (
+      formula
+    ) => {
+      const confirmed =
+        window.confirm(
+          `Activate ${formula.code} V${formula.version_no}? Other versions of this formula code will be made inactive.`
+        );
+
+      if (
+        !confirmed
+      ) {
+        return;
+      }
+
+      try {
+        setError("");
+        setMessage("");
+
+        const response =
+          await api.patch(
+            `/formulas/${formula.id}/activate`
+          );
+
+        setMessage(
+          response.data
+            .message ||
+            "Formula activated successfully."
+        );
+
+        await loadFormulas();
+      } catch (err) {
+        console.error(err);
+
+        setError(
+          err.response?.data
+            ?.message ||
+            "Unable to activate formula."
+        );
+      }
+    };
 
   const filteredFormulas =
     useMemo(() => {
@@ -618,27 +1177,66 @@ function Formulas() {
 
       return formulas.filter(
         (formula) =>
-          formula.code
-            .toLowerCase()
-            .includes(text) ||
-          formula.name
-            .toLowerCase()
-            .includes(text) ||
-          (
-            formula.finished_item_name ||
-            ""
+          String(
+            formula.code ||
+              ""
           )
             .toLowerCase()
-            .includes(text)
+            .includes(
+              text
+            ) ||
+          String(
+            formula.name ||
+              ""
+          )
+            .toLowerCase()
+            .includes(
+              text
+            ) ||
+          String(
+            formula
+              .finished_item_name ||
+              ""
+          )
+            .toLowerCase()
+            .includes(
+              text
+            )
       );
-    }, [formulas, search]);
+    }, [
+      formulas,
+      search,
+    ]);
 
   const scaleFactor =
-    Number(form.batchSize) > 0 &&
-    Number(scaleBatchSize) > 0
-      ? Number(scaleBatchSize) /
-        Number(form.batchSize)
+    Number(
+      form.batchSize
+    ) > 0 &&
+    Number(
+      scaleBatchSize
+    ) > 0
+      ? Number(
+          scaleBatchSize
+        ) /
+        Number(
+          form.batchSize
+        )
       : 0;
+
+  const editorTitle =
+    mode === "NEW"
+      ? "New Formula"
+      : mode ===
+          "NEW_VERSION"
+        ? `Create New Version${
+            form.code
+              ? ` — ${form.code} V${form.versionNo}`
+              : ""
+          }`
+        : mode ===
+            "VIEW"
+          ? `Formula Details — ${form.code} V${form.versionNo}`
+          : `Edit Formula — ${form.code} V${form.versionNo}`;
 
   return (
     <div>
@@ -649,7 +1247,7 @@ function Formulas() {
           </h2>
 
           <p className="text-muted mb-0">
-            Create and maintain manufacturing recipes with raw materials and packaging components.
+            Maintain version-controlled manufacturing recipes with raw materials and packaging components.
           </p>
         </div>
 
@@ -657,7 +1255,9 @@ function Formulas() {
           <button
             type="button"
             className="btn btn-primary"
-            onClick={handleNew}
+            onClick={
+              handleNew
+            }
           >
             New Formula
           </button>
@@ -680,6 +1280,52 @@ function Formulas() {
         <>
           <div className="card mb-4">
             <div className="card-body">
+              <div className="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                  <h5 className="mb-1">
+                    {
+                      editorTitle
+                    }
+                  </h5>
+
+                  {mode ===
+                    "NEW_VERSION" && (
+                    <div className="text-muted small">
+                      This will create a new active version. The existing version will remain preserved for history.
+                    </div>
+                  )}
+
+                  {mode ===
+                    "VIEW" && (
+                    <div className="text-muted small">
+                      This version has already been used in production and its recipe is locked.
+                    </div>
+                  )}
+                </div>
+
+                {selectedFormulaInfo &&
+                  Number(
+                    selectedFormulaInfo
+                      .production_count ||
+                      0
+                  ) > 0 && (
+                    <span className="badge text-bg-secondary">
+                      Used in{" "}
+                      {
+                        selectedFormulaInfo
+                          .production_count
+                      }{" "}
+                      batch
+                      {Number(
+                        selectedFormulaInfo
+                          .production_count
+                      ) === 1
+                        ? ""
+                        : "es"}
+                    </span>
+                  )}
+              </div>
+
               <div className="row">
                 <div className="col-md-2 mb-3">
                   <label className="form-label">
@@ -690,9 +1336,15 @@ function Formulas() {
                     type="text"
                     className="form-control"
                     name="code"
-                    value={form.code}
+                    value={
+                      form.code
+                    }
                     onChange={
                       handleFormChange
+                    }
+                    disabled={
+                      mode !==
+                      "NEW"
                     }
                   />
                 </div>
@@ -706,9 +1358,14 @@ function Formulas() {
                     type="text"
                     className="form-control"
                     name="name"
-                    value={form.name}
+                    value={
+                      form.name
+                    }
                     onChange={
                       handleFormChange
+                    }
+                    disabled={
+                      isReadOnly
                     }
                   />
                 </div>
@@ -727,19 +1384,33 @@ function Formulas() {
                     onChange={
                       handleFormChange
                     }
+                    disabled={
+                      isReadOnly
+                    }
                   >
                     <option value="">
                       Select Finished Product
                     </option>
 
                     {finishedItems.map(
-                      (item) => (
+                      (
+                        item
+                      ) => (
                         <option
-                          key={item.id}
-                          value={item.id}
+                          key={
+                            item.id
+                          }
+                          value={
+                            item.id
+                          }
                         >
-                          {item.code} -{" "}
-                          {item.name}
+                          {
+                            item.code
+                          }
+                          {" - "}
+                          {
+                            item.name
+                          }
                         </option>
                       )
                     )}
@@ -748,21 +1419,14 @@ function Formulas() {
 
                 <div className="col-md-2 mb-3">
                   <label className="form-label">
-                    Version *
+                    Version
                   </label>
 
                   <input
-                    type="number"
-                    min="1"
-                    step="1"
+                    type="text"
                     className="form-control"
-                    name="versionNo"
-                    value={
-                      form.versionNo
-                    }
-                    onChange={
-                      handleFormChange
-                    }
+                    value={`V${form.versionNo}`}
+                    disabled
                   />
                 </div>
 
@@ -783,6 +1447,9 @@ function Formulas() {
                     onChange={
                       handleFormChange
                     }
+                    disabled={
+                      isReadOnly
+                    }
                   />
                 </div>
 
@@ -800,19 +1467,33 @@ function Formulas() {
                     onChange={
                       handleFormChange
                     }
+                    disabled={
+                      isReadOnly
+                    }
                   >
                     <option value="">
                       Select Unit
                     </option>
 
                     {units.map(
-                      (unit) => (
+                      (
+                        unit
+                      ) => (
                         <option
-                          key={unit.id}
-                          value={unit.id}
+                          key={
+                            unit.id
+                          }
+                          value={
+                            unit.id
+                          }
                         >
-                          {unit.code} -{" "}
-                          {unit.name}
+                          {
+                            unit.code
+                          }
+                          {" - "}
+                          {
+                            unit.name
+                          }
                         </option>
                       )
                     )}
@@ -834,6 +1515,9 @@ function Formulas() {
                     onChange={
                       handleFormChange
                     }
+                    disabled={
+                      isReadOnly
+                    }
                   />
                 </div>
               </div>
@@ -847,48 +1531,87 @@ function Formulas() {
                   Formula Components
                 </h5>
 
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary"
-                  onClick={
-                    addIngredient
-                  }
-                >
-                  + Add Component
-                </button>
+                {!isReadOnly && (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-primary"
+                    onClick={
+                      addIngredient
+                    }
+                  >
+                    + Add Component
+                  </button>
+                )}
               </div>
 
               <div className="table-responsive">
                 <table className="table table-bordered align-middle">
                   <thead className="table-light">
                     <tr>
-                      <th style={{ minWidth: 250 }}>
+                      <th
+                        style={{
+                          minWidth:
+                            250,
+                        }}
+                      >
                         Component
                       </th>
 
-                      <th style={{ width: 140 }}>
+                      <th
+                        style={{
+                          width:
+                            140,
+                        }}
+                      >
                         Type
                       </th>
 
-                      <th style={{ width: 140 }}>
+                      <th
+                        style={{
+                          width:
+                            140,
+                        }}
+                      >
                         Quantity
                       </th>
 
-                      <th style={{ width: 150 }}>
+                      <th
+                        style={{
+                          width:
+                            150,
+                        }}
+                      >
                         Unit
                       </th>
 
-                      <th style={{ width: 130 }}>
+                      <th
+                        style={{
+                          width:
+                            130,
+                        }}
+                      >
                         Percentage
                       </th>
 
-                      <th style={{ minWidth: 180 }}>
+                      <th
+                        style={{
+                          minWidth:
+                            180,
+                        }}
+                      >
                         Notes
                       </th>
 
-                      <th style={{ width: 100 }}>
-                        Action
-                      </th>
+                      {!isReadOnly && (
+                        <th
+                          style={{
+                            width:
+                              100,
+                          }}
+                        >
+                          Action
+                        </th>
+                      )}
                     </tr>
                   </thead>
 
@@ -897,194 +1620,232 @@ function Formulas() {
                       (
                         ingredient,
                         index
-                      ) => (
-                        <tr key={index}>
-                          <td>
-                            <select
-                              className="form-select"
-                              value={
-                                ingredient.ingredientItemId
-                              }
-                              onChange={(
-                                event
-                              ) =>
-                                handleIngredientChange(
-                                  index,
-                                  "ingredientItemId",
-                                  event
-                                    .target
-                                    .value
-                                )
-                              }
-                            >
-                              <option value="">
-                                Select Ingredient
-                              </option>
-
-                              {componentItems.map(
-                                (item) => (
-                                  <option
-                                    key={
-                                      item.id
-                                    }
-                                    value={
-                                      item.id
-                                    }
-                                  >
-                                    {
-                                      item.code
-                                    }{" "}
-                                    -{" "}
-                                    {
-                                      item.name
-                                    }{" "}
-                                    [
-                                    {
-                                      item.category_code
-                                    }
-                                    ]
-                                  </option>
-                                )
-                              )}
-                            </select>
-                          </td>
-
-                          <td>
-                            {getComponentTypeLabel(
-                              componentItems.find(
-                                (item) =>
-                                  item.id ===
-                                  Number(
-                                    ingredient.ingredientItemId
-                                  )
+                      ) => {
+                        const componentItem =
+                          componentItems.find(
+                            (
+                              item
+                            ) =>
+                              item.id ===
+                              Number(
+                                ingredient
+                                  .ingredientItemId
                               )
-                            )}
-                          </td>
+                          );
 
-                          <td>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.001"
-                              className="form-control"
-                              value={
-                                ingredient.quantity
-                              }
-                              onChange={(
-                                event
-                              ) =>
-                                handleIngredientChange(
-                                  index,
-                                  "quantity",
+                        return (
+                          <tr
+                            key={
+                              index
+                            }
+                          >
+                            <td>
+                              <select
+                                className="form-select"
+                                value={
+                                  ingredient
+                                    .ingredientItemId
+                                }
+                                onChange={(
                                   event
-                                    .target
-                                    .value
-                                )
-                              }
-                            />
-                          </td>
+                                ) =>
+                                  handleIngredientChange(
+                                    index,
+                                    "ingredientItemId",
+                                    event
+                                      .target
+                                      .value
+                                  )
+                                }
+                                disabled={
+                                  isReadOnly
+                                }
+                              >
+                                <option value="">
+                                  Select Component
+                                </option>
 
-                          <td>
-                            <select
-                              className="form-select"
-                              value={
-                                ingredient.unitId
-                              }
-                              onChange={(
-                                event
-                              ) =>
-                                handleIngredientChange(
-                                  index,
-                                  "unitId",
-                                  event
-                                    .target
-                                    .value
-                                )
-                              }
-                            >
-                              <option value="">
-                                Select Unit
-                              </option>
+                                {componentItems.map(
+                                  (
+                                    item
+                                  ) => (
+                                    <option
+                                      key={
+                                        item.id
+                                      }
+                                      value={
+                                        item.id
+                                      }
+                                    >
+                                      {
+                                        item.code
+                                      }
+                                      {" - "}
+                                      {
+                                        item.name
+                                      }
+                                      {" ["}
+                                      {
+                                        item.category_code
+                                      }
+                                      {"]"}
+                                    </option>
+                                  )
+                                )}
+                              </select>
+                            </td>
 
-                              {units.map(
-                                (unit) => (
-                                  <option
-                                    key={
-                                      unit.id
-                                    }
-                                    value={
-                                      unit.id
-                                    }
-                                  >
-                                    {
-                                      unit.code
-                                    }
-                                  </option>
-                                )
+                            <td>
+                              {getComponentTypeLabel(
+                                componentItem
                               )}
-                            </select>
-                          </td>
+                            </td>
 
-                          <td>
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="0.01"
-                              className="form-control"
-                              value={
-                                ingredient.percentage
-                              }
-                              onChange={(
-                                event
-                              ) =>
-                                handleIngredientChange(
-                                  index,
-                                  "percentage",
+                            <td>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.001"
+                                className="form-control"
+                                value={
+                                  ingredient
+                                    .quantity
+                                }
+                                onChange={(
                                   event
-                                    .target
-                                    .value
-                                )
-                              }
-                            />
-                          </td>
+                                ) =>
+                                  handleIngredientChange(
+                                    index,
+                                    "quantity",
+                                    event
+                                      .target
+                                      .value
+                                  )
+                                }
+                                disabled={
+                                  isReadOnly
+                                }
+                              />
+                            </td>
 
-                          <td>
-                            <input
-                              type="text"
-                              className="form-control"
-                              value={
-                                ingredient.notes
-                              }
-                              onChange={(
-                                event
-                              ) =>
-                                handleIngredientChange(
-                                  index,
-                                  "notes",
+                            <td>
+                              <select
+                                className="form-select"
+                                value={
+                                  ingredient
+                                    .unitId
+                                }
+                                onChange={(
                                   event
-                                    .target
-                                    .value
-                                )
-                              }
-                            />
-                          </td>
+                                ) =>
+                                  handleIngredientChange(
+                                    index,
+                                    "unitId",
+                                    event
+                                      .target
+                                      .value
+                                  )
+                                }
+                                disabled={
+                                  isReadOnly
+                                }
+                              >
+                                <option value="">
+                                  Select Unit
+                                </option>
 
-                          <td>
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-outline-danger"
-                              onClick={() =>
-                                removeIngredient(
-                                  index
-                                )
-                              }
-                            >
-                              Remove
-                            </button>
-                          </td>
-                        </tr>
-                      )
+                                {units.map(
+                                  (
+                                    unit
+                                  ) => (
+                                    <option
+                                      key={
+                                        unit.id
+                                      }
+                                      value={
+                                        unit.id
+                                      }
+                                    >
+                                      {
+                                        unit.code
+                                      }
+                                    </option>
+                                  )
+                                )}
+                              </select>
+                            </td>
+
+                            <td>
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                className="form-control"
+                                value={
+                                  ingredient
+                                    .percentage
+                                }
+                                onChange={(
+                                  event
+                                ) =>
+                                  handleIngredientChange(
+                                    index,
+                                    "percentage",
+                                    event
+                                      .target
+                                      .value
+                                  )
+                                }
+                                disabled={
+                                  isReadOnly
+                                }
+                              />
+                            </td>
+
+                            <td>
+                              <input
+                                type="text"
+                                className="form-control"
+                                value={
+                                  ingredient
+                                    .notes
+                                }
+                                onChange={(
+                                  event
+                                ) =>
+                                  handleIngredientChange(
+                                    index,
+                                    "notes",
+                                    event
+                                      .target
+                                      .value
+                                  )
+                                }
+                                disabled={
+                                  isReadOnly
+                                }
+                              />
+                            </td>
+
+                            {!isReadOnly && (
+                              <td>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-danger"
+                                  onClick={() =>
+                                    removeIngredient(
+                                      index
+                                    )
+                                  }
+                                >
+                                  Remove
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      }
                     )}
                   </tbody>
                 </table>
@@ -1116,27 +1877,39 @@ function Formulas() {
                       event
                     ) =>
                       setScaleBatchSize(
-                        event.target.value
+                        event.target
+                          .value
                       )
                     }
                   />
                 </div>
               </div>
 
-              {scaleFactor > 0 && (
+              {scaleFactor >
+                0 && (
                 <div className="table-responsive">
-                  <table className="table table-bordered">
+                  <table className="table table-bordered align-middle">
                     <thead className="table-light">
                       <tr>
-                        <th>Component</th>
-                        <th>Type</th>
+                        <th>
+                          Component
+                        </th>
+
+                        <th>
+                          Type
+                        </th>
+
                         <th>
                           Base Quantity
                         </th>
+
                         <th>
                           Required Quantity
                         </th>
-                        <th>Unit</th>
+
+                        <th>
+                          Unit
+                        </th>
                       </tr>
                     </thead>
 
@@ -1148,34 +1921,47 @@ function Formulas() {
                         ) => {
                           const item =
                             componentItems.find(
-                              (item) =>
-                                item.id ===
+                              (
+                                component
+                              ) =>
+                                component.id ===
                                 Number(
-                                  ingredient.ingredientItemId
+                                  ingredient
+                                    .ingredientItemId
                                 )
                             );
 
                           const unit =
                             units.find(
-                              (unit) =>
-                                unit.id ===
+                              (
+                                value
+                              ) =>
+                                value.id ===
                                 Number(
-                                  ingredient.unitId
+                                  ingredient
+                                    .unitId
                                 )
                             );
 
                           const requiredQty =
                             Number(
-                              ingredient.quantity ||
+                              ingredient
+                                .quantity ||
                                 0
                             ) *
                             scaleFactor;
 
                           return (
-                            <tr key={index}>
+                            <tr
+                              key={
+                                index
+                              }
+                            >
                               <td>
-                                {item?.name ||
-                                  "-"}
+                                {
+                                  item?.name ||
+                                  "-"
+                                }
                               </td>
 
                               <td>
@@ -1186,7 +1972,8 @@ function Formulas() {
 
                               <td>
                                 {Number(
-                                  ingredient.quantity ||
+                                  ingredient
+                                    .quantity ||
                                     0
                                 ).toFixed(
                                   3
@@ -1200,8 +1987,10 @@ function Formulas() {
                               </td>
 
                               <td>
-                                {unit?.code ||
-                                  "-"}
+                                {
+                                  unit?.code ||
+                                  "-"
+                                }
                               </td>
                             </tr>
                           );
@@ -1215,20 +2004,43 @@ function Formulas() {
           </div>
 
           <div className="d-flex gap-2 mb-4">
-            <button
-              type="button"
-              className="btn btn-success"
-              onClick={handleSave}
-              disabled={
-                saving || !editing
-              }
-            >
-              {saving
-                ? "Saving..."
-                : selectedId
-                  ? "Update Formula"
-                  : "Save Formula"}
-            </button>
+            {!isReadOnly && (
+              <button
+                type="button"
+                className="btn btn-success"
+                onClick={
+                  handleSave
+                }
+                disabled={
+                  saving
+                }
+              >
+                {saving
+                  ? "Saving..."
+                  : isNewVersion
+                    ? `Create V${form.versionNo}`
+                    : mode ===
+                        "EDIT"
+                      ? "Update Formula"
+                      : "Save Formula"}
+              </button>
+            )}
+
+            {mode ===
+              "VIEW" &&
+              selectedFormulaInfo && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() =>
+                    handleCreateNewVersion(
+                      selectedFormulaInfo
+                    )
+                  }
+                >
+                  Create New Version
+                </button>
+              )}
 
             <button
               type="button"
@@ -1237,7 +2049,9 @@ function Formulas() {
                 handleCancel
               }
             >
-              Cancel
+              {isReadOnly
+                ? "Close"
+                : "Cancel"}
             </button>
           </div>
         </>
@@ -1262,7 +2076,8 @@ function Formulas() {
                   event
                 ) =>
                   setShowInactive(
-                    event.target.checked
+                    event.target
+                      .checked
                   )
                 }
               />
@@ -1281,10 +2096,15 @@ function Formulas() {
               type="text"
               className="form-control"
               placeholder="Search formula code, name or finished product..."
-              value={search}
-              onChange={(event) =>
+              value={
+                search
+              }
+              onChange={(
+                event
+              ) =>
                 setSearch(
-                  event.target.value
+                  event.target
+                    .value
                 )
               }
             />
@@ -1294,13 +2114,42 @@ function Formulas() {
             <table className="table table-bordered table-hover align-middle">
               <thead className="table-light">
                 <tr>
-                  <th>Code</th>
-                  <th>Name</th>
-                  <th>Finished Product</th>
-                  <th>Version</th>
-                  <th>Base Batch</th>
-                  <th>Status</th>
-                  <th>Action</th>
+                  <th>
+                    Code
+                  </th>
+
+                  <th>
+                    Name
+                  </th>
+
+                  <th>
+                    Finished Product
+                  </th>
+
+                  <th>
+                    Version
+                  </th>
+
+                  <th>
+                    Base Batch
+                  </th>
+
+                  <th>
+                    Usage
+                  </th>
+
+                  <th>
+                    Status
+                  </th>
+
+                  <th
+                    style={{
+                      minWidth:
+                        300,
+                    }}
+                  >
+                    Action
+                  </th>
                 </tr>
               </thead>
 
@@ -1308,7 +2157,9 @@ function Formulas() {
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={
+                        8
+                      }
                       className="text-center text-muted"
                     >
                       Loading formulas...
@@ -1317,7 +2168,9 @@ function Formulas() {
                 ) : (
                   <>
                     {filteredFormulas.map(
-                      (formula) => (
+                      (
+                        formula
+                      ) => (
                         <tr
                           key={
                             formula.id
@@ -1337,24 +2190,56 @@ function Formulas() {
 
                           <td>
                             {
-                              formula.finished_item_name
+                              formula
+                                .finished_item_name
                             }
                           </td>
 
                           <td>
                             V
                             {
-                              formula.version_no
+                              formula
+                                .version_no
                             }
                           </td>
 
                           <td>
                             {
-                              formula.batch_size
-                            }{" "}
-                            {
-                              formula.batch_unit_code
+                              formula
+                                .batch_size
                             }
+                            {" "}
+                            {
+                              formula
+                                .batch_unit_code
+                            }
+                          </td>
+
+                          <td>
+                            {Number(
+                              formula
+                                .production_count ||
+                                0
+                            ) > 0 ? (
+                              <span className="badge text-bg-secondary">
+                                {
+                                  formula
+                                    .production_count
+                                }{" "}
+                                batch
+                                {Number(
+                                  formula
+                                    .production_count
+                                ) ===
+                                1
+                                  ? ""
+                                  : "es"}
+                              </span>
+                            ) : (
+                              <span className="badge text-bg-light text-dark border">
+                                Draft
+                              </span>
+                            )}
                           </td>
 
                           <td>
@@ -1370,17 +2255,35 @@ function Formulas() {
                           </td>
 
                           <td>
-                            <div className="d-flex gap-2">
+                            <div className="d-flex flex-wrap gap-2">
                               <button
                                 type="button"
                                 className="btn btn-sm btn-outline-primary"
                                 onClick={() =>
-                                  loadFormulaForEdit(
-                                    formula.id
+                                  handleEdit(
+                                    formula
                                   )
                                 }
                               >
-                                Edit
+                                {Number(
+                                  formula
+                                    .is_locked ||
+                                    0
+                                ) === 1
+                                  ? "View"
+                                  : "Edit"}
+                              </button>
+
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-dark"
+                                onClick={() =>
+                                  handleCreateNewVersion(
+                                    formula
+                                  )
+                                }
+                              >
+                                Create New Version
                               </button>
 
                               {formula.is_active ? (
@@ -1418,7 +2321,9 @@ function Formulas() {
                       0 && (
                       <tr>
                         <td
-                          colSpan={7}
+                          colSpan={
+                            8
+                          }
                           className="text-center text-muted"
                         >
                           No formulas found.
@@ -1429,6 +2334,10 @@ function Formulas() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          <div className="text-muted small mt-3">
+            Used formula versions are locked for recipe changes. To change a historical recipe, create a new version instead.
           </div>
         </div>
       </div>

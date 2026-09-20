@@ -5,6 +5,7 @@ import {
   formulaDetails,
   addFormula,
   editFormula,
+  addFormulaVersion,
   removeFormula,
   restoreFormula,
 } from "../controllers/formulaController.js";
@@ -25,6 +26,11 @@ router.get(
 router.post(
   "/",
   addFormula
+);
+
+router.post(
+  "/:id/new-version",
+  addFormulaVersion
 );
 
 router.put(
