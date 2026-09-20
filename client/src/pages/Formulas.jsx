@@ -53,6 +53,40 @@ function Formulas() {
     loadLookups();
   }, []);
 
+  const finishedItems = useMemo(
+    () =>
+      items.filter(
+        (item) => item.category_code === "FG"
+      ),
+    [items]
+  );
+
+  const componentItems = useMemo(
+    () =>
+      items.filter(
+        (item) =>
+          item.category_code === "RAW" ||
+          item.category_code === "PACK"
+      ),
+    [items]
+  );
+
+  const getComponentTypeLabel = (item) => {
+    if (!item) {
+      return "-";
+    }
+
+    if (item.category_code === "RAW") {
+      return "Raw Material";
+    }
+
+    if (item.category_code === "PACK") {
+      return "Packaging";
+    }
+
+    return item.category_name || item.category_code || "-";
+  };
+
   const loadFormulas = async () => {
     try {
       setLoading(true);
@@ -111,14 +145,30 @@ function Formulas() {
     value
   ) => {
     setIngredients((current) =>
-      current.map((ingredient, ingredientIndex) =>
-        ingredientIndex === index
-          ? {
-              ...ingredient,
-              [field]: value,
-            }
-          : ingredient
-      )
+      current.map((ingredient, ingredientIndex) => {
+        if (ingredientIndex !== index) {
+          return ingredient;
+        }
+
+        if (field === "ingredientItemId") {
+          const selectedItem = componentItems.find(
+            (item) => item.id === Number(value)
+          );
+
+          return {
+            ...ingredient,
+            ingredientItemId: value,
+            unitId: selectedItem?.base_unit_id
+              ? String(selectedItem.base_unit_id)
+              : ingredient.unitId,
+          };
+        }
+
+        return {
+          ...ingredient,
+          [field]: value,
+        };
+      })
     );
   };
 
@@ -276,6 +326,18 @@ function Formulas() {
       return "Finished product is required.";
     }
 
+    const finishedItem = items.find(
+      (item) =>
+        item.id === Number(form.finishedItemId)
+    );
+
+    if (
+      finishedItem &&
+      finishedItem.category_code !== "FG"
+    ) {
+      return "Finished product must belong to the Finished Goods category.";
+    }
+
     if (
       Number(form.versionNo) <= 0
     ) {
@@ -292,6 +354,22 @@ function Formulas() {
       return "Batch unit is required.";
     }
 
+    const componentIds = ingredients
+      .map((ingredient) =>
+        Number(ingredient.ingredientItemId)
+      )
+      .filter((id) => id > 0);
+
+    const duplicateComponentId =
+      componentIds.find(
+        (id, index) =>
+          componentIds.indexOf(id) !== index
+      );
+
+    if (duplicateComponentId) {
+      return "The same raw material or packaging item cannot be added more than once. Combine the quantity into one row.";
+    }
+
     for (
       let index = 0;
       index < ingredients.length;
@@ -304,6 +382,18 @@ function Formulas() {
         !ingredient.ingredientItemId
       ) {
         return `Ingredient is required in row ${
+          index + 1
+        }.`;
+      }
+
+      const componentItem = componentItems.find(
+        (item) =>
+          item.id ===
+          Number(ingredient.ingredientItemId)
+      );
+
+      if (!componentItem) {
+        return `Only Raw Material or Packaging items can be used in row ${
           index + 1
         }.`;
       }
@@ -559,7 +649,7 @@ function Formulas() {
           </h2>
 
           <p className="text-muted mb-0">
-            Create and maintain manufacturing recipes.
+            Create and maintain manufacturing recipes with raw materials and packaging components.
           </p>
         </div>
 
@@ -642,7 +732,7 @@ function Formulas() {
                       Select Finished Product
                     </option>
 
-                    {items.map(
+                    {finishedItems.map(
                       (item) => (
                         <option
                           key={item.id}
@@ -754,7 +844,7 @@ function Formulas() {
             <div className="card-body">
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <h5 className="mb-0">
-                  Ingredients
+                  Formula Components
                 </h5>
 
                 <button
@@ -764,7 +854,7 @@ function Formulas() {
                     addIngredient
                   }
                 >
-                  + Add Ingredient
+                  + Add Component
                 </button>
               </div>
 
@@ -773,7 +863,11 @@ function Formulas() {
                   <thead className="table-light">
                     <tr>
                       <th style={{ minWidth: 250 }}>
-                        Ingredient
+                        Component
+                      </th>
+
+                      <th style={{ width: 140 }}>
+                        Type
                       </th>
 
                       <th style={{ width: 140 }}>
@@ -827,7 +921,7 @@ function Formulas() {
                                 Select Ingredient
                               </option>
 
-                              {items.map(
+                              {componentItems.map(
                                 (item) => (
                                   <option
                                     key={
@@ -843,11 +937,28 @@ function Formulas() {
                                     -{" "}
                                     {
                                       item.name
+                                    }{" "}
+                                    [
+                                    {
+                                      item.category_code
                                     }
+                                    ]
                                   </option>
                                 )
                               )}
                             </select>
+                          </td>
+
+                          <td>
+                            {getComponentTypeLabel(
+                              componentItems.find(
+                                (item) =>
+                                  item.id ===
+                                  Number(
+                                    ingredient.ingredientItemId
+                                  )
+                              )
+                            )}
                           </td>
 
                           <td>
@@ -1017,7 +1128,8 @@ function Formulas() {
                   <table className="table table-bordered">
                     <thead className="table-light">
                       <tr>
-                        <th>Ingredient</th>
+                        <th>Component</th>
+                        <th>Type</th>
                         <th>
                           Base Quantity
                         </th>
@@ -1035,7 +1147,7 @@ function Formulas() {
                           index
                         ) => {
                           const item =
-                            items.find(
+                            componentItems.find(
                               (item) =>
                                 item.id ===
                                 Number(
@@ -1064,6 +1176,12 @@ function Formulas() {
                               <td>
                                 {item?.name ||
                                   "-"}
+                              </td>
+
+                              <td>
+                                {getComponentTypeLabel(
+                                  item
+                                )}
                               </td>
 
                               <td>
