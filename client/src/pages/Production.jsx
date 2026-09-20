@@ -48,9 +48,13 @@ function Production() {
     setExpiryDate,
   ] = useState("");
 
-  const [notes, setNotes] =
-    useState("");
+  const [notes, setNotes] = useState("");
 
+  const [labourCost, setLabourCost] = useState("");
+
+  const [electricityCost, setElectricityCost] = useState("");
+
+  const [otherOverheadCost, setOtherOverheadCost] = useState("");
   const [
     calculation,
     setCalculation,
@@ -439,57 +443,36 @@ function Production() {
       return "Actual output quantity must be greater than zero.";
     }
 
-    for (
-      let index = 0;
-      index <
-      consumption.length;
-      index++
-    ) {
-      const line =
-        consumption[index];
+    for (let index = 0; index < consumption.length; index++) {
+      const line = consumption[index];
 
-      const ingredient =
-        calculation
-          .ingredients[
-          index
-        ];
+      const ingredient = calculation.ingredients[index];
 
-      const actualQty =
-        Number(
-          line.actualQuantity
-        );
+      const actualQty = Number(line.actualQuantity);
 
-      if (
-        actualQty <= 0
-      ) {
+      if (actualQty <= 0) {
         return `Actual consumption must be greater than zero in row ${
           index + 1
         }.`;
       }
 
-      const actualBaseQty =
-        getActualBaseQuantity(
-          ingredient,
-          actualQty
-        );
+      const actualBaseQty = getActualBaseQuantity(ingredient, actualQty);
 
-      const availableBase =
-        Number(
-          ingredient
-            ?.currentStockBase ||
-            0
-        );
+      const availableBase = Number(ingredient?.currentStockBase || 0);
 
-      if (
-        actualBaseQty >
-        availableBase
-      ) {
+      if (actualBaseQty > availableBase) {
         return `${
-          ingredient
-            ?.ingredientName ||
-          `Row ${index + 1}`
+          ingredient?.ingredientName || `Row ${index + 1}`
         }: insufficient stock.`;
       }
+    }
+
+    if (
+      Number(labourCost || 0) < 0 ||
+      Number(electricityCost || 0) < 0 ||
+      Number(otherOverheadCost || 0) < 0
+    ) {
+      return "Manufacturing costs cannot be negative.";
     }
 
     return null;
@@ -516,69 +499,44 @@ function Production() {
       try {
         setSaving(true);
 
-        const response =
-          await api.post(
-            "/production",
-            {
-              productionDate,
+        const response = await api.post("/production", {
+          productionDate,
 
-              formulaId:
-                Number(
-                  formulaId
-                ),
+          formulaId: Number(formulaId),
 
-              plannedBatchSize:
-                Number(
-                  plannedBatchSize
-                ),
+          plannedBatchSize: Number(plannedBatchSize),
 
-              actualOutputQty:
-                Number(
-                  actualOutputQty
-                ),
+          actualOutputQty: Number(actualOutputQty),
 
-              finishedLotNo:
-                finishedLotNo
-                  .trim(),
+          finishedLotNo: finishedLotNo.trim(),
 
-              mfgDate:
-                mfgDate ||
-                null,
+          mfgDate: mfgDate || null,
 
-              expiryDate:
-                expiryDate ||
-                null,
+          expiryDate: expiryDate || null,
 
-              notes:
-                notes.trim(),
+          notes: notes.trim(),
 
-              ingredients:
-                consumption.map(
-                  (item) => ({
-                    itemId:
-                      Number(
-                        item.itemId
-                      ),
+          labourCost: Number(labourCost || 0),
 
-                    /*
-                     * User-entered quantity remains
-                     * in the formula component unit.
-                     *
-                     * Backend performs the authoritative
-                     * conversion to stock/base unit.
-                     */
-                    actualQuantity:
-                      Number(
-                        item.actualQuantity
-                      ),
+          electricityCost: Number(electricityCost || 0),
 
-                    lotNo:
-                      item.lotNo
-                        .trim(),
-                  })
-                ),
-            }
-          );
+          otherOverheadCost: Number(otherOverheadCost || 0),
+
+          ingredients: consumption.map((item) => ({
+            itemId: Number(item.itemId),
+
+            /*
+             * User-entered quantity remains
+             * in the formula component unit.
+             *
+             * Backend performs the authoritative
+             * conversion to stock/base unit.
+             */
+            actualQuantity: Number(item.actualQuantity),
+
+            lotNo: item.lotNo.trim(),
+          })),
+        });
 
         const production =
           response.data
@@ -642,9 +600,11 @@ function Production() {
           ""
         );
 
-        setNotes(
-          ""
-        );
+        setNotes("");
+
+        setLabourCost("");
+        setElectricityCost("");
+        setOtherOverheadCost("");
 
         setCalculation(
           null
@@ -671,144 +631,82 @@ function Production() {
   return (
     <div>
       <div className="mb-4">
-        <h2 className="mb-1">
-          Production Entry
-        </h2>
+        <h2 className="mb-1">Production Entry</h2>
 
         <p className="text-muted mb-0">
-          Manufacture a batch from a saved formula. Stock quantities are automatically converted to each item's base unit.
+          Manufacture a batch from a saved formula. Stock quantities are
+          automatically converted to each item's base unit.
         </p>
       </div>
 
-      {message && (
-        <div className="alert alert-success">
-          {message}
-        </div>
-      )}
+      {message && <div className="alert alert-success">{message}</div>}
 
-      {error && (
-        <div className="alert alert-danger">
-          {error}
-        </div>
-      )}
+      {error && <div className="alert alert-danger">{error}</div>}
 
       {/* PRODUCTION HEADER */}
       <div className="card mb-4">
         <div className="card-body">
           <div className="row">
             <div className="col-md-3 mb-3">
-              <label className="form-label">
-                Production Date *
-              </label>
+              <label className="form-label">Production Date *</label>
 
               <input
                 type="date"
                 className="form-control"
-                value={
-                  productionDate
-                }
-                onChange={(
-                  event
-                ) =>
-                  setProductionDate(
-                    event.target
-                      .value
-                  )
-                }
+                value={productionDate}
+                onChange={(event) => setProductionDate(event.target.value)}
               />
             </div>
 
             <div className="col-md-5 mb-3">
-              <label className="form-label">
-                Formula *
-              </label>
+              <label className="form-label">Formula *</label>
 
               <select
                 className="form-select"
-                value={
-                  formulaId
-                }
-                onChange={
-                  handleFormulaChange
-                }
+                value={formulaId}
+                onChange={handleFormulaChange}
               >
-                <option value="">
-                  Select Formula
-                </option>
+                <option value="">Select Formula</option>
 
-                {formulas.map(
-                  (formula) => (
-                    <option
-                      key={
-                        formula.id
-                      }
-                      value={
-                        formula.id
-                      }
-                    >
-                      {
-                        formula.code
-                      }
-                      {" - "}
-                      {
-                        formula.name
-                      }
-                      {" (V"}
-                      {
-                        formula.version_no
-                      }
-                      {")"}
-                    </option>
-                  )
-                )}
+                {formulas.map((formula) => (
+                  <option key={formula.id} value={formula.id}>
+                    {formula.code}
+                    {" - "}
+                    {formula.name}
+                    {" (V"}
+                    {formula.version_no}
+                    {")"}
+                  </option>
+                ))}
               </select>
             </div>
 
             <div className="col-md-2 mb-3">
-              <label className="form-label">
-                Planned Batch *
-              </label>
+              <label className="form-label">Planned Batch *</label>
 
               <input
                 type="number"
                 min="0"
                 step="0.001"
                 className="form-control"
-                value={
-                  plannedBatchSize
-                }
-                onChange={(
-                  event
-                ) => {
-                  setPlannedBatchSize(
-                    event.target
-                      .value
-                  );
+                value={plannedBatchSize}
+                onChange={(event) => {
+                  setPlannedBatchSize(event.target.value);
 
-                  setCalculation(
-                    null
-                  );
+                  setCalculation(null);
 
-                  setConsumption(
-                    []
-                  );
+                  setConsumption([]);
                 }}
               />
             </div>
 
             <div className="col-md-2 mb-3">
-              <label className="form-label">
-                Unit
-              </label>
+              <label className="form-label">Unit</label>
 
               <input
                 type="text"
                 className="form-control"
-                value={
-                  selectedFormula
-                    ?.batch_unit_code ||
-                  ""
-                }
+                value={selectedFormula?.batch_unit_code || ""}
                 disabled
               />
             </div>
@@ -817,16 +715,10 @@ function Production() {
           <button
             type="button"
             className="btn btn-primary"
-            onClick={
-              calculateRequirements
-            }
-            disabled={
-              calculating
-            }
+            onClick={calculateRequirements}
+            disabled={calculating}
           >
-            {calculating
-              ? "Calculating..."
-              : "Calculate Requirements"}
+            {calculating ? "Calculating..." : "Calculate Requirements"}
           </button>
         </div>
       </div>
@@ -837,335 +729,194 @@ function Production() {
           <div className="card mb-4">
             <div className="card-body">
               <div className="mb-3">
-                <h5 className="mb-1">
-                  Component Requirements
-                </h5>
+                <h5 className="mb-1">Component Requirements</h5>
 
                 <div className="text-muted">
-                  {
-                    calculation
-                      .formula
-                      .finished_item_name
-                  }
+                  {calculation.formula.finished_item_name}
                   {" — "}
-                  {
-                    plannedBatchSize
-                  }{" "}
-                  {
-                    calculation
-                      .formula
-                      .batch_unit_code
-                  }
+                  {plannedBatchSize} {calculation.formula.batch_unit_code}
                 </div>
               </div>
 
               <div className="alert alert-light border py-2">
-                Formula quantities remain in their selected units. Stock deductions are automatically converted to each item's base stock unit.
+                Formula quantities remain in their selected units. Stock
+                deductions are automatically converted to each item's base stock
+                unit.
               </div>
 
               <div className="table-responsive">
                 <table className="table table-bordered align-middle">
                   <thead className="table-light">
                     <tr>
-                      <th style={{ minWidth: 220 }}>
-                        Component
-                      </th>
+                      <th style={{ minWidth: 220 }}>Component</th>
 
-                      <th>
-                        Planned
-                      </th>
+                      <th>Planned</th>
 
-                      <th style={{ minWidth: 130 }}>
-                        Actual
-                      </th>
+                      <th style={{ minWidth: 130 }}>Actual</th>
 
-                      <th>
-                        Formula Unit
-                      </th>
+                      <th>Formula Unit</th>
 
-                      <th>
-                        Stock Deduction
-                      </th>
+                      <th>Stock Deduction</th>
 
-                      <th>
-                        Available Stock
-                      </th>
+                      <th>Available Stock</th>
 
-                      <th>
-                        After Production
-                      </th>
+                      <th>After Production</th>
 
-                      <th style={{ minWidth: 130 }}>
-                        Lot No.
-                      </th>
+                      <th style={{ minWidth: 130 }}>Lot No.</th>
 
-                      <th>
-                        Status
-                      </th>
+                      <th>Status</th>
                     </tr>
                   </thead>
 
                   <tbody>
-                    {calculation
-                      .ingredients
-                      .map(
-                        (
-                          ingredient,
-                          index
-                        ) => {
-                          const actualQty =
-                            Number(
-                              consumption[
-                                index
-                              ]
-                                ?.actualQuantity ||
-                                0
-                            );
+                    {calculation.ingredients.map((ingredient, index) => {
+                      const actualQty = Number(
+                        consumption[index]?.actualQuantity || 0,
+                      );
 
-                          const actualBaseQty =
-                            getActualBaseQuantity(
-                              ingredient,
-                              actualQty
-                            );
+                      const actualBaseQty = getActualBaseQuantity(
+                        ingredient,
+                        actualQty,
+                      );
 
-                          const availableBase =
-                            Number(
-                              ingredient
-                                .currentStockBase ||
-                                0
-                            );
+                      const availableBase = Number(
+                        ingredient.currentStockBase || 0,
+                      );
 
-                          const afterBase =
-                            availableBase -
-                            actualBaseQty;
+                      const afterBase = availableBase - actualBaseQty;
 
-                          const enoughStock =
-                            afterBase >=
-                            -0.0000001;
+                      const enoughStock = afterBase >= -0.0000001;
 
-                          return (
-                            <tr
-                              key={
-                                ingredient
-                                  .ingredientItemId
+                      return (
+                        <tr
+                          key={ingredient.ingredientItemId}
+                          className={enoughStock ? "" : "table-danger"}
+                        >
+                          <td>
+                            <div className="fw-semibold">
+                              {ingredient.ingredientName}
+                            </div>
+
+                            <small className="text-muted">
+                              {ingredient.ingredientCode}
+                            </small>
+                          </td>
+
+                          <td>
+                            <div>
+                              {Number(ingredient.requiredQuantity || 0).toFixed(
+                                3,
+                              )}{" "}
+                              {ingredient.unitCode}
+                            </div>
+
+                            {ingredient.unitCode !==
+                              ingredient.baseUnitCode && (
+                              <small className="text-muted">
+                                ={" "}
+                                {Number(
+                                  ingredient.requiredBaseQuantity || 0,
+                                ).toFixed(3)}{" "}
+                                {ingredient.baseUnitCode}
+                              </small>
+                            )}
+                          </td>
+
+                          <td>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.001"
+                              className="form-control"
+                              value={consumption[index]?.actualQuantity ?? ""}
+                              onChange={(event) =>
+                                updateConsumption(
+                                  index,
+                                  "actualQuantity",
+                                  event.target.value,
+                                )
                               }
+                            />
+                          </td>
+
+                          <td>{ingredient.unitCode}</td>
+
+                          <td>
+                            <strong>
+                              {actualBaseQty.toFixed(3)}{" "}
+                              {ingredient.baseUnitCode}
+                            </strong>
+
+                            {ingredient.unitCode !==
+                              ingredient.baseUnitCode && (
+                              <div>
+                                <small className="text-muted">
+                                  from {actualQty.toFixed(3)}{" "}
+                                  {ingredient.unitCode}
+                                </small>
+                              </div>
+                            )}
+                          </td>
+
+                          <td>
+                            {availableBase.toFixed(3)} {ingredient.baseUnitCode}
+                            {ingredient.unitCode !==
+                              ingredient.baseUnitCode && (
+                              <div>
+                                <small className="text-muted">
+                                  {Number(ingredient.currentStock || 0).toFixed(
+                                    3,
+                                  )}{" "}
+                                  {ingredient.unitCode}
+                                </small>
+                              </div>
+                            )}
+                          </td>
+
+                          <td>
+                            <span
                               className={
-                                enoughStock
-                                  ? ""
-                                  : "table-danger"
+                                enoughStock ? "" : "text-danger fw-bold"
                               }
                             >
-                              <td>
-                                <div className="fw-semibold">
-                                  {
-                                    ingredient
-                                      .ingredientName
-                                  }
-                                </div>
+                              {afterBase.toFixed(3)} {ingredient.baseUnitCode}
+                            </span>
+                          </td>
 
-                                <small className="text-muted">
-                                  {
-                                    ingredient
-                                      .ingredientCode
-                                  }
-                                </small>
-                              </td>
+                          <td>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={consumption[index]?.lotNo || ""}
+                              onChange={(event) =>
+                                updateConsumption(
+                                  index,
+                                  "lotNo",
+                                  event.target.value,
+                                )
+                              }
+                            />
+                          </td>
 
-                              <td>
-                                <div>
-                                  {Number(
-                                    ingredient
-                                      .requiredQuantity ||
-                                      0
-                                  ).toFixed(
-                                    3
-                                  )}{" "}
-                                  {
-                                    ingredient
-                                      .unitCode
-                                  }
-                                </div>
-
-                                {ingredient
-                                  .unitCode !==
-                                  ingredient
-                                    .baseUnitCode && (
-                                  <small className="text-muted">
-                                    ={" "}
-                                    {Number(
-                                      ingredient
-                                        .requiredBaseQuantity ||
-                                        0
-                                    ).toFixed(
-                                      3
-                                    )}{" "}
-                                    {
-                                      ingredient
-                                        .baseUnitCode
-                                    }
-                                  </small>
-                                )}
-                              </td>
-
-                              <td>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.001"
-                                  className="form-control"
-                                  value={
-                                    consumption[
-                                      index
-                                    ]
-                                      ?.actualQuantity ??
-                                    ""
-                                  }
-                                  onChange={(
-                                    event
-                                  ) =>
-                                    updateConsumption(
-                                      index,
-                                      "actualQuantity",
-                                      event
-                                        .target
-                                        .value
-                                    )
-                                  }
-                                />
-                              </td>
-
-                              <td>
-                                {
-                                  ingredient
-                                    .unitCode
-                                }
-                              </td>
-
-                              <td>
-                                <strong>
-                                  {actualBaseQty.toFixed(
-                                    3
-                                  )}{" "}
-                                  {
-                                    ingredient
-                                      .baseUnitCode
-                                  }
-                                </strong>
-
-                                {ingredient
-                                  .unitCode !==
-                                  ingredient
-                                    .baseUnitCode && (
-                                  <div>
-                                    <small className="text-muted">
-                                      from{" "}
-                                      {actualQty.toFixed(
-                                        3
-                                      )}{" "}
-                                      {
-                                        ingredient
-                                          .unitCode
-                                      }
-                                    </small>
-                                  </div>
-                                )}
-                              </td>
-
-                              <td>
-                                {availableBase.toFixed(
-                                  3
-                                )}{" "}
-                                {
-                                  ingredient
-                                    .baseUnitCode
-                                }
-
-                                {ingredient
-                                  .unitCode !==
-                                  ingredient
-                                    .baseUnitCode && (
-                                  <div>
-                                    <small className="text-muted">
-                                      {Number(
-                                        ingredient
-                                          .currentStock ||
-                                          0
-                                      ).toFixed(
-                                        3
-                                      )}{" "}
-                                      {
-                                        ingredient
-                                          .unitCode
-                                      }
-                                    </small>
-                                  </div>
-                                )}
-                              </td>
-
-                              <td>
-                                <span
-                                  className={
-                                    enoughStock
-                                      ? ""
-                                      : "text-danger fw-bold"
-                                  }
-                                >
-                                  {afterBase.toFixed(
-                                    3
-                                  )}{" "}
-                                  {
-                                    ingredient
-                                      .baseUnitCode
-                                  }
-                                </span>
-                              </td>
-
-                              <td>
-                                <input
-                                  type="text"
-                                  className="form-control"
-                                  value={
-                                    consumption[
-                                      index
-                                    ]
-                                      ?.lotNo ||
-                                    ""
-                                  }
-                                  onChange={(
-                                    event
-                                  ) =>
-                                    updateConsumption(
-                                      index,
-                                      "lotNo",
-                                      event
-                                        .target
-                                        .value
-                                    )
-                                  }
-                                />
-                              </td>
-
-                              <td>
-                                {enoughStock ? (
-                                  <span className="badge text-bg-success">
-                                    OK
-                                  </span>
-                                ) : (
-                                  <span className="badge text-bg-danger">
-                                    Insufficient
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        }
-                      )}
+                          <td>
+                            {enoughStock ? (
+                              <span className="badge text-bg-success">OK</span>
+                            ) : (
+                              <span className="badge text-bg-danger">
+                                Insufficient
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
               <div className="text-muted small">
-                Component totals are not added together because a formula can contain different units such as L, ML, KG, G and PCS.
+                Component totals are not added together because a formula can
+                contain different units such as L, ML, KG, G and PCS.
               </div>
             </div>
           </div>
@@ -1173,15 +924,11 @@ function Production() {
           {/* FINISHED BATCH */}
           <div className="card mb-4">
             <div className="card-body">
-              <h5 className="mb-3">
-                Finished Batch
-              </h5>
+              <h5 className="mb-3">Finished Batch</h5>
 
               <div className="row">
                 <div className="col-md-3 mb-3">
-                  <label className="form-label">
-                    Actual Output *
-                  </label>
+                  <label className="form-label">Actual Output *</label>
 
                   <div className="input-group">
                     <input
@@ -1189,171 +936,160 @@ function Production() {
                       min="0"
                       step="0.001"
                       className="form-control"
-                      value={
-                        actualOutputQty
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setActualOutputQty(
-                          event
-                            .target
-                            .value
-                        )
+                      value={actualOutputQty}
+                      onChange={(event) =>
+                        setActualOutputQty(event.target.value)
                       }
                     />
 
                     <span className="input-group-text">
-                      {
-                        calculation
-                          .formula
-                          .batch_unit_code
-                      }
+                      {calculation.formula.batch_unit_code}
                     </span>
                   </div>
                 </div>
 
                 <div className="col-md-3 mb-3">
-                  <label className="form-label">
-                    Finished Lot No.
-                  </label>
+                  <label className="form-label">Finished Lot No.</label>
 
                   <input
                     type="text"
                     className="form-control"
-                    value={
-                      finishedLotNo
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setFinishedLotNo(
-                        event.target
-                          .value
-                      )
-                    }
+                    value={finishedLotNo}
+                    onChange={(event) => setFinishedLotNo(event.target.value)}
                   />
                 </div>
 
                 <div className="col-md-3 mb-3">
-                  <label className="form-label">
-                    Mfg Date
-                  </label>
+                  <label className="form-label">Mfg Date</label>
 
                   <input
                     type="date"
                     className="form-control"
-                    value={
-                      mfgDate
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setMfgDate(
-                        event.target
-                          .value
-                      )
-                    }
+                    value={mfgDate}
+                    onChange={(event) => setMfgDate(event.target.value)}
                   />
                 </div>
 
                 <div className="col-md-3 mb-3">
-                  <label className="form-label">
-                    Expiry Date
-                  </label>
+                  <label className="form-label">Expiry Date</label>
 
                   <input
                     type="date"
                     className="form-control"
-                    value={
-                      expiryDate
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setExpiryDate(
-                        event.target
-                          .value
-                      )
-                    }
+                    value={expiryDate}
+                    onChange={(event) => setExpiryDate(event.target.value)}
                   />
                 </div>
 
                 <div className="col-md-4 mb-3">
-                  <label className="form-label">
-                    Theoretical Output
-                  </label>
+                  <label className="form-label">Theoretical Output</label>
 
                   <input
                     type="text"
                     className="form-control"
-                    value={`${Number(
-                      plannedBatchSize ||
-                        0
-                    ).toFixed(
-                      3
-                    )} ${
-                      calculation
-                        .formula
-                        .batch_unit_code
+                    value={`${Number(plannedBatchSize || 0).toFixed(3)} ${
+                      calculation.formula.batch_unit_code
                     }`}
                     disabled
                   />
                 </div>
 
                 <div className="col-md-4 mb-3">
-                  <label className="form-label">
-                    Yield Difference
-                  </label>
+                  <label className="form-label">Yield Difference</label>
 
                   <input
                     type="text"
                     className="form-control"
-                    value={`${outputDifference.toFixed(
-                      3
-                    )} ${
-                      calculation
-                        .formula
-                        .batch_unit_code
+                    value={`${outputDifference.toFixed(3)} ${
+                      calculation.formula.batch_unit_code
                     }`}
                     disabled
                   />
                 </div>
 
                 <div className="col-md-4 mb-3">
-                  <label className="form-label">
-                    Loss %
-                  </label>
+                  <label className="form-label">Loss %</label>
 
                   <input
                     type="text"
                     className="form-control"
-                    value={`${outputLossPercent.toFixed(
-                      2
-                    )}%`}
+                    value={`${outputLossPercent.toFixed(2)}%`}
                     disabled
                   />
+                </div>
+
+                <div className="col-12 mt-2">
+                  <h6>Manufacturing Overheads</h6>
+
+                  <div className="text-muted small mb-3">
+                    Enter costs for this production batch. These costs will be
+                    included in finished-product inventory value.
+                  </div>
+                </div>
+
+                <div className="col-md-4 mb-3">
+                  <label className="form-label">Direct Labour</label>
+
+                  <div className="input-group">
+                    <span className="input-group-text">₹</span>
+
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="form-control"
+                      value={labourCost}
+                      onChange={(event) => setLabourCost(event.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="col-md-4 mb-3">
+                  <label className="form-label">Electricity / Utilities</label>
+
+                  <div className="input-group">
+                    <span className="input-group-text">₹</span>
+
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="form-control"
+                      value={electricityCost}
+                      onChange={(event) =>
+                        setElectricityCost(event.target.value)
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="col-md-4 mb-3">
+                  <label className="form-label">Other Manufacturing Cost</label>
+
+                  <div className="input-group">
+                    <span className="input-group-text">₹</span>
+
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="form-control"
+                      value={otherOverheadCost}
+                      onChange={(event) =>
+                        setOtherOverheadCost(event.target.value)
+                      }
+                    />
+                  </div>
                 </div>
 
                 <div className="col-12">
-                  <label className="form-label">
-                    Notes
-                  </label>
+                  <label className="form-label">Notes</label>
 
                   <textarea
                     className="form-control"
                     rows="3"
-                    value={
-                      notes
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setNotes(
-                        event.target
-                          .value
-                      )
-                    }
+                    value={notes}
+                    onChange={(event) => setNotes(event.target.value)}
                   />
                 </div>
               </div>
@@ -1362,24 +1098,18 @@ function Production() {
 
           {hasInsufficientStock && (
             <div className="alert alert-danger">
-              Production cannot be saved because one or more components have insufficient stock.
+              Production cannot be saved because one or more components have
+              insufficient stock.
             </div>
           )}
 
           <button
             type="button"
             className="btn btn-success"
-            onClick={
-              handleSave
-            }
-            disabled={
-              saving ||
-              hasInsufficientStock
-            }
+            onClick={handleSave}
+            disabled={saving || hasInsufficientStock}
           >
-            {saving
-              ? "Saving Batch..."
-              : "Post Production Batch"}
+            {saving ? "Saving Batch..." : "Post Production Batch"}
           </button>
         </>
       )}

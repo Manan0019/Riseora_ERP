@@ -394,8 +394,7 @@ export function createProductionBatch(
             .lastInsertRowid
         );
 
-      let totalProductionCost =
-        0;
+      let materialCost = 0;
 
       const insertConsumption =
         db.prepare(`
@@ -411,21 +410,10 @@ export function createProductionBatch(
           VALUES (?, ?, ?, ?, ?, ?, ?)
         `);
 
-      for (
-        const ingredient of
-          calculation.ingredients
-      ) {
-        const actualIngredient =
-          data.ingredients?.find(
-            (item) =>
-              Number(
-                item.itemId
-              ) ===
-              Number(
-                ingredient
-                  .ingredientItemId
-              )
-          );
+      for (const ingredient of calculation.ingredients) {
+        const actualIngredient = data.ingredients?.find(
+          (item) => Number(item.itemId) === Number(ingredient.ingredientItemId),
+        );
 
         /*
          * Actual quantity entered by user
@@ -434,20 +422,13 @@ export function createProductionBatch(
          * Example:
          * user enters 480 ML.
          */
-        const actualQuantity =
-          actualIngredient
-            ? Number(
-                actualIngredient
-                  .actualQuantity
-              )
-            : ingredient
-                .requiredQuantity;
+        const actualQuantity = actualIngredient
+          ? Number(actualIngredient.actualQuantity)
+          : ingredient.requiredQuantity;
 
-        if (
-          actualQuantity <= 0
-        ) {
+        if (actualQuantity <= 0) {
           throw new Error(
-            `${ingredient.ingredientName}: actual consumption must be greater than zero.`
+            `${ingredient.ingredientName}: actual consumption must be greater than zero.`,
           );
         }
 
@@ -458,56 +439,42 @@ export function createProductionBatch(
          * Example:
          * 480 ML -> 0.480 L
          */
-        const actualBaseQuantity =
-          convertQuantityByUnitIds(
-            actualQuantity,
+        const actualBaseQuantity = convertQuantityByUnitIds(
+          actualQuantity,
+          ingredient.unitId,
+          ingredient.baseUnitId,
+        );
+
+        const currentStockBase = Number(
+          getItemStock(ingredient.ingredientItemId),
+        );
+
+        if (actualBaseQuantity > currentStockBase) {
+          const availableInFormulaUnit = convertQuantityByUnitIds(
+            currentStockBase,
+            ingredient.baseUnitId,
             ingredient.unitId,
-            ingredient.baseUnitId
           );
-
-        const currentStockBase =
-          Number(
-            getItemStock(
-              ingredient
-                .ingredientItemId
-            )
-          );
-
-        if (
-          actualBaseQuantity >
-          currentStockBase
-        ) {
-          const availableInFormulaUnit =
-            convertQuantityByUnitIds(
-              currentStockBase,
-              ingredient.baseUnitId,
-              ingredient.unitId
-            );
 
           throw new Error(
             `${ingredient.ingredientName}: actual consumption exceeds available stock. Available ${availableInFormulaUnit.toFixed(
-              3
-            )} ${ingredient.unitCode}.`
+              3,
+            )} ${ingredient.unitCode}.`,
           );
         }
 
-        const lotNo =
-          actualIngredient
-            ?.lotNo ||
-          null;
+        const lotNo = actualIngredient?.lotNo || null;
 
         /*
          * COSTING MUST use base-unit
          * quantity because inventory cost
          * state is maintained in base units.
          */
-        const costResult =
-          removeInventoryValue(
-            ingredient
-              .ingredientItemId,
+        const costResult = removeInventoryValue(
+          ingredient.ingredientItemId,
 
-            actualBaseQuantity
-          );
+          actualBaseQuantity,
+        );
 
         /*
          * costResult.unitCost is therefore
@@ -516,15 +483,9 @@ export function createProductionBatch(
          * Example:
          * ₹400 per L.
          */
-        const baseUnitCost =
-          costResult.unitCost;
+        const baseUnitCost = costResult.unitCost;
 
-        totalProductionCost +=
-          Number(
-            costResult
-              .valueRemoved ||
-              0
-          );
+        materialCost += Number(costResult.valueRemoved || 0);
 
         /*
          * Keep production history in the
@@ -538,15 +499,9 @@ export function createProductionBatch(
          * Formula unit = ML
          * Formula unit cost = ₹0.40/ML
          */
-        const formulaUnit =
-          getUnitById(
-            ingredient.unitId
-          );
+        const formulaUnit = getUnitById(ingredient.unitId);
 
-        const baseUnit =
-          getUnitById(
-            ingredient.baseUnitId
-          );
+        const baseUnit = getUnitById(ingredient.baseUnitId);
 
         /*
          * Convert "1 formula unit" into
@@ -555,28 +510,23 @@ export function createProductionBatch(
          * Example:
          * 1 ML = 0.001 L.
          */
-        const oneFormulaUnitInBase =
-          convertQuantity(
-            1,
-            formulaUnit.code,
-            baseUnit.code
-          );
+        const oneFormulaUnitInBase = convertQuantity(
+          1,
+          formulaUnit.code,
+          baseUnit.code,
+        );
 
-        const formulaUnitCost =
-          baseUnitCost *
-          oneFormulaUnitInBase;
+        const formulaUnitCost = baseUnitCost * oneFormulaUnitInBase;
 
         insertConsumption.run(
           productionBatchId,
 
-          ingredient
-            .ingredientItemId,
+          ingredient.ingredientItemId,
 
           /*
            * Stored in formula unit.
            */
-          ingredient
-            .requiredQuantity,
+          ingredient.requiredQuantity,
 
           /*
            * Stored in formula unit.
@@ -590,7 +540,7 @@ export function createProductionBatch(
           /*
            * Cost matching formula unit.
            */
-          formulaUnitCost
+          formulaUnitCost,
         );
 
         /*
@@ -599,42 +549,46 @@ export function createProductionBatch(
          * unit cost.
          */
         addStockTransaction({
-          transactionDate:
-            data.productionDate,
+          transactionDate: data.productionDate,
 
-          itemId:
-            ingredient
-              .ingredientItemId,
+          itemId: ingredient.ingredientItemId,
 
-          transactionType:
-            "PRODUCTION_CONSUMPTION",
+          transactionType: "PRODUCTION_CONSUMPTION",
 
-          referenceType:
-            "PRODUCTION",
+          referenceType: "PRODUCTION",
 
-          referenceId:
-            productionBatchId,
+          referenceId: productionBatchId,
 
-          referenceNo:
-            batchNo,
+          referenceNo: batchNo,
 
           quantityIn: 0,
 
-          quantityOut:
-            actualBaseQuantity,
+          quantityOut: actualBaseQuantity,
 
-          unitCost:
-            baseUnitCost,
+          unitCost: baseUnitCost,
 
           lotNo,
 
-          expiryDate:
-            null,
+          expiryDate: null,
 
-          notes:
-            `Consumed in ${batchNo}`,
+          notes: `Consumed in ${batchNo}`,
         });
       }
+
+      const labourCost = Number(data.labourCost || 0);
+
+      const electricityCost = Number(data.electricityCost || 0);
+
+      const otherOverheadCost = Number(data.otherOverheadCost || 0);
+
+      if (labourCost < 0 || electricityCost < 0 || otherOverheadCost < 0) {
+        throw new Error("Production overhead costs cannot be negative.");
+      }
+
+      const totalOverheadCost =
+        labourCost + electricityCost + otherOverheadCost;
+
+      const totalProductionCost = materialCost + totalOverheadCost;
 
       /*
        * Finished product inventory cost
@@ -652,6 +606,29 @@ export function createProductionBatch(
           ? totalProductionCost /
             actualOutputBaseQty
           : 0;
+
+db.prepare(
+  `
+  UPDATE production_batches
+  SET
+    material_cost = ?,
+    labour_cost = ?,
+    electricity_cost = ?,
+    other_overhead_cost = ?,
+    total_production_cost = ?,
+    finished_unit_cost = ?,
+    updated_at = CURRENT_TIMESTAMP
+  WHERE id = ?
+`,
+).run(
+  materialCost,
+  labourCost,
+  electricityCost,
+  otherOverheadCost,
+  totalProductionCost,
+  finishedUnitCost,
+  productionBatchId,
+);
 
       /*
        * Add finished stock using
@@ -710,21 +687,22 @@ export function createProductionBatch(
         productionBatchId,
         batchNo,
 
-        totalProductionCost,
+        materialCost,
+        labourCost,
+        electricityCost,
+        otherOverheadCost,
+        totalOverheadCost,
 
+        totalProductionCost,
         finishedUnitCost,
 
         actualOutputQty,
 
-        actualOutputUnit:
-          getUnitById(
-            formula.batch_unit_id
-          ).code,
+        actualOutputUnit: getUnitById(formula.batch_unit_id).code,
 
         actualOutputBaseQty,
 
-        finishedBaseUnit:
-          finishedBaseUnit.unitCode,
+        finishedBaseUnit: finishedBaseUnit.unitCode,
       };
     });
 

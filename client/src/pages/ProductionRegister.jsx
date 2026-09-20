@@ -89,11 +89,18 @@ function ProductionRegister() {
   const costSummary = useMemo(() => {
     if (!selectedBatch?.consumption) {
       return {
-        rawCost: 0,
-        packagingCost: 0,
-        otherCost: 0,
-        totalCost: 0,
-        unitCost: 0,
+        rawCost,
+        packagingCost,
+        otherCost,
+
+        materialCost,
+        labourCost,
+        electricityCost,
+        otherOverheadCost,
+        overheadCost,
+
+        totalCost,
+        unitCost,
       };
     }
 
@@ -113,13 +120,23 @@ function ProductionRegister() {
         otherCost += amount;
       }
     });
+    const materialCost = Number(
+      selectedBatch.material_cost || rawCost + packagingCost + otherCost,
+    );
 
-    const totalCost = rawCost + packagingCost + otherCost;
+    const labourCost = Number(selectedBatch.labour_cost || 0);
 
-    const actualOutput = Number(selectedBatch.actual_output_qty || 0);
+    const electricityCost = Number(selectedBatch.electricity_cost || 0);
 
-    const unitCost = actualOutput > 0 ? totalCost / actualOutput : 0;
+    const otherOverheadCost = Number(selectedBatch.other_overhead_cost || 0);
 
+    const overheadCost = labourCost + electricityCost + otherOverheadCost;
+
+    const totalCost = Number(
+      selectedBatch.total_production_cost || materialCost + overheadCost,
+    );
+
+    const unitCost = Number(selectedBatch.finished_unit_cost || 0);
     return {
       rawCost,
       packagingCost,
@@ -383,6 +400,40 @@ function ProductionRegister() {
 
                           <div className="fs-5 fw-semibold">
                             ₹{costSummary.packagingCost.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-md-3">
+                        <div className="border rounded p-3 h-100">
+                          <div className="text-muted small">Direct Labour</div>
+
+                          <div className="fs-5 fw-semibold">
+                            ₹{costSummary.labourCost.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-md-3">
+                        <div className="border rounded p-3 h-100">
+                          <div className="text-muted small">
+                            Electricity / Utilities
+                          </div>
+
+                          <div className="fs-5 fw-semibold">
+                            ₹{costSummary.electricityCost.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="col-md-3">
+                        <div className="border rounded p-3 h-100">
+                          <div className="text-muted small">
+                            Other Manufacturing
+                          </div>
+
+                          <div className="fs-5 fw-semibold">
+                            ₹{costSummary.otherOverheadCost.toFixed(2)}
                           </div>
                         </div>
                       </div>
