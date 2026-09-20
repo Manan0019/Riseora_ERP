@@ -14,6 +14,13 @@ import {
   removeInventoryValue,
 } from "./costService.js";
 
+import {
+  convertQuantity,
+  convertQuantityByUnitIds,
+  getItemBaseUnit,
+  getUnitById,
+} from "./unitConversionService.js";
+
 function generateBatchNumber() {
   const year =
     new Date().getFullYear();
@@ -62,38 +69,91 @@ export function calculateProductionRequirements(
     );
   }
 
-  const baseBatchSize =
+  const formulaBatchSize =
     Number(
       formula.batch_size
     );
 
   if (
-    baseBatchSize <= 0
+    formulaBatchSize <= 0
   ) {
     throw new Error(
-      "Formula base batch size is invalid."
+      "Formula base batch size must be greater than zero."
     );
   }
 
   const scaleFactor =
     requiredSize /
-    baseBatchSize;
+    formulaBatchSize;
 
   const ingredients =
     formula.ingredients.map(
       (ingredient) => {
+        /*
+         * Quantity in the unit saved
+         * on the formula.
+         *
+         * Example:
+         * 500 ML
+         */
         const requiredQuantity =
           Number(
             ingredient.quantity
           ) *
           scaleFactor;
 
-        const currentStock =
+        /*
+         * Item stock is always maintained
+         * in the item's base unit.
+         *
+         * Example:
+         * Sesame Oil base unit = L
+         */
+        const itemBaseUnit =
+          getItemBaseUnit(
+            ingredient
+              .ingredient_item_id
+          );
+
+        /*
+         * Convert formula requirement
+         * into stock/base unit.
+         *
+         * Example:
+         * 500 ML -> 0.500 L
+         */
+        const requiredBaseQuantity =
+          convertQuantityByUnitIds(
+            requiredQuantity,
+            ingredient.unit_id,
+            itemBaseUnit.unitId
+          );
+
+        /*
+         * Current stock from stock ledger
+         * is already in item base unit.
+         */
+        const currentStockBase =
           Number(
             getItemStock(
               ingredient
                 .ingredient_item_id
             )
+          );
+
+        /*
+         * Convert stock back to formula
+         * unit only for user-friendly
+         * display.
+         *
+         * Example:
+         * 5 L -> 5000 ML
+         */
+        const currentStock =
+          convertQuantityByUnitIds(
+            currentStockBase,
+            itemBaseUnit.unitId,
+            ingredient.unit_id
           );
 
         return {
@@ -109,24 +169,56 @@ export function calculateProductionRequirements(
             ingredient
               .ingredient_name,
 
+          /*
+           * Formula/display unit.
+           */
           unitId:
             ingredient.unit_id,
 
           unitCode:
             ingredient.unit_code,
 
+          /*
+           * Item stock/base unit.
+           */
+          baseUnitId:
+            itemBaseUnit.unitId,
+
+          baseUnitCode:
+            itemBaseUnit.unitCode,
+
           baseQuantity:
             Number(
               ingredient.quantity
             ),
 
+          /*
+           * Requirement shown to user
+           * in formula unit.
+           */
           requiredQuantity,
 
+          /*
+           * Quantity actually used for
+           * stock/cost calculations.
+           */
+          requiredBaseQuantity,
+
+          /*
+           * User-friendly stock display
+           * in formula unit.
+           */
           currentStock,
 
+          /*
+           * Actual stock quantity in
+           * item's base unit.
+           */
+          currentStockBase,
+
           sufficientStock:
-            currentStock >=
-            requiredQuantity,
+            currentStockBase >=
+            requiredBaseQuantity,
         };
       }
     );
@@ -162,8 +254,8 @@ export function createProductionBatch(
         calculation.formula;
 
       /*
-       * First general stock check
-       * using calculated formula qty.
+       * Validate stock using quantities
+       * converted into item base units.
        */
       for (
         const ingredient of
@@ -176,13 +268,17 @@ export function createProductionBatch(
           throw new Error(
             `${ingredient.ingredientName}: insufficient stock. Required ${ingredient.requiredQuantity.toFixed(
               3
-            )}, available ${ingredient.currentStock.toFixed(
+            )} ${ingredient.unitCode}, available ${ingredient.currentStock.toFixed(
               3
-            )}.`
+            )} ${ingredient.unitCode}.`
           );
         }
       }
 
+      /*
+       * Actual output is entered in the
+       * formula batch unit.
+       */
       const actualOutputQty =
         Number(
           data.actualOutputQty
@@ -193,6 +289,43 @@ export function createProductionBatch(
       ) {
         throw new Error(
           "Actual output quantity must be greater than zero."
+        );
+      }
+
+      /*
+       * Finished item stock must also
+       * be stored in its own base unit.
+       */
+      const finishedBaseUnit =
+        getItemBaseUnit(
+          formula
+            .finished_item_id
+        );
+
+      /*
+       * Convert actual output from formula
+       * batch unit to finished item base unit.
+       *
+       * Example:
+       * Formula output = 5000 ML
+       * Finished base unit = L
+       * Result = 5 L
+       *
+       * For packaged FG:
+       * PCS -> PCS
+       */
+      const actualOutputBaseQty =
+        convertQuantityByUnitIds(
+          actualOutputQty,
+          formula.batch_unit_id,
+          finishedBaseUnit.unitId
+        );
+
+      if (
+        actualOutputBaseQty <= 0
+      ) {
+        throw new Error(
+          "Converted finished output quantity must be greater than zero."
         );
       }
 
@@ -217,6 +350,7 @@ export function createProductionBatch(
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           batchNo,
+
           data.productionDate,
 
           Number(
@@ -227,6 +361,10 @@ export function createProductionBatch(
             data.plannedBatchSize
           ),
 
+          /*
+           * Keep original entered output
+           * for production history/display.
+           */
           actualOutputQty,
 
           Number(
@@ -256,9 +394,6 @@ export function createProductionBatch(
             .lastInsertRowid
         );
 
-      /*
-       * Total manufacturing material cost.
-       */
       let totalProductionCost =
         0;
 
@@ -292,6 +427,13 @@ export function createProductionBatch(
               )
           );
 
+        /*
+         * Actual quantity entered by user
+         * is in formula ingredient unit.
+         *
+         * Example:
+         * user enters 480 ML.
+         */
         const actualQuantity =
           actualIngredient
             ? Number(
@@ -310,9 +452,20 @@ export function createProductionBatch(
         }
 
         /*
-         * Quantity stock validation.
+         * Convert actual entered quantity
+         * to stock/base unit.
+         *
+         * Example:
+         * 480 ML -> 0.480 L
          */
-        const currentStock =
+        const actualBaseQuantity =
+          convertQuantityByUnitIds(
+            actualQuantity,
+            ingredient.unitId,
+            ingredient.baseUnitId
+          );
+
+        const currentStockBase =
           Number(
             getItemStock(
               ingredient
@@ -321,13 +474,20 @@ export function createProductionBatch(
           );
 
         if (
-          actualQuantity >
-          currentStock
+          actualBaseQuantity >
+          currentStockBase
         ) {
+          const availableInFormulaUnit =
+            convertQuantityByUnitIds(
+              currentStockBase,
+              ingredient.baseUnitId,
+              ingredient.unitId
+            );
+
           throw new Error(
-            `${ingredient.ingredientName}: actual consumption exceeds available stock. Available ${currentStock.toFixed(
+            `${ingredient.ingredientName}: actual consumption exceeds available stock. Available ${availableInFormulaUnit.toFixed(
               3
-            )}.`
+            )} ${ingredient.unitCode}.`
           );
         }
 
@@ -337,53 +497,106 @@ export function createProductionBatch(
           null;
 
         /*
-         * IMPORTANT:
-         *
-         * Raw-material cost is NOT typed
-         * manually anymore.
-         *
-         * removeInventoryValue() uses the
-         * weighted moving average.
+         * COSTING MUST use base-unit
+         * quantity because inventory cost
+         * state is maintained in base units.
          */
         const costResult =
           removeInventoryValue(
             ingredient
               .ingredientItemId,
-            actualQuantity
+
+            actualBaseQuantity
           );
 
-        const unitCost =
+        /*
+         * costResult.unitCost is therefore
+         * cost per ITEM BASE UNIT.
+         *
+         * Example:
+         * ₹400 per L.
+         */
+        const baseUnitCost =
           costResult.unitCost;
 
         totalProductionCost +=
-          costResult
-            .valueRemoved;
+          Number(
+            costResult
+              .valueRemoved ||
+              0
+          );
 
         /*
-         * Store production consumption
-         * with the real weighted-average
-         * unit cost used.
+         * Keep production history in the
+         * unit the formula/user used.
+         *
+         * But unit_cost stored here should
+         * match that same stored unit.
+         *
+         * Example:
+         * Base cost = ₹400/L
+         * Formula unit = ML
+         * Formula unit cost = ₹0.40/ML
          */
+        const formulaUnit =
+          getUnitById(
+            ingredient.unitId
+          );
+
+        const baseUnit =
+          getUnitById(
+            ingredient.baseUnitId
+          );
+
+        /*
+         * Convert "1 formula unit" into
+         * base-unit quantity.
+         *
+         * Example:
+         * 1 ML = 0.001 L.
+         */
+        const oneFormulaUnitInBase =
+          convertQuantity(
+            1,
+            formulaUnit.code,
+            baseUnit.code
+          );
+
+        const formulaUnitCost =
+          baseUnitCost *
+          oneFormulaUnitInBase;
+
         insertConsumption.run(
           productionBatchId,
 
           ingredient
             .ingredientItemId,
 
+          /*
+           * Stored in formula unit.
+           */
           ingredient
             .requiredQuantity,
 
+          /*
+           * Stored in formula unit.
+           */
           actualQuantity,
 
           ingredient.unitId,
 
           lotNo,
 
-          unitCost
+          /*
+           * Cost matching formula unit.
+           */
+          formulaUnitCost
         );
 
         /*
-         * Stock quantity ledger.
+         * STOCK TRANSACTIONS always use
+         * item base quantity and base
+         * unit cost.
          */
         addStockTransaction({
           transactionDate:
@@ -408,9 +621,10 @@ export function createProductionBatch(
           quantityIn: 0,
 
           quantityOut:
-            actualQuantity,
+            actualBaseQuantity,
 
-          unitCost,
+          unitCost:
+            baseUnitCost,
 
           lotNo,
 
@@ -423,32 +637,35 @@ export function createProductionBatch(
       }
 
       /*
-       * Finished item manufacturing cost:
+       * Finished product inventory cost
+       * must be cost PER FINISHED BASE UNIT.
        *
-       * total ingredient value consumed
-       * --------------------------------
-       * actual finished output quantity
+       * Example:
+       *
+       * total production cost = ₹2500
+       * finished stock = 50 PCS
+       *
+       * ₹2500 / 50 = ₹50/PCS
        */
       const finishedUnitCost =
-        actualOutputQty > 0
+        actualOutputBaseQty > 0
           ? totalProductionCost /
-            actualOutputQty
+            actualOutputBaseQty
           : 0;
 
       /*
-       * Add finished goods to weighted
-       * average inventory costing.
+       * Add finished stock using
+       * FINISHED ITEM BASE UNIT.
        */
       addInventoryValue(
-        formula.finished_item_id,
-        actualOutputQty,
+        formula
+          .finished_item_id,
+
+        actualOutputBaseQty,
+
         finishedUnitCost
       );
 
-      /*
-       * Add finished goods quantity
-       * to stock ledger.
-       */
       addStockTransaction({
         transactionDate:
           data.productionDate,
@@ -470,14 +687,10 @@ export function createProductionBatch(
           batchNo,
 
         quantityIn:
-          actualOutputQty,
+          actualOutputBaseQty,
 
         quantityOut: 0,
 
-        /*
-         * IMPORTANT:
-         * Use calculated production cost.
-         */
         unitCost:
           finishedUnitCost,
 
@@ -500,6 +713,18 @@ export function createProductionBatch(
         totalProductionCost,
 
         finishedUnitCost,
+
+        actualOutputQty,
+
+        actualOutputUnit:
+          getUnitById(
+            formula.batch_unit_id
+          ).code,
+
+        actualOutputBaseQty,
+
+        finishedBaseUnit:
+          finishedBaseUnit.unitCode,
       };
     });
 
@@ -532,7 +757,8 @@ export function getProductionBatches() {
     FROM production_batches pb
 
     INNER JOIN formulas f
-      ON f.id = pb.formula_id
+      ON f.id =
+         pb.formula_id
 
     INNER JOIN items i
       ON i.id =
@@ -568,7 +794,8 @@ export function getProductionBatchById(
       FROM production_batches pb
 
       INNER JOIN formulas f
-        ON f.id = pb.formula_id
+        ON f.id =
+           pb.formula_id
 
       INNER JOIN items i
         ON i.id =
@@ -604,10 +831,12 @@ export function getProductionBatchById(
       FROM production_consumption pc
 
       INNER JOIN items i
-        ON i.id = pc.item_id
+        ON i.id =
+           pc.item_id
 
       INNER JOIN units u
-        ON u.id = pc.unit_id
+        ON u.id =
+           pc.unit_id
 
       WHERE
         pc.production_batch_id = ?
@@ -657,9 +886,30 @@ export function cancelProductionBatch(
         `).all(id);
 
       /*
-       * Make sure enough finished stock
-       * still exists before reversal.
+       * Convert stored production output
+       * back into finished-item base unit.
        */
+      const finishedBaseUnit =
+        getItemBaseUnit(
+          batch
+            .finished_item_id
+        );
+
+      const finishedOutputBaseQty =
+        convertQuantityByUnitIds(
+          Number(
+            batch
+              .actual_output_qty
+          ),
+
+          Number(
+            batch
+              .batch_unit_id
+          ),
+
+          finishedBaseUnit.unitId
+        );
+
       const finishedStock =
         Number(
           getItemStock(
@@ -669,10 +919,7 @@ export function cancelProductionBatch(
         );
 
       if (
-        Number(
-          batch
-            .actual_output_qty
-        ) >
+        finishedOutputBaseQty >
         finishedStock
       ) {
         throw new Error(
@@ -681,42 +928,76 @@ export function cancelProductionBatch(
       }
 
       /*
-       * Remove finished product from
-       * inventory costing first.
-       *
-       * This uses current weighted-average
-       * cost of finished stock.
+       * Remove finished goods from the
+       * current weighted-average inventory.
        */
       const finishedCostResult =
         removeInventoryValue(
           batch
             .finished_item_id,
 
-          Number(
-            batch
-              .actual_output_qty
-          )
+          finishedOutputBaseQty
         );
 
       /*
-       * Restore all consumed materials
-       * at the exact unit cost that had
-       * originally been consumed.
+       * Restore every consumed component.
        */
       for (
         const item of
           consumption
       ) {
+        const itemBaseUnit =
+          getItemBaseUnit(
+            item.item_id
+          );
+
+        /*
+         * Consumption quantity is stored
+         * in production/formula unit.
+         *
+         * Convert it back to item base unit.
+         */
+        const restoredBaseQuantity =
+          convertQuantityByUnitIds(
+            Number(
+              item.actual_quantity
+            ),
+
+            Number(
+              item.unit_id
+            ),
+
+            itemBaseUnit.unitId
+          );
+
+        /*
+         * unit_cost in production_consumption
+         * is stored per formula unit.
+         *
+         * Convert it to value, then derive
+         * cost per base unit.
+         */
+        const restoredTotalValue =
+          Number(
+            item.actual_quantity
+          ) *
+          Number(
+            item.unit_cost ||
+              0
+          );
+
+        const restoredBaseUnitCost =
+          restoredBaseQuantity > 0
+            ? restoredTotalValue /
+              restoredBaseQuantity
+            : 0;
+
         addInventoryValue(
           item.item_id,
 
-          Number(
-            item.actual_quantity
-          ),
+          restoredBaseQuantity,
 
-          Number(
-            item.unit_cost || 0
-          )
+          restoredBaseUnitCost
         );
 
         addStockTransaction({
@@ -741,12 +1022,12 @@ export function cancelProductionBatch(
             batch.batch_no,
 
           quantityIn:
-            item.actual_quantity,
+            restoredBaseQuantity,
 
           quantityOut: 0,
 
           unitCost:
-            item.unit_cost,
+            restoredBaseUnitCost,
 
           lotNo:
             item.lot_no ||
@@ -761,7 +1042,7 @@ export function cancelProductionBatch(
       }
 
       /*
-       * Reverse produced finished stock.
+       * Reverse finished goods stock.
        */
       addStockTransaction({
         transactionDate:
@@ -788,8 +1069,7 @@ export function cancelProductionBatch(
         quantityIn: 0,
 
         quantityOut:
-          batch
-            .actual_output_qty,
+          finishedOutputBaseQty,
 
         unitCost:
           finishedCostResult
@@ -813,7 +1093,8 @@ export function cancelProductionBatch(
         UPDATE production_batches
         SET
           status = 'CANCELLED',
-          updated_at = CURRENT_TIMESTAMP
+          updated_at =
+            CURRENT_TIMESTAMP
         WHERE id = ?
       `).run(id);
 
