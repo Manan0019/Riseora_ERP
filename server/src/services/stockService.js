@@ -1,7 +1,9 @@
 import db from "../db/database.js";
 
 export function addStockTransaction(data) {
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     INSERT INTO stock_transactions (
       transaction_date,
       item_id,
@@ -17,24 +19,28 @@ export function addStockTransaction(data) {
       notes
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    data.transactionDate,
-    data.itemId,
-    data.transactionType,
-    data.referenceType,
-    data.referenceId || null,
-    data.referenceNo || null,
-    Number(data.quantityIn || 0),
-    Number(data.quantityOut || 0),
-    Number(data.unitCost || 0),
-    data.lotNo || null,
-    data.expiryDate || null,
-    data.notes || null
-  );
+  `,
+    )
+    .run(
+      data.transactionDate,
+      data.itemId,
+      data.transactionType,
+      data.referenceType,
+      data.referenceId || null,
+      data.referenceNo || null,
+      Number(data.quantityIn || 0),
+      Number(data.quantityOut || 0),
+      Number(data.unitCost || 0),
+      data.lotNo || null,
+      data.expiryDate || null,
+      data.notes || null,
+    );
 }
 
 export function getCurrentStock() {
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT
       i.id,
       i.code,
@@ -54,14 +60,37 @@ export function getCurrentStock() {
       ) AS current_stock,
 
       COALESCE(
-        ics.average_cost,
-        0
-      ) AS average_cost,
+  ics.quantity,
+  0
+) AS costing_quantity,
 
-      COALESCE(
-        ics.inventory_value,
-        0
-      ) AS inventory_value
+COALESCE(
+  ics.average_cost,
+  0
+) AS average_cost,
+
+COALESCE(
+  ics.inventory_value,
+  0
+) AS inventory_value,
+
+CASE
+  WHEN ABS(
+    COALESCE(
+      SUM(
+        st.quantity_in -
+        st.quantity_out
+      ),
+      0
+    ) -
+    COALESCE(
+      ics.quantity,
+      0
+    )
+  ) < 0.000001
+  THEN 'OK'
+  ELSE 'MISMATCH'
+END AS costing_status
 
     FROM items i
 
@@ -87,16 +116,21 @@ export function getCurrentStock() {
       c.code,
       c.name,
       u.code,
+      ics.quantity,
       ics.average_cost,
       ics.inventory_value
 
     ORDER BY
       i.name
-  `).all();
+  `,
+    )
+    .all();
 }
 
 export function getItemStock(itemId) {
-  const result = db.prepare(`
+  const result = db
+    .prepare(
+      `
     SELECT
       COALESCE(
         SUM(
@@ -107,7 +141,9 @@ export function getItemStock(itemId) {
       ) AS current_stock
     FROM stock_transactions
     WHERE item_id = ?
-  `).get(itemId);
+  `,
+    )
+    .get(itemId);
 
   return result?.current_stock || 0;
 }

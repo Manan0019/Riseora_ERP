@@ -49,17 +49,13 @@ export function addInventoryValue(
   const cost =
     Number(unitCost || 0);
 
-  if (qty <= 0) {
-    throw new Error(
-      "Incoming stock quantity must be greater than zero."
-    );
+  if (!Number.isFinite(qty) || qty <= 0) {
+    throw new Error("Incoming stock quantity must be greater than zero.");
   }
 
-  if (cost < 0) {
-    throw new Error(
-      "Unit cost cannot be negative."
-    );
-  }
+ if (!Number.isFinite(cost) || cost < 0) {
+   throw new Error("Unit cost cannot be negative.");
+ }
 
   const state =
     ensureCostState(id);
@@ -124,10 +120,8 @@ export function removeInventoryValue(
   const qty =
     Number(quantity);
 
-  if (qty <= 0) {
-    throw new Error(
-      "Outgoing stock quantity must be greater than zero."
-    );
+  if (!Number.isFinite(qty) || qty <= 0) {
+    throw new Error("Outgoing stock quantity must be greater than zero.");
   }
 
   const state =
@@ -211,5 +205,156 @@ export function removeInventoryValue(
 
     averageCost:
       newAverage,
+  };
+}
+
+export function rebuildItemCostState(
+  itemId
+) {
+  const id =
+    Number(itemId);
+
+  const transactions =
+    db.prepare(`
+      SELECT
+        id,
+        transaction_date,
+        transaction_type,
+        quantity_in,
+        quantity_out,
+        unit_cost
+      FROM stock_transactions
+      WHERE item_id = ?
+      ORDER BY
+        transaction_date,
+        id
+    `).all(id);
+
+  let quantity = 0;
+  let inventoryValue = 0;
+
+  const warnings = [];
+
+  for (
+    const transaction of
+      transactions
+  ) {
+    const quantityIn =
+      Number(
+        transaction.quantity_in ||
+          0
+      );
+
+    const quantityOut =
+      Number(
+        transaction.quantity_out ||
+          0
+      );
+
+    const unitCost =
+      Number(
+        transaction.unit_cost ||
+          0
+      );
+
+    /*
+     * Incoming stock creates value.
+     */
+    if (
+      quantityIn > 0
+    ) {
+      if (
+        unitCost <= 0
+      ) {
+        warnings.push(
+          `${transaction.transaction_type} on ${transaction.transaction_date} has zero unit cost.`
+        );
+      }
+
+      quantity +=
+        quantityIn;
+
+      inventoryValue +=
+        quantityIn *
+        unitCost;
+    }
+
+    /*
+     * Outgoing stock is replayed
+     * at the weighted-average cost
+     * that existed at that moment.
+     */
+    if (
+      quantityOut > 0
+    ) {
+      if (
+        quantityOut >
+        quantity +
+          0.0000001
+      ) {
+        throw new Error(
+          `Cannot rebuild costing for item ${id}. Stock ledger goes negative at transaction ${transaction.id}.`
+        );
+      }
+
+      const averageCost =
+        quantity > 0
+          ? inventoryValue /
+            quantity
+          : 0;
+
+      inventoryValue -=
+        quantityOut *
+        averageCost;
+
+      quantity -=
+        quantityOut;
+
+      if (
+        Math.abs(
+          quantity
+        ) <
+        0.0000001
+      ) {
+        quantity = 0;
+        inventoryValue = 0;
+      }
+    }
+  }
+
+  const averageCost =
+    quantity > 0
+      ? inventoryValue /
+        quantity
+      : 0;
+
+  db.prepare(`
+    INSERT INTO inventory_cost_state (
+      item_id,
+      quantity,
+      inventory_value,
+      average_cost
+    )
+    VALUES (?, ?, ?, ?)
+
+    ON CONFLICT(item_id)
+    DO UPDATE SET
+      quantity = excluded.quantity,
+      inventory_value = excluded.inventory_value,
+      average_cost = excluded.average_cost,
+      updated_at = CURRENT_TIMESTAMP
+  `).run(
+    id,
+    quantity,
+    inventoryValue,
+    averageCost
+  );
+
+  return {
+    itemId: id,
+    quantity,
+    inventoryValue,
+    averageCost,
+    warnings,
   };
 }

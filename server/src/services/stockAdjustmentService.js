@@ -64,44 +64,164 @@ export function createStockAdjustment(data) {
       VALUES (?, ?, ?, ?, ?, ?)
     `);
 
-    for (const item of data.items) {
-      let transactionUnitCost = unitCost;
+   for (const item of data.items) {
+  const itemId =
+    Number(item.itemId);
 
-      if (data.adjustmentType === "IN") {
-        addInventoryValue(itemId, quantity, unitCost);
-      } else {
-        const costResult = removeInventoryValue(itemId, quantity);
+  const quantity =
+    Number(item.quantity);
 
-        transactionUnitCost = costResult.unitCost;
-      }
+  const enteredUnitCost =
+    Number(
+      item.unitCost || 0
+    );
 
-      addStockTransaction({
-        transactionDate: data.adjustmentDate,
+  if (
+    !itemId
+  ) {
+    throw new Error(
+      "Item is required."
+    );
+  }
 
-        itemId,
+  if (
+    !Number.isFinite(quantity) ||
+    quantity <= 0
+  ) {
+    throw new Error(
+      "Adjustment quantity must be greater than zero."
+    );
+  }
 
-        transactionType:
-          data.adjustmentType === "IN" ? "ADJUSTMENT_IN" : "ADJUSTMENT_OUT",
+  let transactionUnitCost = 0;
 
-        referenceType: "STOCK_ADJUSTMENT",
-
-        referenceId: adjustmentId,
-
-        referenceNo: adjustmentNo,
-
-        quantityIn: data.adjustmentType === "IN" ? quantity : 0,
-
-        quantityOut: data.adjustmentType === "OUT" ? quantity : 0,
-
-        unitCost: transactionUnitCost,
-
-        lotNo: item.lotNo || null,
-
-        expiryDate: item.expiryDate || null,
-
-        notes: data.reason,
-      });
+  if (
+    data.adjustmentType ===
+    "IN"
+  ) {
+    if (
+      !Number.isFinite(
+        enteredUnitCost
+      ) ||
+      enteredUnitCost < 0
+    ) {
+      throw new Error(
+        "Adjustment IN unit cost cannot be negative."
+      );
     }
+
+    transactionUnitCost =
+      enteredUnitCost;
+
+    addInventoryValue(
+      itemId,
+      quantity,
+      transactionUnitCost
+    );
+  } else if (
+    data.adjustmentType ===
+    "OUT"
+  ) {
+    const currentStock =
+      Number(
+        getItemStock(
+          itemId
+        )
+      );
+
+    if (
+      quantity >
+      currentStock
+    ) {
+      throw new Error(
+        `Adjustment quantity exceeds available stock. Available stock: ${currentStock.toFixed(
+          3
+        )}.`
+      );
+    }
+
+    const costResult =
+      removeInventoryValue(
+        itemId,
+        quantity
+      );
+
+    transactionUnitCost =
+      Number(
+        costResult.unitCost ||
+          0
+      );
+  } else {
+    throw new Error(
+      "Adjustment type must be IN or OUT."
+    );
+  }
+
+  /*
+   * Save the ACTUAL costing rate used.
+   *
+   * IN  = user-entered cost
+   * OUT = weighted-average inventory cost
+   */
+  insertLine.run(
+    adjustmentId,
+    itemId,
+    quantity,
+    transactionUnitCost,
+    item.lotNo ||
+      null,
+    item.expiryDate ||
+      null
+  );
+
+  addStockTransaction({
+    transactionDate:
+      data.adjustmentDate,
+
+    itemId,
+
+    transactionType:
+      data.adjustmentType ===
+      "IN"
+        ? "ADJUSTMENT_IN"
+        : "ADJUSTMENT_OUT",
+
+    referenceType:
+      "STOCK_ADJUSTMENT",
+
+    referenceId:
+      adjustmentId,
+
+    referenceNo:
+      adjustmentNo,
+
+    quantityIn:
+      data.adjustmentType ===
+      "IN"
+        ? quantity
+        : 0,
+
+    quantityOut:
+      data.adjustmentType ===
+      "OUT"
+        ? quantity
+        : 0,
+
+    unitCost:
+      transactionUnitCost,
+
+    lotNo:
+      item.lotNo ||
+      null,
+
+    expiryDate:
+      item.expiryDate ||
+      null,
+
+    notes:
+      data.reason,
+  });
+}
 
     return {
       adjustmentId,
