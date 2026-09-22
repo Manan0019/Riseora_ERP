@@ -48,6 +48,15 @@ function Stock() {
     });
   }, [stock, search]);
 
+  const costingMismatchCount =
+  useMemo(() => {
+    return stock.filter(
+      (item) =>
+        item.costing_status ===
+        "MISMATCH"
+    ).length;
+  }, [stock]);
+
   const loadLedger = async (item) => {
     try {
       setSelectedItem(item);
@@ -88,6 +97,15 @@ function Stock() {
 
       {error && <div className="alert alert-danger">{error}</div>}
 
+      {costingMismatchCount > 0 && (
+        <div className="alert alert-warning">
+          <strong>Inventory costing requires attention.</strong>{" "}
+          {costingMismatchCount} item
+          {costingMismatchCount === 1 ? "" : "s"} have a difference between
+          physical stock and costing quantity.
+        </div>
+      )}
+
       {/* CURRENT STOCK */}
       <div className="card">
         <div className="card-body">
@@ -109,16 +127,18 @@ function Stock() {
                   <th>Item</th>
                   <th>Category</th>
                   <th>Current Stock</th>
+                  <th>Costing Qty</th>
                   <th>Unit</th>
                   <th>Average Cost</th>
                   <th>Inventory Value</th>
+                  <th>Costing</th>
                 </tr>
               </thead>
 
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="text-center text-muted">
+                    <td colSpan={9} className="text-center text-muted">
                       Loading stock...
                     </td>
                   </tr>
@@ -130,7 +150,11 @@ function Stock() {
                         onClick={() => loadLedger(item)}
                         style={{ cursor: "pointer" }}
                         className={
-                          selectedItem?.id === item.id ? "table-primary" : ""
+                          selectedItem?.id === item.id
+                            ? "table-primary"
+                            : item.costing_status === "MISMATCH"
+                              ? "table-warning"
+                              : ""
                         }
                       >
                         <td>{item.code}</td>
@@ -141,17 +165,29 @@ function Stock() {
 
                         <td>{Number(item.current_stock || 0).toFixed(3)}</td>
 
+                        <td>{Number(item.costing_quantity || 0).toFixed(3)}</td>
+
                         <td>{item.unit_code}</td>
 
                         <td>₹{Number(item.average_cost || 0).toFixed(2)}</td>
 
                         <td>₹{Number(item.inventory_value || 0).toFixed(2)}</td>
+
+                        <td>
+                          {item.costing_status === "OK" ? (
+                            <span className="badge text-bg-success">OK</span>
+                          ) : (
+                            <span className="badge text-bg-warning">
+                              Mismatch
+                            </span>
+                          )}
+                        </td>
                       </tr>
                     ))}
 
                     {filteredStock.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="text-center text-muted">
+                        <td colSpan={9} className="text-center text-muted">
                           No stock records found.
                         </td>
                       </tr>
