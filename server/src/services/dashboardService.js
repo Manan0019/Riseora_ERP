@@ -1,167 +1,84 @@
 import db from "../db/database.js";
 
 export function getDashboardSummary() {
-  const sales = db.prepare(`
-    SELECT
-      COALESCE(
-        SUM(
-          CASE
-            WHEN status = 'POSTED'
-            THEN grand_total
-            ELSE 0
-          END
-        ),
-        0
-      ) AS total_sales
+  const grossSales = Number(db.prepare(`
+    SELECT COALESCE(SUM(grand_total), 0) AS total
     FROM sales_invoices
-  `).get();
+    WHERE status = 'POSTED'
+  `).get()?.total || 0);
+
+  const salesCredits = Number(db.prepare(`
+    SELECT COALESCE(SUM(scn.grand_total), 0) AS total
+    FROM sales_credit_notes scn
+    INNER JOIN sales_invoices si ON si.id = scn.sales_invoice_id
+    WHERE scn.status = 'POSTED' AND si.status = 'POSTED'
+  `).get()?.total || 0);
+
+  const totalPayments = Number(db.prepare(`
+    SELECT COALESCE(SUM(sp.amount), 0) AS total
+    FROM sales_payments sp
+    INNER JOIN sales_invoices si ON si.id = sp.sales_invoice_id
+    WHERE sp.status = 'POSTED' AND si.status = 'POSTED'
+  `).get()?.total || 0);
+
+  const totalRefunds = Number(db.prepare(`
+    SELECT COALESCE(SUM(sr.amount), 0) AS total
+    FROM sales_refunds sr
+    INNER JOIN sales_invoices si ON si.id = sr.sales_invoice_id
+    WHERE sr.status = 'POSTED' AND si.status = 'POSTED'
+  `).get()?.total || 0);
 
   const purchases = db.prepare(`
-    SELECT
-      COALESCE(
-        SUM(
-          CASE
-            WHEN status = 'POSTED'
-            THEN grand_total
-            ELSE 0
-          END
-        ),
-        0
-      ) AS total_purchases
+    SELECT COALESCE(SUM(CASE WHEN status = 'POSTED' THEN grand_total ELSE 0 END), 0) AS total
     FROM purchases
-  `).get();
-
-  const customerOutstanding = db.prepare(`
-    SELECT
-      COALESCE(
-        SUM(
-          CASE
-            WHEN status = 'POSTED'
-            THEN grand_total - amount_paid
-            ELSE 0
-          END
-        ),
-        0
-      ) AS outstanding
-    FROM sales_invoices
   `).get();
 
   const supplierOutstanding = db.prepare(`
-    SELECT
-      COALESCE(
-        SUM(
-          CASE
-            WHEN status = 'POSTED'
-            THEN grand_total - amount_paid
-            ELSE 0
-          END
-        ),
-        0
-      ) AS outstanding
+    SELECT COALESCE(SUM(CASE WHEN status = 'POSTED' THEN grand_total - amount_paid ELSE 0 END), 0) AS outstanding
     FROM purchases
   `).get();
 
+  const netSales = grossSales - salesCredits;
+  const netReceived = totalPayments - totalRefunds;
+  const customerOutstanding = netSales - netReceived;
+
   const stockRows = db.prepare(`
     SELECT
-      i.id,
-      i.code,
-      i.name,
-      i.reorder_level,
-
+      i.id, i.code, i.name, i.reorder_level,
       u.code AS unit_code,
-
-      COALESCE(
-        SUM(
-          st.quantity_in -
-          st.quantity_out
-        ),
-        0
-      ) AS current_stock
-
+      COALESCE(SUM(st.quantity_in - st.quantity_out), 0) AS current_stock
     FROM items i
-
-    INNER JOIN units u
-      ON u.id = i.base_unit_id
-
-    LEFT JOIN stock_transactions st
-      ON st.item_id = i.id
-
+    INNER JOIN units u ON u.id = i.base_unit_id
+    LEFT JOIN stock_transactions st ON st.item_id = i.id
     WHERE i.is_active = 1
-
-    GROUP BY
-      i.id,
-      i.code,
-      i.name,
-      i.reorder_level,
-      u.code
-
+    GROUP BY i.id, i.code, i.name, i.reorder_level, u.code
     ORDER BY i.name
   `).all();
 
-  const lowStockItems =
-    stockRows.filter(
-      (item) =>
-        Number(item.reorder_level || 0) > 0 &&
-        Number(item.current_stock || 0) <=
-          Number(item.reorder_level || 0)
-    );
+  const lowStockItems = stockRows.filter(
+    (item) => Number(item.reorder_level || 0) > 0 &&
+      Number(item.current_stock || 0) <= Number(item.reorder_level || 0),
+  );
 
   const recentProduction = db.prepare(`
     SELECT
-      pb.id,
-      pb.batch_no,
-      pb.production_date,
-      pb.actual_output_qty,
-      pb.status,
-
-      i.name AS finished_item_name,
-
-      u.code AS unit_code
-
+      pb.id, pb.batch_no, pb.production_date, pb.actual_output_qty, pb.status,
+      i.name AS finished_item_name, u.code AS unit_code
     FROM production_batches pb
-
-    INNER JOIN items i
-      ON i.id = pb.finished_item_id
-
-    INNER JOIN units u
-      ON u.id = pb.batch_unit_id
-
-    ORDER BY
-      pb.production_date DESC,
-      pb.id DESC
-
+    INNER JOIN items i ON i.id = pb.finished_item_id
+    INNER JOIN units u ON u.id = pb.batch_unit_id
+    ORDER BY pb.production_date DESC, pb.id DESC
     LIMIT 5
   `).all();
 
   return {
-    totalSales:
-      Number(
-        sales?.total_sales || 0
-      ),
-
-    totalPurchases:
-      Number(
-        purchases?.total_purchases || 0
-      ),
-
-    customerOutstanding:
-      Number(
-        customerOutstanding?.outstanding || 0
-      ),
-
-    supplierOutstanding:
-      Number(
-        supplierOutstanding?.outstanding || 0
-      ),
-
-    stockItemCount:
-      stockRows.length,
-
-    lowStockCount:
-      lowStockItems.length,
-
+    totalSales: netSales,
+    totalPurchases: Number(purchases?.total || 0),
+    customerOutstanding,
+    supplierOutstanding: Number(supplierOutstanding?.outstanding || 0),
+    stockItemCount: stockRows.length,
+    lowStockCount: lowStockItems.length,
     lowStockItems,
-
     recentProduction,
   };
 }

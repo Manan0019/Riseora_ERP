@@ -1,4 +1,4 @@
-import { authenticateUser } from "../services/authService.js";
+import { authenticateUser, changeUserPassword } from "../services/authService.js";
 
 export async function login(req, res) {
   try {
@@ -77,4 +77,37 @@ export function logout(req, res) {
       message: "Logged out successfully",
     });
   });
+}
+
+export async function changePassword(req, res) {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password, new password and confirmation are required.",
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "New password and confirmation do not match.",
+      });
+    }
+
+    await changeUserPassword(req.session.user.id, currentPassword, newPassword);
+
+    return res.json({
+      success: true,
+      message: "Password changed successfully.",
+    });
+  } catch (error) {
+    console.error("Password change error:", error);
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Unable to change password.",
+    });
+  }
 }

@@ -3,6 +3,7 @@ import {
   getSalesInvoices,
   getSalesInvoiceById,
   addSalesPayment,
+  addSalesRefund,
   cancelSale,
 } from "../services/salesService.js";
 
@@ -225,6 +226,41 @@ export function receiveSalesPayment(
       message:
         error.message ||
         "Unable to record payment.",
+    });
+  }
+}
+
+
+export function recordSalesRefund(req, res) {
+  try {
+    const { refundDate, amount } = req.body;
+
+    if (!refundDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Refund date is required.",
+      });
+    }
+
+    if (Number(amount) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Refund amount must be greater than zero.",
+      });
+    }
+
+    const result = addSalesRefund(Number(req.params.id), req.body);
+
+    return res.status(201).json({
+      success: true,
+      message: "Customer refund recorded successfully.",
+      refund: result,
+    });
+  } catch (error) {
+    console.error("Sales refund error:", error);
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Unable to record customer refund.",
     });
   }
 }

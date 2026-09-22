@@ -85,14 +85,14 @@ function App() {
 
           <Route path="sales" element={<Sales />} />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-
           <Route path="sales-register" element={<SalesRegister />} />
 
           <Route path="customer-ledger" element={<CustomerLedger />} />
 
           <Route path="supplier-ledger" element={<SupplierLedger />} />
-          
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+
         </Route>
       </Routes>
     </BrowserRouter>

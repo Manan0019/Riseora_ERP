@@ -8,6 +8,10 @@ import {
   addInventoryValue,
 } from "./costService.js";
 
+import {
+  refreshInvoicePaymentStatus,
+} from "./salesService.js";
+
 function generateCreditNoteNumber() {
   const year =
     new Date().getFullYear();
@@ -594,65 +598,9 @@ export function createSalesCreditNote(
         });
       }
 
-      const totalCredits =
-        db.prepare(`
-          SELECT
-            COALESCE(
-              SUM(
-                grand_total
-              ),
-              0
-            ) AS total
-
-          FROM sales_credit_notes
-
-          WHERE
-            sales_invoice_id = ?
-
-            AND
-            status =
-              'POSTED'
-        `).get(
+      const settlement =
+        refreshInvoicePaymentStatus(
           invoice.id
-        );
-
-      const creditedAmount =
-        Number(
-          totalCredits?.total ||
-            0
-        );
-
-      const effectiveInvoiceTotal =
-        Math.max(
-          0,
-
-          Number(
-            invoice.grand_total ||
-              0
-          ) -
-          creditedAmount
-        );
-
-      const amountPaid =
-        Number(
-          invoice.amount_paid ||
-            0
-        );
-
-      const balanceAmount =
-        Math.max(
-          0,
-
-          effectiveInvoiceTotal -
-          amountPaid
-        );
-
-      const refundDue =
-        Math.max(
-          0,
-
-          amountPaid -
-          effectiveInvoiceTotal
         );
 
       return {
@@ -674,13 +622,26 @@ export function createSalesCreditNote(
 
         grandTotal,
 
-        effectiveInvoiceTotal,
+        effectiveInvoiceTotal:
+          settlement.effectiveInvoiceTotal,
 
-        amountPaid,
+        amountPaid:
+          Number(
+            invoice.amount_paid ||
+              0
+          ),
 
-        balanceAmount,
+        refundedAmount:
+          settlement.refundedAmount,
 
-        refundDue,
+        balanceAmount:
+          settlement.balanceAmount,
+
+        refundDue:
+          settlement.refundDue,
+
+        paymentStatus:
+          settlement.paymentStatus,
       };
     });
 

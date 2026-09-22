@@ -12,6 +12,7 @@ import {
 import {
   addInventoryValue,
   removeInventoryValue,
+  reverseInventoryReceipt,
 } from "./costService.js";
 
 import {
@@ -56,12 +57,19 @@ export function calculateProductionRequirements(
     );
   }
 
+  if (Number(formula.is_active) !== 1) {
+    throw new Error(
+      "Inactive formula versions cannot be used for production."
+    );
+  }
+
   const requiredSize =
     Number(
       requiredBatchSize
     );
 
   if (
+    !Number.isFinite(requiredSize) ||
     requiredSize <= 0
   ) {
     throw new Error(
@@ -285,6 +293,7 @@ export function createProductionBatch(
         );
 
       if (
+        !Number.isFinite(actualOutputQty) ||
         actualOutputQty <= 0
       ) {
         throw new Error(
@@ -426,7 +435,7 @@ export function createProductionBatch(
           ? Number(actualIngredient.actualQuantity)
           : ingredient.requiredQuantity;
 
-        if (actualQuantity <= 0) {
+        if (!Number.isFinite(actualQuantity) || actualQuantity <= 0) {
           throw new Error(
             `${ingredient.ingredientName}: actual consumption must be greater than zero.`,
           );
@@ -581,8 +590,15 @@ export function createProductionBatch(
 
       const otherOverheadCost = Number(data.otherOverheadCost || 0);
 
-      if (labourCost < 0 || electricityCost < 0 || otherOverheadCost < 0) {
-        throw new Error("Production overhead costs cannot be negative.");
+      if (
+        !Number.isFinite(labourCost) ||
+        !Number.isFinite(electricityCost) ||
+        !Number.isFinite(otherOverheadCost) ||
+        labourCost < 0 ||
+        electricityCost < 0 ||
+        otherOverheadCost < 0
+      ) {
+        throw new Error("Production overhead costs must be valid non-negative numbers.");
       }
 
       const totalOverheadCost =
@@ -916,12 +932,44 @@ export function cancelProductionBatch(
        * Remove finished goods from the
        * current weighted-average inventory.
        */
-      const finishedCostResult =
-        removeInventoryValue(
-          batch
-            .finished_item_id,
+      const originalOutput = db.prepare(`
+        SELECT id, unit_cost
+        FROM stock_transactions
+        WHERE reference_type = 'PRODUCTION'
+          AND reference_id = ?
+          AND item_id = ?
+          AND transaction_type = 'PRODUCTION_OUTPUT'
+        ORDER BY id
+        LIMIT 1
+      `).get(batch.id, batch.finished_item_id);
 
-          finishedOutputBaseQty
+      if (!originalOutput) {
+        throw new Error(
+          "Original production output costing transaction was not found.",
+        );
+      }
+
+      const laterFinishedOutgoing = db.prepare(`
+        SELECT id, transaction_type, reference_no
+        FROM stock_transactions
+        WHERE item_id = ?
+          AND id > ?
+          AND quantity_out > 0
+        ORDER BY id
+        LIMIT 1
+      `).get(batch.finished_item_id, originalOutput.id);
+
+      if (laterFinishedOutgoing) {
+        throw new Error(
+          "Production batch cannot be cancelled because the produced item has subsequent stock usage. Use a stock adjustment/return workflow instead.",
+        );
+      }
+
+      const finishedCostResult =
+        reverseInventoryReceipt(
+          batch.finished_item_id,
+          finishedOutputBaseQty,
+          Number(originalOutput.unit_cost || 0)
         );
 
       /*

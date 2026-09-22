@@ -189,28 +189,24 @@ function Sales() {
 
   const totals = useMemo(() => {
     let subtotal = 0;
+
+    const lineValues = lines.map((line) => {
+      const result = calculateLine(line);
+      subtotal += result.taxable;
+      return { line, result };
+    });
+
+    const invoiceDiscount = Number(form.discountAmount || 0);
+    const otherCharges = Number(form.otherCharges || 0);
+
     let gst = 0;
-
-    for (const line of lines) {
-      const result =
-        calculateLine(line);
-
-      subtotal +=
-        result.taxable;
-
-      gst +=
-        result.gst;
+    for (const { line, result } of lineValues) {
+      const share = subtotal > 0
+        ? invoiceDiscount * (result.taxable / subtotal)
+        : 0;
+      const discountedTaxable = Math.max(0, result.taxable - share);
+      gst += discountedTaxable * (Number(line.gstRate || 0) / 100);
     }
-
-    const invoiceDiscount =
-      Number(
-        form.discountAmount || 0
-      );
-
-    const otherCharges =
-      Number(
-        form.otherCharges || 0
-      );
 
     const grandTotal =
       subtotal -

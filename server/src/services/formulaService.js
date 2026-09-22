@@ -216,6 +216,12 @@ export function getFormulas(
           FROM production_batches pb
           WHERE pb.formula_id = f.id
         )
+        OR EXISTS (
+          SELECT 1
+          FROM formulas newer
+          WHERE newer.code = f.code
+            AND newer.version_no > f.version_no
+        )
         THEN 1
         ELSE 0
       END AS is_locked
@@ -462,6 +468,21 @@ export function updateFormula(
         );
       }
 
+      const newerVersion =
+        db.prepare(`
+          SELECT id, version_no
+          FROM formulas
+          WHERE code = ? AND version_no > ?
+          ORDER BY version_no DESC
+          LIMIT 1
+        `).get(formula.code, formula.version_no);
+
+      if (newerVersion) {
+        throw new Error(
+          `Version ${formula.version_no} is historical because V${newerVersion.version_no} already exists. Create a new version from the current active formula instead.`
+        );
+      }
+
       assertFormulaItems(
         data
       );
@@ -576,6 +597,24 @@ export function createFormulaVersion(
       if (!source) {
         throw new Error(
           "Source formula not found."
+        );
+      }
+
+      const latest =
+        db.prepare(`
+          SELECT id, version_no, is_active
+          FROM formulas
+          WHERE code = ?
+          ORDER BY version_no DESC
+          LIMIT 1
+        `).get(source.code);
+
+      if (
+        Number(latest?.id) !== Number(source.id) ||
+        Number(source.is_active) !== 1
+      ) {
+        throw new Error(
+          "Only the current active/latest formula version can be used to create a new version."
         );
       }
 
@@ -738,6 +777,18 @@ export function activateFormula(
       if (!formula) {
         throw new Error(
           "Formula not found."
+        );
+      }
+
+      const latestVersion = db.prepare(`
+        SELECT MAX(version_no) AS version_no
+        FROM formulas
+        WHERE code = ?
+      `).get(formula.code);
+
+      if (Number(formula.version_no) !== Number(latestVersion?.version_no || 0)) {
+        throw new Error(
+          "Only the latest formula version can be activated. Create a new version if you need to restore an older recipe."
         );
       }
 

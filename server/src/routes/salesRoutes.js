@@ -5,6 +5,7 @@ import {
   listSales,
   salesDetails,
   receiveSalesPayment,
+  recordSalesRefund,
   cancelSalesInvoice,
   returnableSaleDetails,
   addSalesCreditNote,
@@ -12,52 +13,19 @@ import {
   salesCreditNoteDetails,
 } from "../controllers/salesController.js";
 
-const router =
-  express.Router();
+const router = express.Router();
 
-router.post(
-  "/",
-  addSale
-);
+router.get("/credit-notes", listSalesCreditNotes);
+router.get("/credit-notes/:id", salesCreditNoteDetails);
 
-router.get(
-  "/",
-  listSales
-);
+router.get("/", listSales);
+router.post("/", addSale);
 
-router.get(
-  "/:id",
-  salesDetails
-);
-
-router.post(
-  "/:id/payments",
-  receiveSalesPayment
-);
-
-router.patch(
-  "/:id/cancel",
-  cancelSalesInvoice
-);
-
-router.get(
-  "/credit-notes",
-  listSalesCreditNotes
-);
-
-router.get(
-  "/credit-notes/:id",
-  salesCreditNoteDetails
-);
-
-router.get(
-  "/:id/returnable",
-  returnableSaleDetails
-);
-
-router.post(
-  "/:id/credit-note",
-  addSalesCreditNote
-);
+router.get("/:id/returnable", returnableSaleDetails);
+router.post("/:id/credit-note", addSalesCreditNote);
+router.post("/:id/payments", receiveSalesPayment);
+router.post("/:id/refunds", recordSalesRefund);
+router.patch("/:id/cancel", cancelSalesInvoice);
+router.get("/:id", salesDetails);
 
 export default router;

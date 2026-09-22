@@ -368,58 +368,35 @@ function CustomerLedger() {
                   </div>
                 </div>
 
-                <div className="row mb-4">
-                  <div className="col-md-4">
-                    <div className="border rounded p-3">
-                      <div className="text-muted">
-                        Total Sales
-                      </div>
-
-                      <strong>
-                        ₹
-                        {Number(
-                          ledgerData.summary.totalSales ||
-                            0
-                        ).toFixed(
-                          2
-                        )}
-                      </strong>
+                <div className="row g-3 mb-4">
+                  <div className="col-md">
+                    <div className="border rounded p-3 h-100">
+                      <div className="text-muted">Gross Sales</div>
+                      <strong>₹{Number(ledgerData.summary.totalSales || 0).toFixed(2)}</strong>
                     </div>
                   </div>
-
-                  <div className="col-md-4">
-                    <div className="border rounded p-3">
-                      <div className="text-muted">
-                        Total Paid
-                      </div>
-
-                      <strong>
-                        ₹
-                        {Number(
-                          ledgerData.summary.totalPaid ||
-                            0
-                        ).toFixed(
-                          2
-                        )}
-                      </strong>
+                  <div className="col-md">
+                    <div className="border rounded p-3 h-100">
+                      <div className="text-muted">Credit Notes</div>
+                      <strong>₹{Number(ledgerData.summary.totalCredits || 0).toFixed(2)}</strong>
                     </div>
                   </div>
-
-                  <div className="col-md-4">
-                    <div className="border rounded p-3">
-                      <div className="text-muted">
-                        Outstanding
-                      </div>
-
-                      <strong>
-                        ₹
-                        {Number(
-                          ledgerData.summary.outstanding ||
-                            0
-                        ).toFixed(
-                          2
-                        )}
-                      </strong>
+                  <div className="col-md">
+                    <div className="border rounded p-3 h-100">
+                      <div className="text-muted">Payments</div>
+                      <strong>₹{Number(ledgerData.summary.totalPayments || 0).toFixed(2)}</strong>
+                    </div>
+                  </div>
+                  <div className="col-md">
+                    <div className="border rounded p-3 h-100">
+                      <div className="text-muted">Refunds</div>
+                      <strong>₹{Number(ledgerData.summary.totalRefunds || 0).toFixed(2)}</strong>
+                    </div>
+                  </div>
+                  <div className="col-md">
+                    <div className="border rounded p-3 h-100">
+                      <div className="text-muted">Outstanding</div>
+                      <strong>₹{Number(ledgerData.summary.outstanding || 0).toFixed(2)}</strong>
                     </div>
                   </div>
                 </div>
@@ -458,15 +435,14 @@ function CustomerLedger() {
                             </td>
 
                             <td>
-                              {transaction.transactionType ===
-                              "INVOICE" ? (
-                                <span className="badge text-bg-primary">
-                                  Invoice
-                                </span>
+                              {transaction.transactionType === "INVOICE" ? (
+                                <span className="badge text-bg-primary">Invoice</span>
+                              ) : transaction.transactionType === "PAYMENT" ? (
+                                <span className="badge text-bg-success">Payment</span>
+                              ) : transaction.transactionType === "CREDIT_NOTE" ? (
+                                <span className="badge text-bg-warning">Credit Note</span>
                               ) : (
-                                <span className="badge text-bg-success">
-                                  Payment
-                                </span>
+                                <span className="badge text-bg-info">Refund</span>
                               )}
                             </td>
 
@@ -546,8 +522,10 @@ function CustomerLedger() {
                           Invoice
                         </th>
                         <th>Date</th>
-                        <th>Total</th>
-                        <th>Paid</th>
+                        <th>Original Total</th>
+                        <th>Credits</th>
+                        <th>Effective Total</th>
+                        <th>Net Paid</th>
                         <th>Balance</th>
                         <th>Status</th>
                       </tr>
@@ -557,16 +535,8 @@ function CustomerLedger() {
                       {ledgerData.invoices.map(
                         (invoice) => {
                           const balance =
-                            invoice.status ===
-                            "POSTED"
-                              ? Number(
-                                  invoice.grand_total ||
-                                    0
-                                ) -
-                                Number(
-                                  invoice.amount_paid ||
-                                    0
-                                )
+                            invoice.status === "POSTED"
+                              ? Number(invoice.balance_amount || 0)
                               : 0;
 
                           return (
@@ -593,25 +563,13 @@ function CustomerLedger() {
                                 }
                               </td>
 
-                              <td>
-                                ₹
-                                {Number(
-                                  invoice.grand_total ||
-                                    0
-                                ).toFixed(
-                                  2
-                                )}
-                              </td>
+                              <td>₹{Number(invoice.grand_total || 0).toFixed(2)}</td>
 
-                              <td>
-                                ₹
-                                {Number(
-                                  invoice.amount_paid ||
-                                    0
-                                ).toFixed(
-                                  2
-                                )}
-                              </td>
+                              <td>₹{Number(invoice.credited_amount || 0).toFixed(2)}</td>
+
+                              <td>₹{Number(invoice.effective_total || 0).toFixed(2)}</td>
+
+                              <td>₹{Number(invoice.net_paid || 0).toFixed(2)}</td>
 
                               <td>
                                 ₹
@@ -632,6 +590,57 @@ function CustomerLedger() {
                             </tr>
                           );
                         }
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <h6>Credit Note History</h6>
+                <div className="table-responsive mb-4">
+                  <table className="table table-bordered">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Date</th><th>Credit Note</th><th>Invoice</th><th>Amount</th><th>Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ledgerData.creditNotes.map((credit) => (
+                        <tr key={credit.id}>
+                          <td>{credit.credit_note_date}</td>
+                          <td>{credit.credit_note_no}</td>
+                          <td>{credit.invoice_no}</td>
+                          <td>₹{Number(credit.grand_total || 0).toFixed(2)}</td>
+                          <td>{credit.reason}</td>
+                        </tr>
+                      ))}
+                      {ledgerData.creditNotes.length === 0 && (
+                        <tr><td colSpan={5} className="text-center text-muted">No credit notes recorded.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <h6>Refund History</h6>
+                <div className="table-responsive mb-4">
+                  <table className="table table-bordered">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Date</th><th>Refund</th><th>Invoice</th><th>Amount</th><th>Mode</th><th>Reference</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ledgerData.refunds.map((refund) => (
+                        <tr key={refund.id}>
+                          <td>{refund.refund_date}</td>
+                          <td>{refund.refund_no}</td>
+                          <td>{refund.invoice_no}</td>
+                          <td>₹{Number(refund.amount || 0).toFixed(2)}</td>
+                          <td>{refund.refund_mode}</td>
+                          <td>{refund.reference_no || "-"}</td>
+                        </tr>
+                      ))}
+                      {ledgerData.refunds.length === 0 && (
+                        <tr><td colSpan={6} className="text-center text-muted">No refunds recorded.</td></tr>
                       )}
                     </tbody>
                   </table>

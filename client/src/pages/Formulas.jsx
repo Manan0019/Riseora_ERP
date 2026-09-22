@@ -1164,6 +1164,14 @@ function Formulas() {
       }
     };
 
+  const isLatestFormulaVersion = (formula) => {
+    return !formulas.some(
+      (other) =>
+        other.code === formula.code &&
+        Number(other.version_no || 0) > Number(formula.version_no || 0),
+    );
+  };
+
   const filteredFormulas =
     useMemo(() => {
       const text =
@@ -2028,7 +2036,9 @@ function Formulas() {
 
             {mode ===
               "VIEW" &&
-              selectedFormulaInfo && (
+              selectedFormulaInfo &&
+              selectedFormulaInfo.is_active &&
+              isLatestFormulaVersion(selectedFormulaInfo) && (
                 <button
                   type="button"
                   className="btn btn-primary"
@@ -2274,42 +2284,36 @@ function Formulas() {
                                   : "Edit"}
                               </button>
 
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline-dark"
-                                onClick={() =>
-                                  handleCreateNewVersion(
-                                    formula
-                                  )
-                                }
-                              >
-                                Create New Version
-                              </button>
+                              {formula.is_active && isLatestFormulaVersion(formula) && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-dark"
+                                  onClick={() => handleCreateNewVersion(formula)}
+                                >
+                                  Create New Version
+                                </button>
+                              )}
 
                               {formula.is_active ? (
                                 <button
                                   type="button"
                                   className="btn btn-sm btn-outline-danger"
-                                  onClick={() =>
-                                    handleDeactivate(
-                                      formula
-                                    )
-                                  }
+                                  onClick={() => handleDeactivate(formula)}
                                 >
                                   Deactivate
                                 </button>
-                              ) : (
+                              ) : isLatestFormulaVersion(formula) ? (
                                 <button
                                   type="button"
                                   className="btn btn-sm btn-outline-success"
-                                  onClick={() =>
-                                    handleActivate(
-                                      formula
-                                    )
-                                  }
+                                  onClick={() => handleActivate(formula)}
                                 >
                                   Activate
                                 </button>
+                              ) : (
+                                <span className="badge text-bg-light text-dark border align-self-center">
+                                  Historical
+                                </span>
                               )}
                             </div>
                           </td>

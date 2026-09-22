@@ -208,6 +208,63 @@ export function removeInventoryValue(
   };
 }
 
+export function reverseInventoryReceipt(itemId, quantity, unitCost) {
+  const id = Number(itemId);
+  const qty = Number(quantity);
+  const cost = Number(unitCost || 0);
+
+  if (!Number.isFinite(qty) || qty <= 0) {
+    throw new Error("Receipt reversal quantity must be greater than zero.");
+  }
+
+  if (!Number.isFinite(cost) || cost < 0) {
+    throw new Error("Receipt reversal unit cost cannot be negative.");
+  }
+
+  const state = ensureCostState(id);
+  const currentQuantity = Number(state.quantity || 0);
+  const currentValue = Number(state.inventory_value || 0);
+
+  if (qty > currentQuantity + 0.0000001) {
+    throw new Error("Receipt reversal exceeds costing quantity.");
+  }
+
+  const valueRemoved = qty * cost;
+  if (valueRemoved > currentValue + 0.0000001) {
+    throw new Error(
+      "This receipt cannot be reversed at its original cost because part of its inventory value has already been consumed. Use an adjustment/return workflow instead.",
+    );
+  }
+
+  let newQuantity = currentQuantity - qty;
+  let newValue = currentValue - valueRemoved;
+
+  if (Math.abs(newQuantity) < 0.0000001) {
+    newQuantity = 0;
+    if (Math.abs(newValue) < 0.0000001) newValue = 0;
+  }
+
+  if (newValue < -0.0000001) {
+    throw new Error("Receipt reversal would make inventory value negative.");
+  }
+
+  const newAverage = newQuantity > 0 ? newValue / newQuantity : 0;
+
+  db.prepare(`
+    UPDATE inventory_cost_state
+    SET quantity = ?, inventory_value = ?, average_cost = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE item_id = ?
+  `).run(newQuantity, Math.max(0, newValue), newAverage, id);
+
+  return {
+    unitCost: cost,
+    valueRemoved,
+    quantity: newQuantity,
+    inventoryValue: Math.max(0, newValue),
+    averageCost: newAverage,
+  };
+}
+
 export function previewItemCostRebuild(
   itemId
 ) {
@@ -346,16 +403,31 @@ export function previewItemCostRebuild(
 
       const averageCost =
         quantity > 0
-          ? inventoryValue /
-            quantity
+          ? inventoryValue / quantity
           : 0;
 
-      inventoryValue -=
-        quantityOut *
-        averageCost;
+      /*
+       * New transactions store the exact
+       * unit cost used when stock moved out.
+       * Use it when available so cancellations
+       * and historical COGS rebuild exactly.
+       * Older zero-cost outgoing rows fall back
+       * to the weighted average at that point.
+       */
+      const outgoingUnitCost =
+        unitCost > 0 ? unitCost : averageCost;
 
-      quantity -=
-        quantityOut;
+      const outgoingValue =
+        quantityOut * outgoingUnitCost;
+
+      if (outgoingValue > inventoryValue + 0.0000001) {
+        throw new Error(
+          `Inventory value would go negative at transaction ${transaction.id}. Costing cannot be rebuilt automatically.`,
+        );
+      }
+
+      inventoryValue -= outgoingValue;
+      quantity -= quantityOut;
 
       if (
         Math.abs(quantity) <

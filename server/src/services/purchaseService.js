@@ -6,7 +6,7 @@ import {
 
 import {
   addInventoryValue,
-  removeInventoryValue,
+  reverseInventoryReceipt,
 } from "./costService.js";
 
 function generatePurchaseNumber() {
@@ -132,6 +132,28 @@ export function createPurchase(data) {
             0
         );
 
+      if (
+        !Number.isFinite(freightAmount) ||
+        !Number.isFinite(otherCharges) ||
+        freightAmount < 0 ||
+        otherCharges < 0
+      ) {
+        throw new Error("Freight and other charges must be valid non-negative amounts.");
+      }
+
+      const landedCharges = freightAmount + otherCharges;
+
+      for (const item of calculatedItems) {
+        const share = subtotal > 0
+          ? landedCharges * (item.taxableAmount / subtotal)
+          : 0;
+
+        item.inventoryUnitCost =
+          item.quantity > 0
+            ? (item.taxableAmount + share) / item.quantity
+            : item.rate;
+      }
+
       const grandTotal =
         subtotal +
         gstAmount +
@@ -226,7 +248,7 @@ export function createPurchase(data) {
         addInventoryValue(
           item.itemId,
           item.quantity,
-          item.rate
+          item.inventoryUnitCost
         );
 
         /*
@@ -257,7 +279,7 @@ export function createPurchase(data) {
           quantityOut: 0,
 
           unitCost:
-            item.rate,
+            item.inventoryUnitCost,
 
           lotNo:
             item.lotNo,
@@ -426,10 +448,46 @@ export function cancelPurchase(id) {
          * Remove quantity/value from the
          * current weighted-average cost state.
          */
+        const originalReceipt = db.prepare(`
+          SELECT id, unit_cost
+          FROM stock_transactions
+          WHERE reference_type = 'PURCHASE'
+            AND reference_id = ?
+            AND item_id = ?
+            AND transaction_type = 'PURCHASE'
+          ORDER BY id
+          LIMIT 1
+        `).get(purchase.id, item.item_id);
+
+        if (!originalReceipt) {
+          throw new Error(
+            `Original inventory receipt was not found for purchase ${purchase.purchase_no}.`,
+          );
+        }
+
+        const laterOutgoing = db.prepare(`
+          SELECT id, transaction_type, reference_no
+          FROM stock_transactions
+          WHERE item_id = ?
+            AND id > ?
+            AND quantity_out > 0
+          ORDER BY id
+          LIMIT 1
+        `).get(item.item_id, originalReceipt.id);
+
+        if (laterOutgoing) {
+          throw new Error(
+            `${purchase.purchase_no} cannot be cancelled because ${item.item_id} has subsequent stock usage. Use a supplier return/stock adjustment workflow instead.`,
+          );
+        }
+
+        const originalUnitCost = Number(originalReceipt.unit_cost || 0);
+
         const costResult =
-          removeInventoryValue(
+          reverseInventoryReceipt(
             item.item_id,
-            item.quantity
+            item.quantity,
+            originalUnitCost
           );
 
         addStockTransaction({

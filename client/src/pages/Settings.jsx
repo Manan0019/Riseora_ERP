@@ -21,6 +21,14 @@ function Settings() {
   const [error, setError] =
     useState("");
 
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  const [changingPassword, setChangingPassword] = useState(false);
+
   useEffect(() => {
     loadBackups();
   }, []);
@@ -71,6 +79,42 @@ function Settings() {
     }
   };
 
+  const handlePasswordChange = (event) => {
+    const { name, value } = event.target;
+    setPasswordForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const savePassword = async () => {
+    setMessage("");
+    setError("");
+
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setError("Complete all password fields.");
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 8) {
+      setError("New password must contain at least 8 characters.");
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setError("New password and confirmation do not match.");
+      return;
+    }
+
+    try {
+      setChangingPassword(true);
+      const response = await api.post("/auth/change-password", passwordForm);
+      setMessage(response.data.message || "Password changed successfully.");
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to change password.");
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   const formatSize = (
     sizeBytes
   ) => {
@@ -117,6 +161,30 @@ function Settings() {
           {error}
         </div>
       )}
+
+      <div className="card mb-4" style={{ maxWidth: "900px" }}>
+        <div className="card-body">
+          <h5>Change Password</h5>
+          <p className="text-muted">Use a strong password before using the ERP with real business data.</p>
+          <div className="row">
+            <div className="col-md-4 mb-3">
+              <label className="form-label">Current Password</label>
+              <input type="password" className="form-control" name="currentPassword" value={passwordForm.currentPassword} onChange={handlePasswordChange} />
+            </div>
+            <div className="col-md-4 mb-3">
+              <label className="form-label">New Password</label>
+              <input type="password" className="form-control" name="newPassword" value={passwordForm.newPassword} onChange={handlePasswordChange} />
+            </div>
+            <div className="col-md-4 mb-3">
+              <label className="form-label">Confirm Password</label>
+              <input type="password" className="form-control" name="confirmPassword" value={passwordForm.confirmPassword} onChange={handlePasswordChange} />
+            </div>
+          </div>
+          <button type="button" className="btn btn-outline-primary" onClick={savePassword} disabled={changingPassword}>
+            {changingPassword ? "Changing..." : "Change Password"}
+          </button>
+        </div>
+      </div>
 
       <div
         className="card mb-4"

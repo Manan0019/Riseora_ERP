@@ -11,7 +11,18 @@ export async function seedAdmin() {
     return;
   }
 
-  const passwordHash = await bcrypt.hash("admin123", 10);
+  const isProduction = process.env.NODE_ENV === "production";
+  const initialPassword =
+    process.env.INITIAL_ADMIN_PASSWORD ||
+    (isProduction ? null : "admin123");
+
+  if (!initialPassword) {
+    throw new Error(
+      "INITIAL_ADMIN_PASSWORD is required before the first production startup.",
+    );
+  }
+
+  const passwordHash = await bcrypt.hash(initialPassword, 10);
 
   db.prepare(`
     INSERT INTO users (
@@ -25,8 +36,11 @@ export async function seedAdmin() {
     "admin",
     passwordHash,
     "Administrator",
-    "ADMIN"
+    "ADMIN",
   );
 
   console.log("Default admin user created");
+  if (!isProduction && !process.env.INITIAL_ADMIN_PASSWORD) {
+    console.warn("Development admin password is admin123. Change it from Settings.");
+  }
 }

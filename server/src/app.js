@@ -1,16 +1,15 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import session from "express-session";
+
 import authRoutes from "./routes/authRoutes.js";
 import companyRoutes from "./routes/companyRoutes.js";
 import unitRoutes from "./routes/unitRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
 import supplierRoutes from "./routes/supplierRoutes.js";
 import customerRoutes from "./routes/customerRoutes.js";
-import session from "express-session";
-import { requireAuth, requireAdmin } from "./middleware/authMiddleware.js";
 import backupRoutes from "./routes/backupRoutes.js";
-import { runStartupBackup } from "./services/startupBackupService.js";
 import itemRoutes from "./routes/itemRoutes.js";
 import purchaseRoutes from "./routes/purchaseRoutes.js";
 import stockRoutes from "./routes/stockRoutes.js";
@@ -23,60 +22,51 @@ import customerLedgerRoutes from "./routes/customerLedgerRoutes.js";
 import supplierLedgerRoutes from "./routes/supplierLedgerRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 
+import { requireAuth, requireAdmin } from "./middleware/authMiddleware.js";
+import { runStartupBackup } from "./services/startupBackupService.js";
 import { initDatabase } from "./db/initDatabase.js";
 
 dotenv.config();
 
 const app = express();
+const PORT = Number(process.env.PORT || 5000);
+const isProduction = process.env.NODE_ENV === "production";
+const sessionSecret = process.env.SESSION_SECRET ||
+  (isProduction ? null : "riseora-development-secret-change-before-production");
 
-const PORT = process.env.PORT || 5000;
+if (!sessionSecret) {
+  throw new Error("SESSION_SECRET is required when NODE_ENV=production.");
+}
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
     credentials: true,
-  })
+  }),
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 
 app.use(
   session({
     name: "riseora.sid",
-
-    secret: process.env.SESSION_SECRET,
-
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
-
     cookie: {
       httpOnly: true,
-      secure: false,
+      secure: isProduction,
       sameSite: "lax",
       maxAge: 1000 * 60 * 60 * 8,
     },
-  })
+  }),
 );
 
 await initDatabase();
-if (process.env.NODE_ENV !== "development") {
+
+if (isProduction) {
   await runStartupBackup();
 }
-///await runStartupBackup();
-
-app.use("/api/auth", authRoutes);
-
-app.use("/api/company", companyRoutes);
-
-app.use("/api/categories", categoryRoutes);
-
-app.use("/api/suppliers", supplierRoutes);
-
-app.use("/api/customers", customerRoutes);
-
-app.use("/api/units", unitRoutes);
-
-app.use("/api/backups", requireAuth, requireAdmin, backupRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({
@@ -85,117 +75,35 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-app.use(
-  "/api/company",
-  requireAuth,
-  requireAdmin,
-  companyRoutes
-);
+app.use("/api/auth", authRoutes);
 
-app.use(
-  "/api/units",
-  requireAuth,
-  requireAdmin,
-  unitRoutes
-);
+const adminOnly = [requireAuth, requireAdmin];
+app.use("/api/company", ...adminOnly, companyRoutes);
+app.use("/api/units", ...adminOnly, unitRoutes);
+app.use("/api/categories", ...adminOnly, categoryRoutes);
+app.use("/api/suppliers", ...adminOnly, supplierRoutes);
+app.use("/api/customers", ...adminOnly, customerRoutes);
+app.use("/api/items", ...adminOnly, itemRoutes);
+app.use("/api/purchases", ...adminOnly, purchaseRoutes);
+app.use("/api/stock", ...adminOnly, stockRoutes);
+app.use("/api/opening-stock", ...adminOnly, openingStockRoutes);
+app.use("/api/stock-adjustments", ...adminOnly, stockAdjustmentRoutes);
+app.use("/api/formulas", ...adminOnly, formulaRoutes);
+app.use("/api/production", ...adminOnly, productionRoutes);
+app.use("/api/sales", ...adminOnly, salesRoutes);
+app.use("/api/customer-ledger", ...adminOnly, customerLedgerRoutes);
+app.use("/api/supplier-ledger", ...adminOnly, supplierLedgerRoutes);
+app.use("/api/dashboard", ...adminOnly, dashboardRoutes);
+app.use("/api/backups", ...adminOnly, backupRoutes);
 
-app.use(
-  "/api/categories",
-  requireAuth,
-  requireAdmin,
-  categoryRoutes
-);
-
-app.use(
-  "/api/suppliers",
-  requireAuth,
-  requireAdmin,
-  supplierRoutes
-);
-
-app.use(
-  "/api/customers",
-  requireAuth,
-  requireAdmin,
-  customerRoutes
-);
-
-app.use(
-  "/api/items",
-  requireAuth,
-  requireAdmin,
-  itemRoutes
-);
-
-app.use(
-  "/api/purchases",
-  requireAuth,
-  requireAdmin,
-  purchaseRoutes
-);
-
-app.use(
-  "/api/stock",
-  requireAuth,
-  requireAdmin,
-  stockRoutes
-);
-
-app.use(
-  "/api/opening-stock",
-  requireAuth,
-  requireAdmin,
-  openingStockRoutes
-);
-
-app.use(
-  "/api/stock-adjustments",
-  requireAuth,
-  requireAdmin,
-  stockAdjustmentRoutes
-);
-
-app.use(
-  "/api/formulas",
-  requireAuth,
-  requireAdmin,
-  formulaRoutes
-);
-
-app.use(
-  "/api/production",
-  requireAuth,
-  requireAdmin,
-  productionRoutes
-);
-
-app.use(
-  "/api/sales",
-  requireAuth,
-  requireAdmin,
-  salesRoutes
-);
-
-app.use(
-  "/api/customer-ledger",
-  requireAuth,
-  requireAdmin,
-  customerLedgerRoutes
-);
-
-app.use(
-  "/api/supplier-ledger",
-  requireAuth,
-  requireAdmin,
-  supplierLedgerRoutes
-);
-
-app.use(
-  "/api/dashboard",
-  requireAuth,
-  requireAdmin,
-  dashboardRoutes
-);
+app.use((err, req, res, next) => {
+  console.error("Unhandled API error:", err);
+  if (res.headersSent) return next(err);
+  return res.status(500).json({
+    success: false,
+    message: "Unexpected server error.",
+  });
+});
 
 app.listen(PORT, () => {
   console.log(`Riseora ERP server running on http://localhost:${PORT}`);
