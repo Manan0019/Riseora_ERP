@@ -208,11 +208,30 @@ export function removeInventoryValue(
   };
 }
 
-export function rebuildItemCostState(
+export function previewItemCostRebuild(
   itemId
 ) {
   const id =
     Number(itemId);
+
+  const item =
+    db.prepare(`
+      SELECT
+        id,
+        code,
+        name
+      FROM items
+      WHERE id = ?
+    `).get(id);
+
+  if (!item) {
+    throw new Error(
+      "Item not found."
+    );
+  }
+
+  const currentState =
+    ensureCostState(id);
 
   const transactions =
     db.prepare(`
@@ -220,11 +239,15 @@ export function rebuildItemCostState(
         id,
         transaction_date,
         transaction_type,
+        reference_no,
         quantity_in,
         quantity_out,
         unit_cost
+
       FROM stock_transactions
+
       WHERE item_id = ?
+
       ORDER BY
         transaction_date,
         id
@@ -257,9 +280,31 @@ export function rebuildItemCostState(
           0
       );
 
-    /*
-     * Incoming stock creates value.
-     */
+    if (
+      !Number.isFinite(
+        quantityIn
+      ) ||
+      !Number.isFinite(
+        quantityOut
+      ) ||
+      !Number.isFinite(
+        unitCost
+      )
+    ) {
+      throw new Error(
+        `Invalid stock transaction ${transaction.id}.`
+      );
+    }
+
+    if (
+      quantityIn < 0 ||
+      quantityOut < 0
+    ) {
+      throw new Error(
+        `Negative stock movement found in transaction ${transaction.id}.`
+      );
+    }
+
     if (
       quantityIn > 0
     ) {
@@ -267,7 +312,14 @@ export function rebuildItemCostState(
         unitCost <= 0
       ) {
         warnings.push(
-          `${transaction.transaction_type} on ${transaction.transaction_date} has zero unit cost.`
+          `${
+            transaction.transaction_type
+          } ${
+            transaction.reference_no ||
+            `#${transaction.id}`
+          } on ${
+            transaction.transaction_date
+          } has zero unit cost.`
         );
       }
 
@@ -279,11 +331,6 @@ export function rebuildItemCostState(
         unitCost;
     }
 
-    /*
-     * Outgoing stock is replayed
-     * at the weighted-average cost
-     * that existed at that moment.
-     */
     if (
       quantityOut > 0
     ) {
@@ -293,7 +340,7 @@ export function rebuildItemCostState(
           0.0000001
       ) {
         throw new Error(
-          `Cannot rebuild costing for item ${id}. Stock ledger goes negative at transaction ${transaction.id}.`
+          `Stock ledger goes negative at transaction ${transaction.id}. Costing cannot be rebuilt automatically.`
         );
       }
 
@@ -311,9 +358,7 @@ export function rebuildItemCostState(
         quantityOut;
 
       if (
-        Math.abs(
-          quantity
-        ) <
+        Math.abs(quantity) <
         0.0000001
       ) {
         quantity = 0;
@@ -322,39 +367,135 @@ export function rebuildItemCostState(
     }
   }
 
-  const averageCost =
+  const rebuiltAverageCost =
     quantity > 0
       ? inventoryValue /
         quantity
       : 0;
 
-  db.prepare(`
-    INSERT INTO inventory_cost_state (
-      item_id,
-      quantity,
-      inventory_value,
-      average_cost
-    )
-    VALUES (?, ?, ?, ?)
+  const ledgerQuantity =
+    db.prepare(`
+      SELECT
+        COALESCE(
+          SUM(
+            quantity_in -
+            quantity_out
+          ),
+          0
+        ) AS quantity
 
-    ON CONFLICT(item_id)
-    DO UPDATE SET
-      quantity = excluded.quantity,
-      inventory_value = excluded.inventory_value,
-      average_cost = excluded.average_cost,
-      updated_at = CURRENT_TIMESTAMP
-  `).run(
-    id,
-    quantity,
-    inventoryValue,
-    averageCost
-  );
+      FROM stock_transactions
+      WHERE item_id = ?
+    `).get(id);
+
+  const physicalQuantity =
+    Number(
+      ledgerQuantity?.quantity ||
+        0
+    );
 
   return {
-    itemId: id,
-    quantity,
-    inventoryValue,
-    averageCost,
+    item,
+
+    current: {
+      quantity:
+        Number(
+          currentState.quantity ||
+            0
+        ),
+
+      inventoryValue:
+        Number(
+          currentState.inventory_value ||
+            0
+        ),
+
+      averageCost:
+        Number(
+          currentState.average_cost ||
+            0
+        ),
+    },
+
+    rebuilt: {
+      quantity,
+      inventoryValue,
+      averageCost:
+        rebuiltAverageCost,
+    },
+
+    physicalQuantity,
+
+    transactionCount:
+      transactions.length,
+
     warnings,
+
+    canApply:
+      warnings.length === 0 &&
+      Math.abs(
+        physicalQuantity -
+          quantity
+      ) <
+        0.000001,
   };
+}
+
+export function rebuildItemCostState(
+  itemId
+) {
+  const transaction =
+    db.transaction(() => {
+      const preview =
+        previewItemCostRebuild(
+          itemId
+        );
+
+      if (
+        !preview.canApply
+      ) {
+        throw new Error(
+          "Costing cannot be rebuilt automatically. Review the costing preview and transaction warnings first."
+        );
+      }
+
+      db.prepare(`
+        INSERT INTO inventory_cost_state (
+          item_id,
+          quantity,
+          inventory_value,
+          average_cost
+        )
+        VALUES (?, ?, ?, ?)
+
+        ON CONFLICT(item_id)
+        DO UPDATE SET
+          quantity =
+            excluded.quantity,
+
+          inventory_value =
+            excluded.inventory_value,
+
+          average_cost =
+            excluded.average_cost,
+
+          updated_at =
+            CURRENT_TIMESTAMP
+      `).run(
+        Number(itemId),
+
+        preview.rebuilt
+          .quantity,
+
+        preview.rebuilt
+          .inventoryValue,
+
+        preview.rebuilt
+          .averageCost
+      );
+
+      return preview;
+    });
+
+  return transaction();
 }

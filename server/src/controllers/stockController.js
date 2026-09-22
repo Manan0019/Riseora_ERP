@@ -7,6 +7,11 @@ import {
   getStockLedger,
 } from "../services/stockLedgerService.js";
 
+import {
+  previewItemCostRebuild,
+  rebuildItemCostState,
+} from "../services/costService.js";
+
 export function listCurrentStock(
   req,
   res
@@ -81,5 +86,71 @@ export function getLedgerForItem(req, res) {
       message:
         "Unable to load stock ledger",
     });
+  }
+}
+
+export function costingPreview(
+  req,
+  res
+) {
+  try {
+    const preview =
+      previewItemCostRebuild(
+        Number(
+          req.params.id
+        )
+      );
+
+    return res.json({
+      success: true,
+      preview,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res
+      .status(400)
+      .json({
+        success: false,
+
+        message:
+          error.message ||
+          "Unable to preview inventory costing.",
+      });
+  }
+}
+
+export function rebuildCosting(
+  req,
+  res
+) {
+  try {
+    const result =
+      rebuildItemCostState(
+        Number(
+          req.params.id
+        )
+      );
+
+    return res.json({
+      success: true,
+
+      message:
+        "Inventory costing rebuilt successfully.",
+
+      result,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res
+      .status(400)
+      .json({
+        success: false,
+
+        message:
+          error.message ||
+          "Unable to rebuild inventory costing.",
+      });
   }
 }

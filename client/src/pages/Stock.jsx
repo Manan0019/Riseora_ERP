@@ -11,6 +11,12 @@ function Stock() {
   const [ledger, setLedger] = useState([]);
   const [ledgerLoading, setLedgerLoading] = useState(false);
 
+  const [costingPreview, setCostingPreview] = useState(null);
+
+  const [costingPreviewLoading, setCostingPreviewLoading] = useState(false);
+
+  const [rebuildingCosting, setRebuildingCosting] = useState(false);
+
   useEffect(() => {
     loadStock();
   }, []);
@@ -71,6 +77,60 @@ function Stock() {
       setError("Unable to load stock ledger.");
     } finally {
       setLedgerLoading(false);
+    }
+  };
+
+  const loadCostingPreview = async (event, item) => {
+    event.stopPropagation();
+
+    try {
+      setError("");
+
+      setCostingPreviewLoading(true);
+
+      const response = await api.get(`/stock/item/${item.id}/costing-preview`);
+
+      setCostingPreview(response.data.preview);
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        err.response?.data?.message || "Unable to preview costing rebuild.",
+      );
+    } finally {
+      setCostingPreviewLoading(false);
+    }
+  };
+
+  const handleRebuildCosting = async () => {
+    if (!costingPreview) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Rebuild costing for ${costingPreview.item.code} - ${costingPreview.item.name}?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setError("");
+
+      setRebuildingCosting(true);
+
+      await api.post(`/stock/item/${costingPreview.item.id}/rebuild-costing`);
+
+      setCostingPreview(null);
+
+      await loadStock();
+    } catch (err) {
+      console.error(err);
+
+      setError(err.response?.data?.message || "Unable to rebuild costing.");
+    } finally {
+      setRebuildingCosting(false);
     }
   };
 
@@ -177,9 +237,22 @@ function Stock() {
                           {item.costing_status === "OK" ? (
                             <span className="badge text-bg-success">OK</span>
                           ) : (
-                            <span className="badge text-bg-warning">
-                              Mismatch
-                            </span>
+                            <div className="d-flex align-items-center gap-2">
+                              <span className="badge text-bg-warning">
+                                Mismatch
+                              </span>
+
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-primary"
+                                disabled={costingPreviewLoading}
+                                onClick={(event) =>
+                                  loadCostingPreview(event, item)
+                                }
+                              >
+                                Preview
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -199,6 +272,127 @@ function Stock() {
           </div>
         </div>
       </div>
+
+      {costingPreview && (
+        <div className="card mt-4">
+          <div className="card-body">
+            <div className="d-flex justify-content-between align-items-start mb-3">
+              <div>
+                <h5 className="mb-1">Inventory Cost Rebuild Preview</h5>
+
+                <div className="text-muted">
+                  {costingPreview.item.code}
+                  {" - "}
+                  {costingPreview.item.name}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setCostingPreview(null)}
+              />
+            </div>
+
+            <div className="table-responsive mb-3">
+              <table className="table table-bordered">
+                <thead className="table-light">
+                  <tr>
+                    <th></th>
+                    <th>Current Costing</th>
+                    <th>Rebuilt Costing</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  <tr>
+                    <th>Quantity</th>
+
+                    <td>
+                      {Number(costingPreview.current.quantity).toFixed(3)}
+                    </td>
+
+                    <td>
+                      {Number(costingPreview.rebuilt.quantity).toFixed(3)}
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <th>Average Cost</th>
+
+                    <td>
+                      ₹{Number(costingPreview.current.averageCost).toFixed(2)}
+                    </td>
+
+                    <td>
+                      ₹{Number(costingPreview.rebuilt.averageCost).toFixed(2)}
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <th>Inventory Value</th>
+
+                    <td>
+                      ₹
+                      {Number(costingPreview.current.inventoryValue).toFixed(2)}
+                    </td>
+
+                    <td>
+                      ₹
+                      {Number(costingPreview.rebuilt.inventoryValue).toFixed(2)}
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <th>Physical Stock</th>
+
+                    <td colSpan={2}>
+                      {Number(costingPreview.physicalQuantity).toFixed(3)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {costingPreview.warnings.length > 0 && (
+              <div className="alert alert-warning">
+                <strong>Automatic rebuild blocked.</strong>
+
+                <ul className="mb-0 mt-2">
+                  {costingPreview.warnings.map((warning, index) => (
+                    <li key={index}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {costingPreview.canApply ? (
+              <div className="d-flex gap-2">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={rebuildingCosting}
+                  onClick={handleRebuildCosting}
+                >
+                  {rebuildingCosting ? "Rebuilding..." : "Apply Rebuild"}
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={() => setCostingPreview(null)}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="text-muted">
+                Fix the transaction cost warnings before rebuilding this item.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* STOCK LEDGER - MUST BE OUTSIDE CURRENT STOCK TABLE */}
       {selectedItem && (
