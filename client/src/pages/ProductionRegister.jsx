@@ -89,18 +89,16 @@ function ProductionRegister() {
   const costSummary = useMemo(() => {
     if (!selectedBatch?.consumption) {
       return {
-        rawCost,
-        packagingCost,
-        otherCost,
-
-        materialCost,
-        labourCost,
-        electricityCost,
-        otherOverheadCost,
-        overheadCost,
-
-        totalCost,
-        unitCost,
+        rawCost: 0,
+        packagingCost: 0,
+        otherCost: 0,
+        materialCost: 0,
+        labourCost: 0,
+        electricityCost: 0,
+        otherOverheadCost: 0,
+        overheadCost: 0,
+        totalCost: 0,
+        unitCost: 0,
       };
     }
 
@@ -120,9 +118,18 @@ function ProductionRegister() {
         otherCost += amount;
       }
     });
-    const materialCost = Number(
-      selectedBatch.material_cost || rawCost + packagingCost + otherCost,
-    );
+
+    const calculatedMaterialCost =
+      rawCost +
+      packagingCost +
+      otherCost;
+
+    const storedMaterialCost = Number(selectedBatch.material_cost || 0);
+
+    const materialCost =
+      storedMaterialCost > 0
+        ? storedMaterialCost
+        : calculatedMaterialCost;
 
     const labourCost = Number(selectedBatch.labour_cost || 0);
 
@@ -130,17 +137,39 @@ function ProductionRegister() {
 
     const otherOverheadCost = Number(selectedBatch.other_overhead_cost || 0);
 
-    const overheadCost = labourCost + electricityCost + otherOverheadCost;
+    const overheadCost =
+      labourCost +
+      electricityCost +
+      otherOverheadCost;
 
-    const totalCost = Number(
-      selectedBatch.total_production_cost || materialCost + overheadCost,
-    );
+    const storedTotalCost = Number(selectedBatch.total_production_cost || 0);
 
-    const unitCost = Number(selectedBatch.finished_unit_cost || 0);
+    const totalCost =
+      storedTotalCost > 0
+        ? storedTotalCost
+        : materialCost +
+          overheadCost;
+
+    const storedUnitCost = Number(selectedBatch.finished_unit_cost || 0);
+
+    const actualOutput = Number(selectedBatch.actual_output_qty || 0);
+
+    const unitCost =
+      storedUnitCost > 0
+        ? storedUnitCost
+        : actualOutput > 0
+          ? totalCost / actualOutput
+          : 0;
+
     return {
       rawCost,
       packagingCost,
       otherCost,
+      materialCost,
+      labourCost,
+      electricityCost,
+      otherOverheadCost,
+      overheadCost,
       totalCost,
       unitCost,
     };
