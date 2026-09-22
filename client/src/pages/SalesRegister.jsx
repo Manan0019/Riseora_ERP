@@ -29,6 +29,12 @@ function SalesRegister() {
 
   const [error, setError] = useState("");
 
+  const [returnForm, setReturnForm] = useState(null);
+
+  const [returnLoading, setReturnLoading] = useState(false);
+
+  const [savingReturn, setSavingReturn] = useState(false);
+
   useEffect(() => {
     loadInvoices();
   }, []);
@@ -206,6 +212,259 @@ function SalesRegister() {
     }
   };
 
+  const startReturn =
+  async () => {
+    if (
+      !selectedInvoice
+    ) {
+      return;
+    }
+
+    try {
+      setReturnLoading(true);
+      setError("");
+      setMessage("");
+
+      const response =
+        await api.get(
+          `/sales/${selectedInvoice.id}/returnable`
+        );
+
+      const invoice =
+        response.data.invoice;
+
+      setReturnForm({
+        creditNoteDate:
+          today,
+
+        reason:
+          "",
+
+        notes:
+          "",
+
+        invoice,
+
+        items:
+          invoice.items.map(
+            (item) => ({
+              salesItemId:
+                item.sales_item_id,
+
+              itemCode:
+                item.item_code,
+
+              itemName:
+                item.item_name,
+
+              unitCode:
+                item.unit_code,
+
+              soldQuantity:
+                Number(
+                  item.quantity ||
+                    0
+                ),
+
+              alreadyReturned:
+                Number(
+                  item.returned_quantity ||
+                    0
+                ),
+
+              returnableQuantity:
+                Number(
+                  item.returnable_quantity ||
+                    0
+                ),
+
+              returnQuantity:
+                "",
+            })
+          ),
+      });
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        err.response?.data
+          ?.message ||
+          "Unable to start sales return."
+      );
+    } finally {
+      setReturnLoading(false);
+    }
+  };
+
+  const changeReturnQuantity =
+  (
+    index,
+    value
+  ) => {
+    setReturnForm(
+      (current) => ({
+        ...current,
+
+        items:
+          current.items.map(
+            (
+              item,
+              itemIndex
+            ) =>
+              itemIndex ===
+              index
+                ? {
+                    ...item,
+
+                    returnQuantity:
+                      value,
+                  }
+                : item
+          ),
+      })
+    );
+  };
+
+  const saveReturn =
+  async () => {
+    if (
+      !selectedInvoice ||
+      !returnForm
+    ) {
+      return;
+    }
+
+    if (
+      !returnForm.reason.trim()
+    ) {
+      setError(
+        "Return reason is required."
+      );
+
+      return;
+    }
+
+    const returnedItems =
+      returnForm.items
+        .filter(
+          (item) =>
+            Number(
+              item.returnQuantity ||
+                0
+            ) > 0
+        )
+        .map(
+          (item) => ({
+            salesItemId:
+              item.salesItemId,
+
+            quantity:
+              Number(
+                item.returnQuantity
+              ),
+          })
+        );
+
+    if (
+      returnedItems.length ===
+      0
+    ) {
+      setError(
+        "Enter return quantity for at least one product."
+      );
+
+      return;
+    }
+
+    for (
+      const item of
+        returnForm.items
+    ) {
+      const qty =
+        Number(
+          item.returnQuantity ||
+            0
+        );
+
+      if (
+        qty >
+        item.returnableQuantity
+      ) {
+        setError(
+          `${item.itemName}: return quantity cannot exceed ${item.returnableQuantity.toFixed(
+            3
+          )}.`
+        );
+
+        return;
+      }
+    }
+
+    try {
+      setSavingReturn(true);
+      setError("");
+      setMessage("");
+
+      const response =
+        await api.post(
+          `/sales/${selectedInvoice.id}/credit-note`,
+          {
+            creditNoteDate:
+              returnForm.creditNoteDate,
+
+            reason:
+              returnForm.reason.trim(),
+
+            notes:
+              returnForm.notes.trim(),
+
+            items:
+              returnedItems,
+          }
+        );
+
+      const result =
+        response.data.creditNote;
+
+      if (
+        Number(
+          result.refundDue ||
+            0
+        ) > 0
+      ) {
+        setMessage(
+          `${result.creditNoteNo} created successfully. Refund due: ₹${Number(
+            result.refundDue
+          ).toFixed(2)}.`
+        );
+      } else {
+        setMessage(
+          `${result.creditNoteNo} created successfully.`
+        );
+      }
+
+      setReturnForm(
+        null
+      );
+
+      await loadInvoices();
+
+      await loadInvoiceDetails(
+        selectedInvoice.id
+      );
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        err.response?.data
+          ?.message ||
+          "Unable to create credit note."
+      );
+    } finally {
+      setSavingReturn(false);
+    }
+  };
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-start mb-4">
@@ -356,18 +615,29 @@ function SalesRegister() {
         <div className="card">
           <div className="card-body">
             <div className="d-flex justify-content-between align-items-center mb-3">
-              <h5 className="mb-0">Invoice Details</h5>
-
-              {selectedInvoice.status !== "CANCELLED" &&
-                Number(selectedInvoice.amount_paid || 0) === 0 && (
+              <div className="d-flex gap-2">
+                {selectedInvoice.status !== "CANCELLED" && (
                   <button
                     type="button"
-                    className="btn btn-outline-danger"
-                    onClick={handleCancelInvoice}
+                    className="btn btn-outline-primary"
+                    onClick={startReturn}
+                    disabled={returnLoading}
                   >
-                    Cancel Invoice
+                    {returnLoading ? "Loading..." : "Return / Credit Note"}
                   </button>
                 )}
+
+                {selectedInvoice.status !== "CANCELLED" &&
+                  Number(selectedInvoice.amount_paid || 0) === 0 && (
+                    <button
+                      type="button"
+                      className="btn btn-outline-danger"
+                      onClick={handleCancelInvoice}
+                    >
+                      Cancel Invoice
+                    </button>
+                  )}
+              </div>
             </div>
 
             {selectedInvoice.status !== "CANCELLED" &&
@@ -589,6 +859,157 @@ function SalesRegister() {
                     </tbody>
                   </table>
                 </div>
+
+                {returnForm && (
+                  <div className="border rounded p-3 mb-4">
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                      <div>
+                        <h6 className="mb-1">Sales Return / Credit Note</h6>
+
+                        <div className="text-muted small">
+                          Invoice {selectedInvoice.invoice_no}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="btn-close"
+                        onClick={() => setReturnForm(null)}
+                      />
+                    </div>
+
+                    <div className="row">
+                      <div className="col-md-3 mb-3">
+                        <label className="form-label">Credit Note Date</label>
+
+                        <input
+                          type="date"
+                          className="form-control"
+                          value={returnForm.creditNoteDate}
+                          onChange={(event) =>
+                            setReturnForm((current) => ({
+                              ...current,
+
+                              creditNoteDate: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <div className="col-md-4 mb-3">
+                        <label className="form-label">Return Reason *</label>
+
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={returnForm.reason}
+                          onChange={(event) =>
+                            setReturnForm((current) => ({
+                              ...current,
+
+                              reason: event.target.value,
+                            }))
+                          }
+                          placeholder="Damaged / customer return / wrong item..."
+                        />
+                      </div>
+
+                      <div className="col-md-5 mb-3">
+                        <label className="form-label">Notes</label>
+
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={returnForm.notes}
+                          onChange={(event) =>
+                            setReturnForm((current) => ({
+                              ...current,
+
+                              notes: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="table-responsive mb-3">
+                      <table className="table table-bordered align-middle">
+                        <thead className="table-light">
+                          <tr>
+                            <th>Product</th>
+
+                            <th>Sold</th>
+
+                            <th>Already Returned</th>
+
+                            <th>Available to Return</th>
+
+                            <th>Return Qty</th>
+
+                            <th>Unit</th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {returnForm.items.map((item, index) => (
+                            <tr key={item.salesItemId}>
+                              <td>
+                                {item.itemCode}
+                                {" - "}
+                                {item.itemName}
+                              </td>
+
+                              <td>{item.soldQuantity.toFixed(3)}</td>
+
+                              <td>{item.alreadyReturned.toFixed(3)}</td>
+
+                              <td>{item.returnableQuantity.toFixed(3)}</td>
+
+                              <td>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={item.returnableQuantity}
+                                  step="0.001"
+                                  className="form-control"
+                                  value={item.returnQuantity}
+                                  disabled={item.returnableQuantity <= 0}
+                                  onChange={(event) =>
+                                    changeReturnQuantity(
+                                      index,
+                                      event.target.value,
+                                    )
+                                  }
+                                />
+                              </td>
+
+                              <td>{item.unitCode}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="d-flex gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={saveReturn}
+                        disabled={savingReturn}
+                      >
+                        {savingReturn ? "Posting..." : "Post Credit Note"}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary"
+                        onClick={() => setReturnForm(null)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* PAYMENT HISTORY */}
                 <h6>Payment History</h6>

@@ -6,6 +6,10 @@ import {
   salesDetails,
   receiveSalesPayment,
   cancelSalesInvoice,
+  returnableSaleDetails,
+  addSalesCreditNote,
+  listSalesCreditNotes,
+  salesCreditNoteDetails,
 } from "../controllers/salesController.js";
 
 const router =
@@ -34,6 +38,26 @@ router.post(
 router.patch(
   "/:id/cancel",
   cancelSalesInvoice
+);
+
+router.get(
+  "/credit-notes",
+  listSalesCreditNotes
+);
+
+router.get(
+  "/credit-notes/:id",
+  salesCreditNoteDetails
+);
+
+router.get(
+  "/:id/returnable",
+  returnableSaleDetails
+);
+
+router.post(
+  "/:id/credit-note",
+  addSalesCreditNote
 );
 
 export default router;

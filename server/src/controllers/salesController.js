@@ -6,6 +6,13 @@ import {
   cancelSale,
 } from "../services/salesService.js";
 
+import {
+  getReturnableSale,
+  createSalesCreditNote,
+  getSalesCreditNotes,
+  getSalesCreditNoteById,
+} from "../services/salesCreditNoteService.js";
+
 export function addSale(
   req,
   res
@@ -251,5 +258,145 @@ export function cancelSalesInvoice(
         error.message ||
         "Unable to cancel sales invoice.",
     });
+  }
+}
+
+export function returnableSaleDetails(
+  req,
+  res
+) {
+  try {
+    const invoice =
+      getReturnableSale(
+        Number(req.params.id)
+      );
+
+    return res.json({
+      success: true,
+      invoice,
+    });
+  } catch (error) {
+    console.error(
+      "Sales return preview error:",
+      error
+    );
+
+    return res
+      .status(400)
+      .json({
+        success: false,
+
+        message:
+          error.message ||
+          "Unable to load returnable sale.",
+      });
+  }
+}
+
+export function addSalesCreditNote(
+  req,
+  res
+) {
+  try {
+    const result =
+      createSalesCreditNote({
+        ...req.body,
+
+        salesInvoiceId:
+          Number(
+            req.params.id
+          ),
+      });
+
+    return res
+      .status(201)
+      .json({
+        success: true,
+
+        message:
+          `${result.creditNoteNo} created successfully.`,
+
+        creditNote:
+          result,
+      });
+  } catch (error) {
+    console.error(
+      "Sales credit note error:",
+      error
+    );
+
+    return res
+      .status(400)
+      .json({
+        success: false,
+
+        message:
+          error.message ||
+          "Unable to create sales credit note.",
+      });
+  }
+}
+
+export function listSalesCreditNotes(
+  req,
+  res
+) {
+  try {
+    return res.json({
+      success: true,
+
+      creditNotes:
+        getSalesCreditNotes(),
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res
+      .status(500)
+      .json({
+        success: false,
+
+        message:
+          "Unable to load sales credit notes.",
+      });
+  }
+}
+
+export function salesCreditNoteDetails(
+  req,
+  res
+) {
+  try {
+    const creditNote =
+      getSalesCreditNoteById(
+        Number(req.params.id)
+      );
+
+    if (!creditNote) {
+      return res
+        .status(404)
+        .json({
+          success: false,
+
+          message:
+            "Sales credit note not found.",
+        });
+    }
+
+    return res.json({
+      success: true,
+      creditNote,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res
+      .status(500)
+      .json({
+        success: false,
+
+        message:
+          "Unable to load sales credit note.",
+      });
   }
 }
