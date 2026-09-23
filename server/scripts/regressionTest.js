@@ -103,6 +103,29 @@ try {
   );
   assert.ok(units.KG && units.G && units.ML && units.L && units.PCS && categories.RAW && categories.PACK && categories.FG && categories.CONS);
 
+  step("Default Riseora owner catalog", () => {
+    const detailedCategories = db.prepare(`
+      SELECT code, inventory_role
+      FROM item_categories
+      WHERE code IN ('POWDER','CHEM','HYDRO','FRAG','COLOR','EXTRACT','EO','BASEOIL','CLAY','SOAPBASE','PACKAGING','HERB','FINISHED')
+    `).all();
+    assert.equal(detailedCategories.length, 13);
+
+    const catalogCount = Number(db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM items
+      WHERE notes LIKE 'Default Riseora owner catalog%'
+    `).get().count);
+    assert.equal(catalogCount, 210);
+
+    const expiryTracked = Number(db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM items
+      WHERE notes LIKE 'Default Riseora owner catalog%' AND track_expiry = 1
+    `).get().count);
+    assert.equal(expiryTracked, 194);
+  });
+
   step("Company master", () => {
     const company = saveCompany({
       name: "Riseora Herbals",
@@ -366,14 +389,38 @@ try {
       { ingredientItemId: raw.id, quantity: 0, unitId: units.KG, percentage: 100, notes: "" },
       { ingredientItemId: pack.id, quantity: 20, unitId: units.PCS, percentage: "", notes: "" },
     ],
+    processExtras: [
+      {
+        ingredientItemId: raw.id,
+        quantity: 0.2,
+        unitId: units.KG,
+        extraReason: "Heating / evaporation compensation",
+        notes: "Regression process allowance",
+      },
+    ],
   }));
 
-  const production = step("Production plan 20", () => createProductionPlan({
+  const production = step("Production plan 20 + process allowance", () => createProductionPlan({
     productionDate: "2026-09-03",
     formulaId: formula.formulaId,
     plannedBatchSize: 20,
     notes: "Regression production",
   }));
+
+  step("Process allowance stays outside 100% but joins production requirement", () => {
+    const rows = db.prepare(`
+      SELECT planned_quantity, formula_planned_quantity, process_extra_planned_quantity,
+             component_role, extra_reason
+      FROM production_consumption
+      WHERE production_batch_id = ? AND item_id = ?
+    `).all(production.productionBatchId, raw.id);
+    assert.equal(rows.length, 1, "Same formula + allowance item should be aggregated into one production row.");
+    approx(rows[0].formula_planned_quantity, 2);
+    approx(rows[0].process_extra_planned_quantity, 0.2);
+    approx(rows[0].planned_quantity, 2.2);
+    assert.equal(rows[0].component_role, "FORMULA_PLUS_EXTRA");
+    assert.match(String(rows[0].extra_reason || ""), /evaporation/i);
+  });
 
   step("Production start / WIP issue", () => {
     const started = startProductionBatch(production.productionBatchId, {});
@@ -384,7 +431,7 @@ try {
   const completed = step("Production actuals 20 planned → 18 good", () => {
     const result = completeProductionBatch(production.productionBatchId, {
       ingredients: [
-        { itemId: raw.id, actualQuantity: 1.9, wasteQuantity: 0, lotNo: "" },
+        { itemId: raw.id, actualQuantity: 2.1, wasteQuantity: 0.1, lotNo: "" },
         { itemId: pack.id, actualQuantity: 21, wasteQuantity: 1, lotNo: "" },
       ],
       goodOutputQty: 18,
@@ -436,7 +483,7 @@ try {
   });
 
   step("Stock after actual production", () => {
-    approx(getItemStock(raw.id), 13.1);
+    approx(getItemStock(raw.id), 12.9);
     approx(getItemStock(pack.id), 129);
     approx(getItemStock(finished.id), 18);
   });

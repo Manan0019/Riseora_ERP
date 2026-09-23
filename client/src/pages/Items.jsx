@@ -611,7 +611,7 @@ function Items() {
                         value={category.id}
                       >
                         {category.code} -{" "}
-                        {category.name}
+                        {category.name} [{category.inventory_role || "CONS"}]
                       </option>
                     )
                   )}

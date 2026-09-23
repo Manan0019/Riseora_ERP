@@ -5,6 +5,7 @@ import { useUi } from "../context/UiContext";
 const emptyForm = {
   code: "",
   name: "",
+  inventoryRole: "CONS",
 };
 
 function Categories() {
@@ -62,6 +63,7 @@ function Categories() {
     setForm({
       code: category.code,
       name: category.name,
+      inventoryRole: category.inventory_role || "CONS",
     });
 
     setEditing(false);
@@ -126,6 +128,11 @@ function Categories() {
 
     if (!form.name.trim()) {
       setError("Category name is required.");
+      return;
+    }
+
+    if (!form.inventoryRole) {
+      setError("Inventory role is required.");
       return;
     }
 
@@ -299,7 +306,8 @@ function Categories() {
 
   return (
     category.code.toLowerCase().includes(text) ||
-    category.name.toLowerCase().includes(text)
+    category.name.toLowerCase().includes(text) ||
+    String(category.inventory_role || "").toLowerCase().includes(text)
   );
 });
 
@@ -402,7 +410,7 @@ function Categories() {
                 />
               </div>
 
-              <div className="col-md-8 mb-3">
+              <div className="col-md-5 mb-3">
                 <label className="form-label">Name *</label>
 
                 <input
@@ -413,6 +421,25 @@ function Categories() {
                   onChange={handleChange}
                   disabled={!editing}
                 />
+              </div>
+
+              <div className="col-md-3 mb-3">
+                <label className="form-label">Inventory Role *</label>
+                <select
+                  className="form-select"
+                  name="inventoryRole"
+                  value={form.inventoryRole}
+                  onChange={handleChange}
+                  disabled={!editing}
+                >
+                  <option value="RAW">Raw Material</option>
+                  <option value="PACK">Packaging</option>
+                  <option value="FG">Finished Good</option>
+                  <option value="CONS">Consumable / Other</option>
+                </select>
+                <div className="form-text">
+                  Controls how this category behaves in Formula, Production and Sales.
+                </div>
               </div>
             </div>
 
@@ -464,6 +491,7 @@ function Categories() {
                 <tr>
                   <th>Code</th>
                   <th>Name</th>
+                  <th>Inventory Role</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -482,6 +510,11 @@ function Categories() {
                   >
                     <td>{category.code}</td>
                     <td>{category.name}</td>
+                    <td>
+                      <span className="badge text-bg-light border text-dark">
+                        {category.inventory_role || "CONS"}
+                      </span>
+                    </td>
 
                     <td>
                       {category.is_active ? (
@@ -497,7 +530,7 @@ function Categories() {
 
                 {filteredCategories.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="text-center text-muted">
+                    <td colSpan={4} className="text-center text-muted">
                       No categories found.
                     </td>
                   </tr>

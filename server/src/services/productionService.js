@@ -105,6 +105,10 @@ function buildFormulaSnapshot(formula) {
       itemCode: ingredient.ingredient_code,
       itemName: ingredient.ingredient_name,
       categoryCode: ingredient.category_code,
+      categoryName: ingredient.category_name,
+      categoryRole: ingredient.category_role || ingredient.category_code,
+      componentRole: ingredient.component_role || "FORMULA",
+      extraReason: ingredient.extra_reason || null,
       quantity: Number(ingredient.quantity),
       unitId: ingredient.unit_id,
       unitCode: ingredient.unit_code,
@@ -122,32 +126,84 @@ function calculateRequirementsFromFormula(formula, requiredBatchSize) {
   );
   const scaleFactor = requiredSize / formulaBatchSize;
 
-  const ingredients = formula.ingredients.map((ingredient) => {
-    const requiredQuantity = Number(ingredient.quantity) * scaleFactor;
+  const grouped = new Map();
+
+  for (const ingredient of formula.ingredients || []) {
     const itemBaseUnit = getItemBaseUnit(ingredient.ingredient_item_id);
-    const requiredBaseQuantity = convertQuantityByUnitIds(
-      requiredQuantity,
+    const scaledQuantity = Number(ingredient.quantity) * scaleFactor;
+    const scaledBaseQuantity = convertQuantityByUnitIds(
+      scaledQuantity,
       ingredient.unit_id,
       itemBaseUnit.unitId,
-    );
-    const currentStockBase = Number(getItemStock(ingredient.ingredient_item_id));
-    const currentStock = convertQuantityByUnitIds(
-      currentStockBase,
-      itemBaseUnit.unitId,
-      ingredient.unit_id,
     );
 
+    const key = Number(ingredient.ingredient_item_id);
+    let row = grouped.get(key);
+    if (!row) {
+      row = {
+        ingredientItemId: key,
+        ingredientCode: ingredient.ingredient_code,
+        ingredientName: ingredient.ingredient_name,
+        categoryCode: ingredient.category_code,
+        categoryName: ingredient.category_name,
+        categoryRole: ingredient.category_role || ingredient.category_code,
+        unitId: ingredient.unit_id,
+        unitCode: ingredient.unit_code,
+        baseUnitId: itemBaseUnit.unitId,
+        baseUnitCode: itemBaseUnit.unitCode,
+        formulaBaseQuantity: 0,
+        processExtraBaseQuantity: 0,
+        extraReasons: [],
+      };
+      grouped.set(key, row);
+    }
+
+    if (String(ingredient.component_role || "FORMULA").toUpperCase() === "PROCESS_EXTRA") {
+      row.processExtraBaseQuantity += scaledBaseQuantity;
+      if (ingredient.extra_reason && !row.extraReasons.includes(ingredient.extra_reason)) {
+        row.extraReasons.push(ingredient.extra_reason);
+      }
+    } else {
+      row.formulaBaseQuantity += scaledBaseQuantity;
+      // Prefer the standard-formula display unit when the same item also has an allowance.
+      row.unitId = ingredient.unit_id;
+      row.unitCode = ingredient.unit_code;
+    }
+  }
+
+  const ingredients = Array.from(grouped.values()).map((row) => {
+    const requiredBaseQuantity = row.formulaBaseQuantity + row.processExtraBaseQuantity;
+    const formulaQuantity = convertQuantityByUnitIds(
+      row.formulaBaseQuantity,
+      row.baseUnitId,
+      row.unitId,
+    );
+    const processExtraQuantity = convertQuantityByUnitIds(
+      row.processExtraBaseQuantity,
+      row.baseUnitId,
+      row.unitId,
+    );
+    const requiredQuantity = formulaQuantity + processExtraQuantity;
+    const currentStockBase = Number(getItemStock(row.ingredientItemId));
+    const currentStock = convertQuantityByUnitIds(
+      currentStockBase,
+      row.baseUnitId,
+      row.unitId,
+    );
+
+    let componentRole = "FORMULA";
+    if (row.processExtraBaseQuantity > EPSILON && row.formulaBaseQuantity > EPSILON) {
+      componentRole = "FORMULA_PLUS_EXTRA";
+    } else if (row.processExtraBaseQuantity > EPSILON) {
+      componentRole = "PROCESS_EXTRA";
+    }
+
     return {
-      ingredientItemId: ingredient.ingredient_item_id,
-      ingredientCode: ingredient.ingredient_code,
-      ingredientName: ingredient.ingredient_name,
-      categoryCode: ingredient.category_code,
-      categoryName: ingredient.category_name,
-      unitId: ingredient.unit_id,
-      unitCode: ingredient.unit_code,
-      baseUnitId: itemBaseUnit.unitId,
-      baseUnitCode: itemBaseUnit.unitCode,
-      baseQuantity: Number(ingredient.quantity),
+      ...row,
+      componentRole,
+      extraReason: row.extraReasons.join("; ") || null,
+      formulaQuantity,
+      processExtraQuantity,
       requiredQuantity,
       requiredBaseQuantity,
       currentStock,
@@ -188,6 +244,7 @@ function getPlanRows(batchId) {
       i.track_expiry,
       c.code AS category_code,
       c.name AS category_name,
+      c.inventory_role AS category_role,
       u.code AS unit_code,
       u.name AS unit_name,
       bu.code AS base_unit_code,
@@ -248,6 +305,10 @@ export function createProductionPlan(data) {
         production_batch_id,
         item_id,
         planned_quantity,
+        formula_planned_quantity,
+        process_extra_planned_quantity,
+        component_role,
+        extra_reason,
         actual_quantity,
         unit_id,
         lot_no,
@@ -271,7 +332,7 @@ export function createProductionPlan(data) {
         extra_base_quantity,
         extra_cost
       )
-      VALUES (?, ?, ?, 0, ?, NULL, 0, ?, 0, ?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, NULL, 0, ?, 0, ?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
     `);
 
     for (const ingredient of calculation.ingredients) {
@@ -279,6 +340,10 @@ export function createProductionPlan(data) {
         batchId,
         ingredient.ingredientItemId,
         ingredient.requiredQuantity,
+        ingredient.formulaQuantity,
+        ingredient.processExtraQuantity,
+        ingredient.componentRole,
+        ingredient.extraReason,
         ingredient.unitId,
         ingredient.requiredBaseQuantity,
         ingredient.baseUnitId,

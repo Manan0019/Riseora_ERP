@@ -87,7 +87,9 @@ function getFormulaComponentItem(itemId) {
       i.base_unit_id,
       i.is_active,
       i.density,
-      c.code AS category_code
+      c.code AS category_code,
+      c.name AS category_name,
+      c.inventory_role AS category_role
     FROM items i
     INNER JOIN item_categories c ON c.id = i.category_id
     WHERE i.id = ?
@@ -100,7 +102,7 @@ function validateFinishedProduct(data) {
   if (Number(finishedItem.is_active) !== 1) {
     throw new Error("Inactive finished products cannot be used on a new or revised formula.");
   }
-  if (finishedItem.category_code !== "FG") {
+  if (finishedItem.category_role !== "FG") {
     throw new Error("Finished product must belong to the FG category.");
   }
 
@@ -125,7 +127,9 @@ function validateFinishedProduct(data) {
 }
 
 function tryDeriveQuantityModePercentages(ingredients) {
-  const rawRows = ingredients.filter((row) => row.categoryCode === "RAW");
+  const rawRows = ingredients.filter(
+    (row) => row.componentRole === "FORMULA" && row.categoryRole === "RAW",
+  );
   if (rawRows.length === 0) return { derived: false, ingredients };
 
   const firstUnit = getUnit(rawRows[0].unitId);
@@ -164,7 +168,7 @@ function tryDeriveQuantityModePercentages(ingredients) {
     ingredients: ingredients.map((row) => ({
       ...row,
       percentage:
-        row.categoryCode === "RAW"
+        row.componentRole === "FORMULA" && row.categoryRole === "RAW"
           ? percentageByItem.get(row.ingredientItemId)
           : null,
     })),
@@ -178,6 +182,8 @@ function normalizeFormulaData(data) {
   if (!Array.isArray(data.ingredients) || data.ingredients.length === 0) {
     throw new Error("At least one formula component is required.");
   }
+
+  const processExtras = Array.isArray(data.processExtras) ? data.processExtras : [];
 
   let compositionSize = null;
   let compositionUnitId = null;
@@ -198,20 +204,11 @@ function normalizeFormulaData(data) {
     }
   }
 
-  const seenIngredientIds = new Set();
-  let rawPercentageTotal = 0;
-  let rawCount = 0;
-
-  let ingredients = data.ingredients.map((ingredient, index) => {
+  const validateBaseRow = (ingredient, index, componentRole) => {
     const ingredientItemId = Number(ingredient.ingredientItemId);
     if (!ingredientItemId) {
-      throw new Error(`Component is required in row ${index + 1}.`);
+      throw new Error(`${componentRole === "PROCESS_EXTRA" ? "Process extra" : "Component"} is required in row ${index + 1}.`);
     }
-    if (seenIngredientIds.has(ingredientItemId)) {
-      throw new Error(`The same formula component cannot be entered more than once. Check row ${index + 1}.`);
-    }
-    seenIngredientIds.add(ingredientItemId);
-
     if (ingredientItemId === Number(data.finishedItemId)) {
       throw new Error(`Finished product cannot also be used as a component in row ${index + 1}.`);
     }
@@ -220,9 +217,6 @@ function normalizeFormulaData(data) {
     if (!item) throw new Error(`Formula component was not found in row ${index + 1}.`);
     if (Number(item.is_active) !== 1) {
       throw new Error(`${item.name}: inactive items cannot be used on a new or revised formula.`);
-    }
-    if (!['RAW', 'PACK'].includes(item.category_code)) {
-      throw new Error(`${item.name} must belong to RAW or PACK before it can be used in a formula.`);
     }
 
     const unitId = Number(ingredient.unitId);
@@ -236,13 +230,36 @@ function normalizeFormulaData(data) {
       throw new Error(`${item.name}: component unit is not compatible with the item's base unit.`);
     }
 
+    return { ingredientItemId, item, unitId, unit };
+  };
+
+  const seenFormulaIds = new Set();
+  let rawPercentageTotal = 0;
+  let rawCount = 0;
+
+  let ingredients = data.ingredients.map((ingredient, index) => {
+    const { ingredientItemId, item, unitId, unit } = validateBaseRow(
+      ingredient,
+      index,
+      "FORMULA",
+    );
+
+    if (seenFormulaIds.has(ingredientItemId)) {
+      throw new Error(`The same formula component cannot be entered more than once. Check row ${index + 1}.`);
+    }
+    seenFormulaIds.add(ingredientItemId);
+
+    if (!["RAW", "PACK"].includes(item.category_role)) {
+      throw new Error(`${item.name} must have a RAW or PACK inventory role before it can be used in a formula.`);
+    }
+
     let quantity = Number(ingredient.quantity);
     let percentage =
       ingredient.percentage === "" || ingredient.percentage == null
         ? null
         : Number(ingredient.percentage);
 
-    if (item.category_code === "RAW") {
+    if (item.category_role === "RAW") {
       rawCount += 1;
 
       if (entryMode === "PERCENTAGE") {
@@ -253,6 +270,7 @@ function normalizeFormulaData(data) {
         if (rawPercentageTotal > 100 + PERCENT_TOLERANCE) {
           throw new Error(`Raw-material percentage total cannot exceed 100%. Current total: ${rawPercentageTotal.toFixed(2)}%.`);
         }
+
         const quantityInCompositionUnit = compositionSize * (percentage / 100);
         try {
           quantity = convertFormulaQuantity(
@@ -286,7 +304,11 @@ function normalizeFormulaData(data) {
       unitId,
       percentage,
       notes: ingredient.notes?.trim() || "",
+      componentRole: "FORMULA",
+      extraReason: null,
       categoryCode: item.category_code,
+      categoryName: item.category_name,
+      categoryRole: item.category_role,
       density: item.density == null ? null : Number(item.density),
       itemName: item.name,
     };
@@ -309,13 +331,56 @@ function normalizeFormulaData(data) {
     ingredients = derived.ingredients;
     if (!derived.derived) {
       const enteredTotal = ingredients
-        .filter((row) => row.categoryCode === "RAW" && row.percentage != null)
+        .filter((row) => row.componentRole === "FORMULA" && row.categoryRole === "RAW" && row.percentage != null)
         .reduce((sum, row) => sum + Number(row.percentage || 0), 0);
       if (enteredTotal > 100 + PERCENT_TOLERANCE) {
         throw new Error(`Raw-material percentage total cannot exceed 100%. Current total: ${enteredTotal.toFixed(2)}%.`);
       }
     }
   }
+
+  const seenExtraIds = new Set();
+  const normalizedExtras = processExtras.map((ingredient, index) => {
+    const { ingredientItemId, item, unitId } = validateBaseRow(
+      ingredient,
+      index,
+      "PROCESS_EXTRA",
+    );
+
+    if (seenExtraIds.has(ingredientItemId)) {
+      throw new Error(`The same process-extra ingredient cannot be entered more than once. Check extra row ${index + 1}.`);
+    }
+    seenExtraIds.add(ingredientItemId);
+
+    if (item.category_role !== "RAW") {
+      throw new Error(`${item.name}: process allowance / extra ingredients must have a RAW inventory role.`);
+    }
+
+    const quantity = Number(ingredient.quantity);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      throw new Error(`${item.name}: extra quantity must be greater than zero.`);
+    }
+
+    const extraReason = String(ingredient.extraReason || ingredient.reason || "").trim();
+    if (!extraReason) {
+      throw new Error(`${item.name}: reason is required for process allowance / extra material.`);
+    }
+
+    return {
+      ingredientItemId,
+      quantity,
+      unitId,
+      percentage: null,
+      notes: ingredient.notes?.trim() || "",
+      componentRole: "PROCESS_EXTRA",
+      extraReason,
+      categoryCode: item.category_code,
+      categoryName: item.category_name,
+      categoryRole: item.category_role,
+      density: item.density == null ? null : Number(item.density),
+      itemName: item.name,
+    };
+  });
 
   return {
     code: normalizeCode(data.code),
@@ -328,7 +393,7 @@ function normalizeFormulaData(data) {
     compositionSize,
     compositionUnitId,
     notes: String(data.notes || "").trim(),
-    ingredients,
+    ingredients: [...ingredients, ...normalizedExtras],
   };
 }
 
@@ -341,20 +406,30 @@ function insertFormulaItems(formulaId, ingredients) {
       unit_id,
       percentage,
       sequence_no,
-      notes
+      notes,
+      component_role,
+      extra_reason
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  ingredients.forEach((ingredient, index) => {
+  let formulaSequence = 0;
+  let extraSequence = 0;
+
+  ingredients.forEach((ingredient) => {
+    const role = ingredient.componentRole === "PROCESS_EXTRA" ? "PROCESS_EXTRA" : "FORMULA";
+    const sequenceNo = role === "PROCESS_EXTRA" ? ++extraSequence : ++formulaSequence;
+
     insertIngredient.run(
       Number(formulaId),
       Number(ingredient.ingredientItemId),
       Number(ingredient.quantity),
       Number(ingredient.unitId),
       ingredient.percentage == null ? null : Number(ingredient.percentage),
-      index + 1,
+      sequenceNo,
       ingredient.notes?.trim() || null,
+      role,
+      role === "PROCESS_EXTRA" ? ingredient.extraReason?.trim() || null : null,
     );
   });
 }
@@ -453,10 +528,13 @@ export function getFormulaById(id) {
       fi.percentage,
       fi.sequence_no,
       fi.notes,
+      fi.component_role,
+      fi.extra_reason,
       i.code AS ingredient_code,
       i.name AS ingredient_name,
       c.code AS category_code,
       c.name AS category_name,
+      c.inventory_role AS category_role,
       u.code AS unit_code,
       u.name AS unit_name,
       u.unit_type AS unit_type
@@ -465,7 +543,7 @@ export function getFormulaById(id) {
     INNER JOIN item_categories c ON c.id = i.category_id
     INNER JOIN units u ON u.id = fi.unit_id
     WHERE fi.formula_id = ?
-    ORDER BY fi.sequence_no, fi.id
+    ORDER BY CASE WHEN fi.component_role = 'PROCESS_EXTRA' THEN 1 ELSE 0 END, fi.sequence_no, fi.id
   `).all(Number(id));
 
   return { ...formula, ingredients };

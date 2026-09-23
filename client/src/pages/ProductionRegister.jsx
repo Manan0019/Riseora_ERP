@@ -131,8 +131,8 @@ function ProductionRegister() {
         Number(item.total_cost || 0) ||
         Number(item.actual_quantity || 0) * Number(item.unit_cost || 0);
 
-      if (item.category_code === "RAW") rawCost += amount;
-      else if (item.category_code === "PACK") packagingCost += amount;
+      if ((item.category_role || item.category_code) === "RAW") rawCost += amount;
+      else if ((item.category_role || item.category_code) === "PACK") packagingCost += amount;
       else otherMaterialCost += amount;
     }
 
@@ -687,8 +687,29 @@ function ProductionRegister() {
                             <td>
                               {item.item_code} - {item.item_name}
                             </td>
-                            <td>{item.category_code}</td>
-                            <td>{planned.toFixed(3)}</td>
+                            <td>
+                              <div>{item.category_name || item.category_code}</div>
+                              {Number(item.process_extra_planned_quantity || 0) > 0 && (
+                                <span className="badge formula-extra-badge mt-1">
+                                  {Number(item.formula_planned_quantity || 0) > 0
+                                    ? "Formula + Allowance"
+                                    : "Process Allowance"}
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              <div>{planned.toFixed(3)}</div>
+                              {Number(item.process_extra_planned_quantity || 0) > 0 && (
+                                <>
+                                  <small className="text-muted d-block">
+                                    Formula {Number(item.formula_planned_quantity || 0).toFixed(3)} + allowance {Number(item.process_extra_planned_quantity || 0).toFixed(3)}
+                                  </small>
+                                  {item.extra_reason && (
+                                    <small className="formula-cell-hint d-block">{item.extra_reason}</small>
+                                  )}
+                                </>
+                              )}
+                            </td>
                             <td>{Number(item.issued_quantity || 0).toFixed(3)}</td>
                             <td>{actual.toFixed(3)}</td>
                             <td>{Number(item.returned_quantity || 0).toFixed(3)}</td>

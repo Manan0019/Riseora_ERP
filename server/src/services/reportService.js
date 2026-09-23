@@ -437,6 +437,7 @@ function currentStock(filters, valuationOnly = false) {
       i.name,
       c.name AS category_name,
       c.code AS category_code,
+      c.inventory_role AS category_role,
       u.code AS unit_code,
       COALESCE(SUM(st.quantity_in - st.quantity_out), 0) AS current_stock,
       COALESCE(ics.quantity, 0) AS costing_quantity,
@@ -448,7 +449,7 @@ function currentStock(filters, valuationOnly = false) {
     LEFT JOIN stock_transactions st ON st.item_id = i.id
     LEFT JOIN inventory_cost_state ics ON ics.item_id = i.id
     WHERE ${conditions.join(" AND ")}
-    GROUP BY i.id, i.code, i.name, c.name, c.code, u.code,
+    GROUP BY i.id, i.code, i.name, c.name, c.code, c.inventory_role, u.code,
              ics.quantity, ics.average_cost, ics.inventory_value
     ORDER BY c.name, i.name
   `).all(...params).map((row) => ({

@@ -64,6 +64,25 @@ function validateFormula(data) {
     }
   }
 
+  const processExtras = Array.isArray(data.processExtras) ? data.processExtras : [];
+  const seenExtraItems = new Set();
+  for (let index = 0; index < processExtras.length; index++) {
+    const extra = processExtras[index];
+    if (!extra.ingredientItemId) return `Extra ingredient is required in row ${index + 1}.`;
+    const itemId = Number(extra.ingredientItemId);
+    if (seenExtraItems.has(itemId)) {
+      return `The same process allowance ingredient cannot be entered more than once. Check extra row ${index + 1}.`;
+    }
+    seenExtraItems.add(itemId);
+    if (!(Number(extra.quantity) > 0)) {
+      return `Extra quantity must be greater than zero in row ${index + 1}.`;
+    }
+    if (!extra.unitId) return `Extra ingredient unit is required in row ${index + 1}.`;
+    if (!String(extra.extraReason || extra.reason || "").trim()) {
+      return `Reason is required for process allowance row ${index + 1}.`;
+    }
+  }
+
   return null;
 }
 

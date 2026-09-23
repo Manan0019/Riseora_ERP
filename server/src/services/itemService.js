@@ -91,6 +91,7 @@ export function getItems(includeInactive = false) {
       i.*,
       c.code AS category_code,
       c.name AS category_name,
+      c.inventory_role AS category_role,
       u.code AS unit_code,
       u.name AS unit_name
     FROM items i

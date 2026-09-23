@@ -29,7 +29,7 @@ export function listCategories(req, res) {
 
 export function addCategory(req, res) {
   try {
-    const { code, name } = req.body;
+    const { code, name, inventoryRole } = req.body;
 
     if (!code?.trim()) {
       return res.status(400).json({
@@ -42,6 +42,13 @@ export function addCategory(req, res) {
       return res.status(400).json({
         success: false,
         message: "Category name is required",
+      });
+    }
+
+    if (!inventoryRole?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Inventory role is required",
       });
     }
 
@@ -66,7 +73,7 @@ export function editCategory(req, res) {
   try {
     const id = Number(req.params.id);
 
-    const { code, name } = req.body;
+    const { code, name, inventoryRole } = req.body;
 
     if (!code?.trim()) {
       return res.status(400).json({
@@ -79,6 +86,13 @@ export function editCategory(req, res) {
       return res.status(400).json({
         success: false,
         message: "Category name is required",
+      });
+    }
+
+    if (!inventoryRole?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Inventory role is required",
       });
     }
 

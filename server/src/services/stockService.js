@@ -48,6 +48,7 @@ export function getCurrentStock() {
 
       c.code AS category_code,
       c.name AS category_name,
+      c.inventory_role AS category_role,
 
       u.code AS unit_code,
 
@@ -115,6 +116,7 @@ END AS costing_status
       i.name,
       c.code,
       c.name,
+      c.inventory_role,
       u.code,
       ics.quantity,
       ics.average_cost,

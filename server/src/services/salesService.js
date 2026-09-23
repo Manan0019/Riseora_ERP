@@ -184,7 +184,7 @@ export function createSale(data) {
       if (!Number.isFinite(gstRate) || gstRate < 0 || gstRate > 100) throw new Error("GST rate must be between 0 and 100 percent.");
 
       const masterItem = db.prepare(`
-        SELECT i.*, u.code AS unit_code, c.code AS category_code
+        SELECT i.*, u.code AS unit_code, c.code AS category_code, c.inventory_role AS category_role
         FROM items i
         INNER JOIN units u ON u.id = i.base_unit_id
         INNER JOIN item_categories c ON c.id = i.category_id
@@ -194,7 +194,7 @@ export function createSale(data) {
       if (Number(masterItem.is_active) !== 1) {
         throw new Error(`${masterItem.name}: inactive items cannot be sold on a new invoice.`);
       }
-      if (masterItem.category_code !== "FG") {
+      if (masterItem.category_role !== "FG") {
         throw new Error(`${masterItem.name}: only Finished Goods (FG) can be sold through Sales Invoice.`);
       }
 

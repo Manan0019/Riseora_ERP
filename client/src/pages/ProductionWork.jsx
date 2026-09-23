@@ -443,21 +443,41 @@ function ProductionWork() {
                   return (
                     <tr key={item.id}>
                       <td>
-                        <div>{item.item_name}</div>
+                        <div className="fw-semibold">{item.item_name}</div>
                         <small className="text-muted">{item.item_code}</small>
+                        {Number(item.process_extra_planned_quantity || 0) > 0 && (
+                          <div className="mt-1">
+                            <span className="badge formula-extra-badge">
+                              {Number(item.formula_planned_quantity || 0) > 0
+                                ? "Formula + Allowance"
+                                : "Process Allowance"}
+                            </span>
+                          </div>
+                        )}
+                        {Number(item.process_extra_planned_quantity || 0) > 0 && item.extra_reason && (
+                          <div className="formula-cell-hint mt-1">{item.extra_reason}</div>
+                        )}
                       </td>
                       <td>
                         <span
                           className={`badge ${
-                            item.category_code === "PACK"
+                            (item.category_role || item.category_code) === "PACK"
                               ? "text-bg-warning"
                               : "text-bg-primary"
                           }`}
                         >
-                          {item.category_code}
+                          {item.category_name || item.category_code}
                         </span>
                       </td>
-                      <td>{planned.toFixed(3)}</td>
+                      <td>
+                        <div className="fw-semibold">{planned.toFixed(3)}</div>
+                        {Number(item.process_extra_planned_quantity || 0) > 0 && (
+                          <div className="formula-cell-hint">
+                            Standard {Number(item.formula_planned_quantity || 0).toFixed(3)}
+                            {" + "}Allowance {Number(item.process_extra_planned_quantity || 0).toFixed(3)}
+                          </div>
+                        )}
+                      </td>
                       <td>{Number(item.issued_quantity || 0).toFixed(3)}</td>
                       <td>
                         <input

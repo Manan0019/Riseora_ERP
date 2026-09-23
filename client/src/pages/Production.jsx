@@ -277,9 +277,10 @@ function Production() {
           />
 
             <div className="alert alert-light border">
-              This is a planning preview only. Creating the plan does not deduct
-              stock. Planned material is issued to WIP only when production is started;
-              actual consumption is reconciled when the batch is completed.
+              This is a planning preview only. The Standard Formula remains the controlled recipe;
+              Process Allowance is extra material outside the 100% composition for evaporation, heating
+              or another known process need. Both are issued to WIP and included in actual batch cost.
+              Creating the plan itself does not deduct stock.
             </div>
 
             <div className="table-responsive mb-3">
@@ -287,53 +288,81 @@ function Production() {
                 <thead className="table-light">
                   <tr>
                     <th>Component</th>
-                    <th>Type</th>
-                    <th>Planned Qty</th>
-                    <th>Formula Unit</th>
+                    <th>Category</th>
+                    <th>Standard Formula</th>
+                    <th>Process Allowance</th>
+                    <th>Total Planned</th>
+                    <th>Unit</th>
                     <th>Stock Requirement</th>
                     <th>Available Stock</th>
                     <th>Availability</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {calculation.ingredients.map((ingredient) => (
-                    <tr key={ingredient.ingredientItemId}>
-                      <td>
-                        <div>{ingredient.ingredientName}</div>
-                        <small className="text-muted">
-                          {ingredient.ingredientCode}
-                        </small>
-                      </td>
-                      <td>
-                        <span
-                          className={`badge ${
-                            ingredient.categoryCode === "PACK"
-                              ? "text-bg-warning"
-                              : "text-bg-primary"
-                          }`}
-                        >
-                          {ingredient.categoryCode || "RAW"}
-                        </span>
-                      </td>
-                      <td>{Number(ingredient.requiredQuantity).toFixed(3)}</td>
-                      <td>{ingredient.unitCode}</td>
-                      <td>
-                        {Number(ingredient.requiredBaseQuantity).toFixed(3)}{" "}
-                        {ingredient.baseUnitCode}
-                      </td>
-                      <td>
-                        {Number(ingredient.currentStockBase).toFixed(3)}{" "}
-                        {ingredient.baseUnitCode}
-                      </td>
-                      <td>
-                        {ingredient.sufficientStock ? (
-                          <span className="badge text-bg-success">Available</span>
-                        ) : (
-                          <span className="badge text-bg-warning">Short at present</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {calculation.ingredients.map((ingredient) => {
+                    const hasAllowance = Number(ingredient.processExtraQuantity || 0) > 0;
+                    const hasStandard = Number(ingredient.formulaQuantity || 0) > 0;
+                    return (
+                      <tr key={ingredient.ingredientItemId} className={hasAllowance ? "formula-extra-preview-row" : ""}>
+                        <td>
+                          <div className="fw-semibold">{ingredient.ingredientName}</div>
+                          <small className="text-muted">{ingredient.ingredientCode}</small>
+                          {hasAllowance && ingredient.extraReason && (
+                            <div className="formula-cell-hint mt-1">
+                              Allowance: {ingredient.extraReason}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <span
+                            className={`badge ${
+                              ingredient.categoryRole === "PACK"
+                                ? "text-bg-warning"
+                                : "text-bg-primary"
+                            }`}
+                          >
+                            {ingredient.categoryName || ingredient.categoryCode || "Raw Material"}
+                          </span>
+                          {hasAllowance && (
+                            <div className="mt-1">
+                              <span className="badge formula-extra-badge">
+                                {hasStandard ? "Formula + Allowance" : "Process Allowance"}
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          {hasStandard
+                            ? `${Number(ingredient.formulaQuantity).toFixed(3)} ${ingredient.unitCode}`
+                            : "—"}
+                        </td>
+                        <td>
+                          {hasAllowance
+                            ? `${Number(ingredient.processExtraQuantity).toFixed(3)} ${ingredient.unitCode}`
+                            : "—"}
+                        </td>
+                        <td className="fw-semibold">
+                          {Number(ingredient.requiredQuantity).toFixed(3)} {ingredient.unitCode}
+                        </td>
+                        <td>{ingredient.unitCode}</td>
+                        <td>
+                          {Number(ingredient.requiredBaseQuantity).toFixed(3)}{" "}
+                          {ingredient.baseUnitCode}
+                        </td>
+                        <td>
+                          {Number(ingredient.currentStockBase).toFixed(3)}{" "}
+                          {ingredient.baseUnitCode}
+                        </td>
+                        <td>
+                          {ingredient.sufficientStock ? (
+                            <span className="badge text-bg-success">Available</span>
+                          ) : (
+                            <span className="badge text-bg-warning">Short at present</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

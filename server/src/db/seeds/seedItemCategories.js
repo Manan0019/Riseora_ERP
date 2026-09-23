@@ -2,25 +2,31 @@ import db from "../database.js";
 
 export function seedItemCategories() {
   const categories = [
-    { code: "RAW", name: "Raw Material" },
-    { code: "PACK", name: "Packaging Material" },
-    { code: "FG", name: "Finished Good" },
-    { code: "CONS", name: "Consumable" },
+    { code: "RAW", name: "Raw Material", inventoryRole: "RAW" },
+    { code: "PACK", name: "Packaging Material", inventoryRole: "PACK" },
+    { code: "FG", name: "Finished Good", inventoryRole: "FG" },
+    { code: "CONS", name: "Consumable", inventoryRole: "CONS" },
   ];
 
   const insert = db.prepare(`
-    INSERT OR IGNORE INTO item_categories (
+    INSERT INTO item_categories (
       code,
-      name
+      name,
+      inventory_role
     )
-    VALUES (?, ?)
+    VALUES (?, ?, ?)
+    ON CONFLICT(code) DO UPDATE SET
+      name = excluded.name,
+      inventory_role = excluded.inventory_role,
+      updated_at = CURRENT_TIMESTAMP
   `);
 
   const transaction = db.transaction(() => {
     for (const category of categories) {
       insert.run(
         category.code,
-        category.name
+        category.name,
+        category.inventoryRole,
       );
     }
   });

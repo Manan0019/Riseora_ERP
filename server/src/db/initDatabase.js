@@ -23,6 +23,9 @@ import { runOpeningPartyBalanceMigration } from "./migrations/019_opening_party_
 import { runCreditTermsDueDateMigration } from "./migrations/020_credit_terms_due_dates.js";
 import { runDefaultAdminCredentialsMigration } from "./migrations/021_default_admin_credentials.js";
 import { runFormulaEntryModeMigration } from "./migrations/022_formula_entry_modes.js";
+import { runCategoryInventoryRoleMigration } from "./migrations/023_category_inventory_roles.js";
+import { runFormulaProcessExtrasMigration } from "./migrations/024_formula_process_extras.js";
+import { seedRiseoraCatalog } from "./seeds/seedRiseoraCatalog.js";
 
 
 export async function initDatabase() {
@@ -48,9 +51,12 @@ export async function initDatabase() {
   runCreditTermsDueDateMigration();
   runDefaultAdminCredentialsMigration();
   runFormulaEntryModeMigration();
+  runCategoryInventoryRoleMigration();
+  runFormulaProcessExtrasMigration();
 
   seedUnits();
   seedItemCategories();
+  seedRiseoraCatalog();
 
   await seedAdmin();
 }

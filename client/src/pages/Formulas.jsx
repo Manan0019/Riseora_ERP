@@ -18,6 +18,14 @@ const emptyIngredient = () => ({
   notes: "",
 });
 
+const emptyProcessExtra = () => ({
+  ingredientItemId: "",
+  quantity: "",
+  unitId: "",
+  extraReason: "",
+  notes: "",
+});
+
 const emptyForm = () => ({
   code: "",
   name: "",
@@ -75,6 +83,7 @@ function Formulas() {
   const [units, setUnits] = useState([]);
   const [form, setForm] = useState(emptyForm());
   const [ingredients, setIngredients] = useState([emptyIngredient()]);
+  const [processExtras, setProcessExtras] = useState([]);
   const [mode, setMode] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [sourceFormulaId, setSourceFormulaId] = useState(null);
@@ -96,13 +105,20 @@ function Formulas() {
     loadLookups();
   }, []);
 
+  const roleOf = (item) => item?.category_role || item?.category_code || "";
+
   const finishedItems = useMemo(
-    () => items.filter((item) => item.category_code === "FG"),
+    () => items.filter((item) => roleOf(item) === "FG"),
     [items],
   );
 
   const componentItems = useMemo(
-    () => items.filter((item) => ["RAW", "PACK"].includes(item.category_code)),
+    () => items.filter((item) => ["RAW", "PACK"].includes(roleOf(item))),
+    [items],
+  );
+
+  const rawMaterialItems = useMemo(
+    () => items.filter((item) => roleOf(item) === "RAW"),
     [items],
   );
 
@@ -137,13 +153,13 @@ function Formulas() {
 
   const getComponentTypeLabel = (item) => {
     if (!item) return "-";
-    if (item.category_code === "RAW") return "Raw Material";
-    if (item.category_code === "PACK") return "Packaging";
+    if (roleOf(item) === "RAW") return item.category_name || "Raw Material";
+    if (roleOf(item) === "PACK") return item.category_name || "Packaging";
     return item.category_name || item.category_code || "-";
   };
 
   const rawRows = useMemo(
-    () => ingredients.filter((row) => itemById(row.ingredientItemId)?.category_code === "RAW"),
+    () => ingredients.filter((row) => roleOf(itemById(row.ingredientItemId)) === "RAW"),
     [ingredients, componentItems],
   );
 
@@ -206,6 +222,7 @@ function Formulas() {
     setShowForm(false);
     setForm(emptyForm());
     setIngredients([emptyIngredient()]);
+    setProcessExtras([]);
     setScaleBatchSize("");
   };
 
@@ -219,6 +236,7 @@ function Formulas() {
     setShowForm(true);
     setForm(emptyForm());
     setIngredients([emptyIngredient()]);
+    setProcessExtras([]);
     setScaleBatchSize("");
   };
 
@@ -229,7 +247,7 @@ function Formulas() {
   };
 
   const deriveQuantityPercentages = (rows) => {
-    const raw = rows.filter((row) => itemById(row.ingredientItemId)?.category_code === "RAW");
+    const raw = rows.filter((row) => roleOf(itemById(row.ingredientItemId)) === "RAW");
     if (!raw.length) return rows;
     const firstUnit = unitById(raw[0].unitId);
     if (!firstUnit || !["WEIGHT", "VOLUME"].includes(firstUnit.unit_type)) return rows;
@@ -252,10 +270,10 @@ function Formulas() {
       );
       return rows.map((row) => {
         const item = itemById(row.ingredientItemId);
-        if (item?.category_code === "RAW") {
+        if (roleOf(item) === "RAW") {
           return { ...row, percentage: cleanNumber(pctByItem.get(String(row.ingredientItemId)), 4) };
         }
-        if (item?.category_code === "PACK") return { ...row, percentage: "" };
+        if (roleOf(item) === "PACK") return { ...row, percentage: "" };
         return row;
       });
     } catch {
@@ -271,8 +289,8 @@ function Formulas() {
 
     return rows.map((row) => {
       const item = itemById(row.ingredientItemId);
-      if (item?.category_code === "PACK") return { ...row, percentage: "" };
-      if (item?.category_code !== "RAW") return row;
+      if (roleOf(item) === "PACK") return { ...row, percentage: "" };
+      if (roleOf(item) !== "RAW") return row;
       const pct = Number(row.percentage);
       const targetUnit = unitById(row.unitId);
       if (!(pct > 0) || !targetUnit) return row;
@@ -300,7 +318,7 @@ function Formulas() {
     let nextRows = ingredients.map((row) => ({ ...row }));
 
     if (nextMode === "PERCENTAGE") {
-      const raw = nextRows.filter((row) => itemById(row.ingredientItemId)?.category_code === "RAW");
+      const raw = nextRows.filter((row) => roleOf(itemById(row.ingredientItemId)) === "RAW");
       if (raw.length) {
         const firstUnit = unitById(raw[0].unitId);
         try {
@@ -321,7 +339,7 @@ function Formulas() {
             };
             nextRows = nextRows.map((row) => {
               const item = itemById(row.ingredientItemId);
-              if (item?.category_code !== "RAW") return { ...row, percentage: "" };
+              if (roleOf(item) !== "RAW") return { ...row, percentage: "" };
               const qty = convertClient(
                 Number(row.quantity),
                 unitById(row.unitId),
@@ -378,17 +396,17 @@ function Formulas() {
       const selectedItem = itemById(value);
       current.ingredientItemId = value;
       current.unitId = selectedItem?.base_unit_id ? String(selectedItem.base_unit_id) : "";
-      current.percentage = selectedItem?.category_code === "PACK" ? "" : current.percentage;
-      if (selectedItem?.category_code === "RAW" && form.entryMode === "PERCENTAGE" && !current.percentage) {
+      current.percentage = roleOf(selectedItem) === "PACK" ? "" : current.percentage;
+      if (roleOf(selectedItem) === "RAW" && form.entryMode === "PERCENTAGE" && !current.percentage) {
         current.percentage = "";
       }
     } else if (field === "percentage") {
       const item = itemById(current.ingredientItemId);
-      if (item?.category_code === "RAW" && value !== "") {
+      if (roleOf(item) === "RAW" && value !== "") {
         const otherTotal = nextRows.reduce((sum, row, rowIndex) => {
           if (rowIndex === index) return sum;
           const rowItem = itemById(row.ingredientItemId);
-          return rowItem?.category_code === "RAW"
+          return roleOf(rowItem) === "RAW"
             ? sum + (Number(row.percentage) || 0)
             : sum;
         }, 0);
@@ -421,6 +439,34 @@ function Formulas() {
     setIngredients(syncRows(next, form));
   };
 
+  const addProcessExtra = () => {
+    if (!isReadOnly) setProcessExtras((current) => [...current, emptyProcessExtra()]);
+  };
+
+  const removeProcessExtra = (index) => {
+    if (!isReadOnly) {
+      setProcessExtras((current) => current.filter((_, rowIndex) => rowIndex !== index));
+    }
+  };
+
+  const handleProcessExtraChange = (index, field, value) => {
+    if (isReadOnly) return;
+    setProcessExtras((current) =>
+      current.map((row, rowIndex) => {
+        if (rowIndex !== index) return row;
+        if (field === "ingredientItemId") {
+          const selectedItem = itemById(value);
+          return {
+            ...row,
+            ingredientItemId: value,
+            unitId: selectedItem?.base_unit_id ? String(selectedItem.base_unit_id) : "",
+          };
+        }
+        return { ...row, [field]: value };
+      }),
+    );
+  };
+
   const applyFormulaToEditor = (formula, requestedMode) => {
     setShowForm(true);
     setMode(requestedMode);
@@ -447,9 +493,17 @@ function Formulas() {
       compositionUnitId: formula.composition_unit_id == null ? "" : String(formula.composition_unit_id),
       notes: formula.notes || "",
     });
+    const savedRows = formula.ingredients || [];
+    const standardRows = savedRows.filter(
+      (ingredient) => String(ingredient.component_role || "FORMULA").toUpperCase() !== "PROCESS_EXTRA",
+    );
+    const extraRows = savedRows.filter(
+      (ingredient) => String(ingredient.component_role || "FORMULA").toUpperCase() === "PROCESS_EXTRA",
+    );
+
     setIngredients(
-      formula.ingredients?.length
-        ? formula.ingredients.map((ingredient) => ({
+      standardRows.length
+        ? standardRows.map((ingredient) => ({
             ingredientItemId: String(ingredient.ingredient_item_id),
             quantity: String(ingredient.quantity),
             unitId: String(ingredient.unit_id),
@@ -457,6 +511,15 @@ function Formulas() {
             notes: ingredient.notes || "",
           }))
         : [emptyIngredient()],
+    );
+    setProcessExtras(
+      extraRows.map((ingredient) => ({
+        ingredientItemId: String(ingredient.ingredient_item_id),
+        quantity: String(ingredient.quantity),
+        unitId: String(ingredient.unit_id),
+        extraReason: ingredient.extra_reason || "",
+        notes: ingredient.notes || "",
+      })),
     );
     setScaleBatchSize(String(formula.batch_size || ""));
   };
@@ -506,10 +569,10 @@ function Formulas() {
       if (seen.has(String(row.ingredientItemId))) return `The same component cannot be entered more than once. Check row ${index + 1}.`;
       seen.add(String(row.ingredientItemId));
       const item = itemById(row.ingredientItemId);
-      if (!item || !["RAW", "PACK"].includes(item.category_code)) return `Only RAW or PACK items can be used in row ${index + 1}.`;
+      if (!item || !["RAW", "PACK"].includes(roleOf(item))) return `Only RAW or PACK items can be used in row ${index + 1}.`;
       if (!row.unitId) return `Unit is required in row ${index + 1}.`;
 
-      if (item.category_code === "RAW" && form.entryMode === "PERCENTAGE") {
+      if (roleOf(item) === "RAW" && form.entryMode === "PERCENTAGE") {
         if (!(Number(row.percentage) > 0)) return `Percentage must be greater than zero in row ${index + 1}.`;
         if (!(Number(row.quantity) > 0)) {
           return `${item.name}: quantity could not be calculated. Use a compatible unit, enter Density in Item Master for weight ↔ volume conversion, or use Quantity entry.`;
@@ -518,6 +581,24 @@ function Formulas() {
         return `Quantity must be greater than zero in row ${index + 1}.`;
       }
     }
+
+    const seenExtras = new Set();
+    for (let index = 0; index < processExtras.length; index++) {
+      const row = processExtras[index];
+      if (!row.ingredientItemId) return `Extra ingredient is required in row ${index + 1}.`;
+      if (seenExtras.has(String(row.ingredientItemId))) {
+        return `The same process-extra ingredient cannot be entered more than once. Check extra row ${index + 1}.`;
+      }
+      seenExtras.add(String(row.ingredientItemId));
+      const item = itemById(row.ingredientItemId);
+      if (!item || roleOf(item) !== "RAW") {
+        return `Only raw-material items can be used as process allowance / extra ingredients. Check extra row ${index + 1}.`;
+      }
+      if (!row.unitId) return `Unit is required in extra row ${index + 1}.`;
+      if (!(Number(row.quantity) > 0)) return `Extra quantity must be greater than zero in extra row ${index + 1}.`;
+      if (!row.extraReason.trim()) return `Reason is required in extra row ${index + 1}.`;
+    }
+
     return null;
   };
 
@@ -537,6 +618,13 @@ function Formulas() {
       quantity: Number(row.quantity),
       unitId: Number(row.unitId),
       percentage: row.percentage === "" ? "" : Number(row.percentage),
+      notes: row.notes.trim(),
+    })),
+    processExtras: processExtras.map((row) => ({
+      ingredientItemId: Number(row.ingredientItemId),
+      quantity: Number(row.quantity),
+      unitId: Number(row.unitId),
+      extraReason: row.extraReason.trim(),
       notes: row.notes.trim(),
     })),
   });
@@ -759,10 +847,10 @@ function Formulas() {
               <div className="formula-method-help mt-3">
                 {form.entryMode === "PERCENTAGE" ? (
                   <>
-                    Enter RAW materials as percentages. They must total exactly <strong>100%</strong>; the ERP calculates each weight/volume quantity from the composition total. Packaging stays quantity-based and is excluded from the 100% total. Mixed weight + volume conversion uses the component's Item Master density (g/mL = kg/L).
+                    Enter RAW materials as percentages. They must total exactly <strong>100%</strong>; the ERP calculates each weight/volume quantity from the composition total. Packaging stays quantity-based and is excluded from the 100% total. Process allowance / extra ingredients are also excluded from the 100% formula composition. Mixed weight + volume conversion uses the component's Item Master density (g/mL = kg/L).
                   </>
                 ) : quantityPercentagesAreAuto ? (
-                  <>Enter exact quantities/weights. RAW percentages are calculated automatically from comparable weight or volume quantities. Packaging is excluded from the percentage total.</>
+                  <>Enter exact quantities/weights. RAW percentages are calculated automatically from comparable weight or volume quantities. Packaging and process-extra ingredients are excluded from the percentage total.</>
                 ) : (
                   <>Enter exact quantities/weights/volumes. When a mixed weight + volume recipe has density in Item Master, the ERP also calculates percentage automatically. If density is missing, percentage may be entered as a reference but can never exceed 100%.</>
                 )}
@@ -796,8 +884,8 @@ function Formulas() {
                   <tbody>
                     {ingredients.map((ingredient, index) => {
                       const item = itemById(ingredient.ingredientItemId);
-                      const isRaw = item?.category_code === "RAW";
-                      const isPack = item?.category_code === "PACK";
+                      const isRaw = roleOf(item) === "RAW";
+                      const isPack = roleOf(item) === "PACK";
                       const quantityCalculated = form.entryMode === "PERCENTAGE" && isRaw;
                       const percentageAuto = form.entryMode === "QUANTITY" && quantityPercentagesAreAuto && isRaw;
                       const percentageDisabled = isReadOnly || isPack || percentageAuto;
@@ -808,7 +896,7 @@ function Formulas() {
                           <td>
                             <select className="form-select" value={ingredient.ingredientItemId} onChange={(event) => handleIngredientChange(index, "ingredientItemId", event.target.value)} disabled={isReadOnly}>
                               <option value="">Select Component</option>
-                              {componentItems.map((component) => <option key={component.id} value={component.id}>{component.code} - {component.name} [{component.category_code}]</option>)}
+                              {componentItems.map((component) => <option key={component.id} value={component.id}>{component.code} - {component.name} [{component.category_name || component.category_code}]</option>)}
                             </select>
                           </td>
                           <td>{getComponentTypeLabel(item)}</td>
@@ -864,6 +952,129 @@ function Formulas() {
             </div>
           </div>
 
+          <div className="card mb-4 formula-extra-card">
+            <div className="card-body">
+              <div className="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
+                <div>
+                  <h5 className="mb-1">Process Allowance / Extra Ingredients</h5>
+                  <div className="text-muted small">
+                    Optional material added on top of the standard formula to compensate for evaporation,
+                    heating loss, handling loss or another known process requirement. These quantities are
+                    <strong> outside the 100% formula composition</strong>, but they are included in planned
+                    material consumption and actual batch costing. Enter the allowance for this formula's Base Batch Size;
+                    it scales automatically when a larger or smaller production batch is planned.
+                  </div>
+                </div>
+                {!isReadOnly && (
+                  <button type="button" className="btn btn-sm btn-outline-primary" onClick={addProcessExtra}>
+                    + Add Extra Ingredient
+                  </button>
+                )}
+              </div>
+
+              {processExtras.length === 0 ? (
+                <div className="alert alert-light border mb-0">
+                  No process allowance is defined. Add a row only when the manufacturing process requires
+                  material above the standard 100% composition.
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table table-bordered align-middle formula-components-table">
+                    <thead className="table-light">
+                      <tr>
+                        <th style={{ minWidth: 260 }}>Extra Ingredient</th>
+                        <th style={{ width: 170 }}>Category</th>
+                        <th style={{ width: 145 }}>Extra Qty</th>
+                        <th style={{ width: 130 }}>Unit</th>
+                        <th style={{ minWidth: 240 }}>Reason *</th>
+                        <th style={{ minWidth: 180 }}>Notes</th>
+                        {!isReadOnly && <th style={{ width: 100 }}>Action</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {processExtras.map((extra, index) => {
+                        const item = itemById(extra.ingredientItemId);
+                        const allowedUnits = compatibleUnitsForItem(item);
+                        return (
+                          <tr key={`extra-${index}`}>
+                            <td>
+                              <select
+                                className="form-select"
+                                value={extra.ingredientItemId}
+                                onChange={(event) => handleProcessExtraChange(index, "ingredientItemId", event.target.value)}
+                                disabled={isReadOnly}
+                              >
+                                <option value="">Select Raw Material</option>
+                                {rawMaterialItems.map((component) => (
+                                  <option key={component.id} value={component.id}>
+                                    {component.code} - {component.name} [{component.category_name || component.category_code}]
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td>{item?.category_name || "Raw Material"}</td>
+                            <td>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.001"
+                                className="form-control"
+                                value={extra.quantity}
+                                onChange={(event) => handleProcessExtraChange(index, "quantity", event.target.value)}
+                                disabled={isReadOnly}
+                              />
+                            </td>
+                            <td>
+                              <select
+                                className="form-select"
+                                value={extra.unitId}
+                                onChange={(event) => handleProcessExtraChange(index, "unitId", event.target.value)}
+                                disabled={isReadOnly}
+                              >
+                                <option value="">Select Unit</option>
+                                {allowedUnits.map((unit) => (
+                                  <option key={unit.id} value={unit.id}>{unit.code}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td>
+                              <input
+                                className="form-control"
+                                value={extra.extraReason}
+                                onChange={(event) => handleProcessExtraChange(index, "extraReason", event.target.value)}
+                                placeholder="e.g. evaporation compensation"
+                                disabled={isReadOnly}
+                              />
+                            </td>
+                            <td>
+                              <input
+                                className="form-control"
+                                value={extra.notes}
+                                onChange={(event) => handleProcessExtraChange(index, "notes", event.target.value)}
+                                disabled={isReadOnly}
+                              />
+                            </td>
+                            {!isReadOnly && (
+                              <td>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-danger"
+                                  onClick={() => removeProcessExtra(index)}
+                                >
+                                  Remove
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="card mb-4">
             <div className="card-body">
               <div className="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
@@ -889,13 +1100,31 @@ function Formulas() {
                         const unit = unitById(ingredient.unitId);
                         const requiredQty = Number(ingredient.quantity || 0) * scaleFactor;
                         return (
-                          <tr key={index}>
+                          <tr key={`formula-${index}`}>
                             <td>{item?.name || "-"}</td>
                             <td>{getComponentTypeLabel(item)}</td>
                             <td>{Number(ingredient.quantity || 0).toFixed(3)}</td>
                             <td>{requiredQty.toFixed(3)}</td>
                             <td>{unit?.code || "-"}</td>
-                            <td>{item?.category_code === "RAW" && ingredient.percentage !== "" ? `${Number(ingredient.percentage || 0).toFixed(2)}%` : "-"}</td>
+                            <td>{roleOf(item) === "RAW" && ingredient.percentage !== "" ? `${Number(ingredient.percentage || 0).toFixed(2)}%` : "-"}</td>
+                          </tr>
+                        );
+                      })}
+                      {processExtras.map((extra, index) => {
+                        const item = itemById(extra.ingredientItemId);
+                        const unit = unitById(extra.unitId);
+                        const requiredQty = Number(extra.quantity || 0) * scaleFactor;
+                        return (
+                          <tr key={`process-extra-${index}`} className="formula-extra-preview-row">
+                            <td>
+                              {item?.name || "-"}
+                              {extra.extraReason && <div className="text-muted small">{extra.extraReason}</div>}
+                            </td>
+                            <td><span className="badge text-bg-warning">Process Extra</span></td>
+                            <td>{Number(extra.quantity || 0).toFixed(3)}</td>
+                            <td>{requiredQty.toFixed(3)}</td>
+                            <td>{unit?.code || "-"}</td>
+                            <td><span className="text-muted">Outside 100%</span></td>
                           </tr>
                         );
                       })}

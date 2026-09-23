@@ -70,7 +70,7 @@ function Sales() {
       const finishedGoods =
         (itemResponse.data.items || []).filter(
           (item) =>
-            item.category_code === "FG"
+            (item.category_role || item.category_code) === "FG"
         );
 
       setItems(finishedGoods);
