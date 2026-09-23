@@ -106,6 +106,36 @@ function Sales() {
     );
   };
 
+  const handleProductChange = (
+    index,
+    value
+  ) => {
+    const selectedProduct =
+      items.find(
+        (item) =>
+          item.id === Number(value)
+      );
+
+    setLines((current) =>
+      current.map((line, lineIndex) =>
+        lineIndex === index
+          ? {
+              ...line,
+              itemId: value,
+              rate: selectedProduct
+                ? String(
+                    Number(
+                      selectedProduct.default_selling_price ||
+                        0
+                    )
+                  )
+                : "",
+            }
+          : line
+      )
+    );
+  };
+
   const addLine = () => {
     setLines((current) => [
       ...current,
@@ -698,9 +728,8 @@ function Sales() {
                             onChange={(
                               event
                             ) =>
-                              handleLineChange(
+                              handleProductChange(
                                 index,
-                                "itemId",
                                 event.target
                                   .value
                               )

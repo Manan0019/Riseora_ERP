@@ -11,6 +11,7 @@ function getFormulaUsageCount(id) {
     SELECT COUNT(*) AS count
     FROM production_batches
     WHERE formula_id = ?
+      AND status <> 'CANCELLED'
   `).get(Number(id));
 
   return Number(row?.count || 0);
@@ -208,6 +209,7 @@ export function getFormulas(
         SELECT COUNT(*)
         FROM production_batches pb
         WHERE pb.formula_id = f.id
+          AND pb.status <> 'CANCELLED'
       ) AS production_count,
 
       CASE
@@ -215,6 +217,7 @@ export function getFormulas(
           SELECT 1
           FROM production_batches pb
           WHERE pb.formula_id = f.id
+          AND pb.status <> 'CANCELLED'
         )
         OR EXISTS (
           SELECT 1
@@ -267,6 +270,7 @@ export function getFormulaById(
           SELECT COUNT(*)
           FROM production_batches pb
           WHERE pb.formula_id = f.id
+          AND pb.status <> 'CANCELLED'
         ) AS production_count,
 
         CASE
@@ -274,6 +278,7 @@ export function getFormulaById(
             SELECT 1
             FROM production_batches pb
             WHERE pb.formula_id = f.id
+          AND pb.status <> 'CANCELLED'
           )
           THEN 1
           ELSE 0

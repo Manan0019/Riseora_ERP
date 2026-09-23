@@ -171,7 +171,7 @@ function MainLayout() {
                 isActive ? "sidebar-link active" : "sidebar-link"
               }
             >
-              Production Entry
+              Production Planning
             </NavLink>
 
             <NavLink

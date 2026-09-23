@@ -1,655 +1,195 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import api from "../api/api";
 
 function Production() {
-  const today =
-    new Date()
-      .toISOString()
-      .slice(0, 10);
+  const navigate = useNavigate();
+  const today = new Date().toISOString().slice(0, 10);
 
-  const [formulas, setFormulas] =
-    useState([]);
-
-  const [formulaId, setFormulaId] =
-    useState("");
-
-  const [
-    productionDate,
-    setProductionDate,
-  ] = useState(today);
-
-  const [
-    plannedBatchSize,
-    setPlannedBatchSize,
-  ] = useState("");
-
-  const [
-    actualOutputQty,
-    setActualOutputQty,
-  ] = useState("");
-
-  const [
-    finishedLotNo,
-    setFinishedLotNo,
-  ] = useState("");
-
-  const [
-    mfgDate,
-    setMfgDate,
-  ] = useState(today);
-
-  const [
-    expiryDate,
-    setExpiryDate,
-  ] = useState("");
-
+  const [formulas, setFormulas] = useState([]);
+  const [openBatches, setOpenBatches] = useState([]);
+  const [formulaId, setFormulaId] = useState("");
+  const [productionDate, setProductionDate] = useState(today);
+  const [plannedBatchSize, setPlannedBatchSize] = useState("");
   const [notes, setNotes] = useState("");
-
-  const [labourCost, setLabourCost] = useState("");
-
-  const [electricityCost, setElectricityCost] = useState("");
-
-  const [otherOverheadCost, setOtherOverheadCost] = useState("");
-  const [
-    calculation,
-    setCalculation,
-  ] = useState(null);
-
-  const [
-    consumption,
-    setConsumption,
-  ] = useState([]);
-
-  const [
-    calculating,
-    setCalculating,
-  ] = useState(false);
-
-  const [saving, setSaving] =
-    useState(false);
-
-  const [message, setMessage] =
-    useState("");
-
-  const [error, setError] =
-    useState("");
+  const [calculation, setCalculation] = useState(null);
+  const [calculating, setCalculating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loadingOpen, setLoadingOpen] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     loadFormulas();
+    loadOpenBatches();
   }, []);
 
-  const loadFormulas =
-    async () => {
-      try {
-        setError("");
-
-        const response =
-          await api.get(
-            "/formulas"
-          );
-
-        setFormulas(
-          response.data
-            .formulas || []
-        );
-      } catch (err) {
-        console.error(err);
-
-        setError(
-          "Unable to load formulas."
-        );
-      }
-    };
-
-  const selectedFormula =
-    useMemo(() => {
-      return formulas.find(
-        (formula) =>
-          formula.id ===
-          Number(formulaId)
-      );
-    }, [
-      formulas,
-      formulaId,
-    ]);
-
-  const handleFormulaChange =
-    (event) => {
-      const value =
-        event.target.value;
-
-      setFormulaId(value);
-
-      setCalculation(null);
-      setConsumption([]);
-
-      setError("");
-      setMessage("");
-
-      const formula =
-        formulas.find(
-          (item) =>
-            item.id ===
-            Number(value)
-        );
-
-      if (formula) {
-        setPlannedBatchSize(
-          String(
-            formula.batch_size
-          )
-        );
-
-        setActualOutputQty(
-          String(
-            formula.batch_size
-          )
-        );
-      } else {
-        setPlannedBatchSize(
-          ""
-        );
-
-        setActualOutputQty(
-          ""
-        );
-      }
-    };
-
-  const calculateRequirements =
-    async () => {
-      setError("");
-      setMessage("");
-
-      if (!formulaId) {
-        setError(
-          "Please select a formula."
-        );
-
-        return;
-      }
-
-      if (
-        Number(
-          plannedBatchSize
-        ) <= 0
-      ) {
-        setError(
-          "Planned batch size must be greater than zero."
-        );
-
-        return;
-      }
-
-      try {
-        setCalculating(
-          true
-        );
-
-        const response =
-          await api.get(
-            "/production/calculate",
-            {
-              params: {
-                formulaId:
-                  Number(
-                    formulaId
-                  ),
-
-                batchSize:
-                  Number(
-                    plannedBatchSize
-                  ),
-              },
-            }
-          );
-
-        const result =
-          response.data
-            .calculation;
-
-        setCalculation(
-          result
-        );
-
-        setConsumption(
-          result.ingredients.map(
-            (ingredient) => ({
-              itemId:
-                ingredient
-                  .ingredientItemId,
-
-              actualQuantity:
-                ingredient
-                  .requiredQuantity,
-
-              lotNo: "",
-            })
-          )
-        );
-
-        setActualOutputQty(
-          String(
-            plannedBatchSize
-          )
-        );
-      } catch (err) {
-        console.error(err);
-
-        setCalculation(
-          null
-        );
-
-        setConsumption(
-          []
-        );
-
-        setError(
-          err.response?.data
-            ?.message ||
-            "Unable to calculate production requirements."
-        );
-      } finally {
-        setCalculating(
-          false
-        );
-      }
-    };
-
-  const updateConsumption = (
-    index,
-    field,
-    value
-  ) => {
-    setConsumption(
-      (current) =>
-        current.map(
-          (
-            item,
-            itemIndex
-          ) =>
-            itemIndex ===
-            index
-              ? {
-                  ...item,
-                  [field]:
-                    value,
-                }
-              : item
-        )
-    );
+  const loadFormulas = async () => {
+    try {
+      const response = await api.get("/formulas");
+      setFormulas(response.data.formulas || []);
+    } catch (err) {
+      console.error(err);
+      setError("Unable to load formulas.");
+    }
   };
 
-  /*
-   * Convert an actual quantity entered
-   * in the formula/display unit into the
-   * item's stock/base unit.
-   *
-   * We use the conversion ratio returned
-   * by the backend calculation.
-   *
-   * Example:
-   *
-   * required:
-   * 500 ML = 0.500 L
-   *
-   * ratio:
-   * 0.500 / 500 = 0.001
-   *
-   * actual:
-   * 480 ML × 0.001 = 0.480 L
-   */
-  const getActualBaseQuantity = (
-    ingredient,
-    actualQuantity
-  ) => {
-    const requiredQty =
-      Number(
-        ingredient
-          .requiredQuantity ||
-          0
-      );
+  const loadOpenBatches = async () => {
+    try {
+      setLoadingOpen(true);
+      const response = await api.get("/production/open");
+      setOpenBatches(response.data.batches || []);
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || "Unable to load open production batches.");
+    } finally {
+      setLoadingOpen(false);
+    }
+  };
 
-    const requiredBaseQty =
-      Number(
-        ingredient
-          .requiredBaseQuantity ||
-          0
-      );
+  const selectedFormula = useMemo(
+    () => formulas.find((formula) => formula.id === Number(formulaId)),
+    [formulas, formulaId],
+  );
 
-    const actualQty =
-      Number(
-        actualQuantity ||
-          0
-      );
+  const handleFormulaChange = (event) => {
+    const value = event.target.value;
+    setFormulaId(value);
+    setCalculation(null);
+    setError("");
+    setMessage("");
 
-    if (
-      requiredQty <= 0
-    ) {
-      return 0;
+    const formula = formulas.find((item) => item.id === Number(value));
+    setPlannedBatchSize(formula ? String(formula.batch_size) : "");
+  };
+
+  const calculateRequirements = async () => {
+    setError("");
+    setMessage("");
+
+    if (!formulaId) {
+      setError("Please select a formula.");
+      return;
     }
 
-    const conversionFactor =
-      requiredBaseQty /
-      requiredQty;
+    if (Number(plannedBatchSize) <= 0) {
+      setError("Planned batch size must be greater than zero.");
+      return;
+    }
 
-    return (
-      actualQty *
-      conversionFactor
-    );
+    try {
+      setCalculating(true);
+      const response = await api.get("/production/calculate", {
+        params: {
+          formulaId: Number(formulaId),
+          batchSize: Number(plannedBatchSize),
+        },
+      });
+      setCalculation(response.data.calculation);
+    } catch (err) {
+      console.error(err);
+      setCalculation(null);
+      setError(
+        err.response?.data?.message || "Unable to calculate production requirements.",
+      );
+    } finally {
+      setCalculating(false);
+    }
   };
 
-  const hasInsufficientStock =
-    useMemo(() => {
-      if (!calculation) {
-        return false;
-      }
+  const createPlan = async () => {
+    setError("");
+    setMessage("");
 
-      return calculation
-        .ingredients
-        .some(
-          (
-            ingredient,
-            index
-          ) => {
-            const actualQty =
-              Number(
-                consumption[
-                  index
-                ]
-                  ?.actualQuantity ||
-                  0
-              );
-
-            const actualBaseQty =
-              getActualBaseQuantity(
-                ingredient,
-                actualQty
-              );
-
-            const availableBase =
-              Number(
-                ingredient
-                  .currentStockBase ||
-                  0
-              );
-
-            return (
-              actualBaseQty >
-              availableBase
-            );
-          }
-        );
-    }, [
-      calculation,
-      consumption,
-    ]);
-
-  const outputDifference =
-    Number(
-      plannedBatchSize ||
-        0
-    ) -
-    Number(
-      actualOutputQty ||
-        0
-    );
-
-  const outputLossPercent =
-    Number(
-      plannedBatchSize ||
-        0
-    ) > 0
-      ? (
-          outputDifference /
-          Number(
-            plannedBatchSize
-          )
-        ) *
-        100
-      : 0;
-
-  const validate = () => {
     if (!productionDate) {
-      return "Production date is required.";
+      setError("Production date is required.");
+      return;
     }
 
     if (!formulaId) {
-      return "Formula is required.";
+      setError("Formula is required.");
+      return;
     }
 
-    if (
-      Number(
-        plannedBatchSize
-      ) <= 0
-    ) {
-      return "Planned batch size must be greater than zero.";
+    if (Number(plannedBatchSize) <= 0) {
+      setError("Planned batch size must be greater than zero.");
+      return;
     }
 
     if (!calculation) {
-      return "Calculate component requirements before saving.";
+      setError("Calculate requirements before creating the production plan.");
+      return;
     }
 
-    if (
-      Number(
-        actualOutputQty
-      ) <= 0
-    ) {
-      return "Actual output quantity must be greater than zero.";
+    try {
+      setSaving(true);
+      const response = await api.post("/production", {
+        productionDate,
+        formulaId: Number(formulaId),
+        plannedBatchSize: Number(plannedBatchSize),
+        notes: notes.trim(),
+      });
+
+      const production = response.data.production;
+      setMessage(
+        `${production.batchNo} created as a production plan. Actual consumption and output will be entered after production.`,
+      );
+
+      setFormulaId("");
+      setPlannedBatchSize("");
+      setNotes("");
+      setCalculation(null);
+      setProductionDate(today);
+      await loadOpenBatches();
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || "Unable to create production plan.");
+    } finally {
+      setSaving(false);
     }
-
-    for (let index = 0; index < consumption.length; index++) {
-      const line = consumption[index];
-
-      const ingredient = calculation.ingredients[index];
-
-      const actualQty = Number(line.actualQuantity);
-
-      if (actualQty <= 0) {
-        return `Actual consumption must be greater than zero in row ${
-          index + 1
-        }.`;
-      }
-
-      const actualBaseQty = getActualBaseQuantity(ingredient, actualQty);
-
-      const availableBase = Number(ingredient?.currentStockBase || 0);
-
-      if (actualBaseQty > availableBase) {
-        return `${
-          ingredient?.ingredientName || `Row ${index + 1}`
-        }: insufficient stock.`;
-      }
-    }
-
-    if (
-      Number(labourCost || 0) < 0 ||
-      Number(electricityCost || 0) < 0 ||
-      Number(otherOverheadCost || 0) < 0
-    ) {
-      return "Manufacturing costs cannot be negative.";
-    }
-
-    return null;
   };
-
-  const handleSave =
-    async () => {
-      setError("");
-      setMessage("");
-
-      const validationError =
-        validate();
-
-      if (
-        validationError
-      ) {
-        setError(
-          validationError
-        );
-
-        return;
-      }
-
-      try {
-        setSaving(true);
-
-        const response = await api.post("/production", {
-          productionDate,
-
-          formulaId: Number(formulaId),
-
-          plannedBatchSize: Number(plannedBatchSize),
-
-          actualOutputQty: Number(actualOutputQty),
-
-          finishedLotNo: finishedLotNo.trim(),
-
-          mfgDate: mfgDate || null,
-
-          expiryDate: expiryDate || null,
-
-          notes: notes.trim(),
-
-          labourCost: Number(labourCost || 0),
-
-          electricityCost: Number(electricityCost || 0),
-
-          otherOverheadCost: Number(otherOverheadCost || 0),
-
-          ingredients: consumption.map((item) => ({
-            itemId: Number(item.itemId),
-
-            /*
-             * User-entered quantity remains
-             * in the formula component unit.
-             *
-             * Backend performs the authoritative
-             * conversion to stock/base unit.
-             */
-            actualQuantity: Number(item.actualQuantity),
-
-            lotNo: item.lotNo.trim(),
-          })),
-        });
-
-        const production =
-          response.data
-            .production;
-
-        let successMessage =
-          `Production batch ${production.batchNo} saved successfully.`;
-
-        if (
-          production
-            .totalProductionCost !==
-            undefined &&
-          production
-            .finishedUnitCost !==
-            undefined
-        ) {
-          successMessage +=
-            ` Total production cost: ₹${Number(
-              production.totalProductionCost
-            ).toFixed(
-              2
-            )}.`;
-
-          successMessage +=
-            ` Finished unit cost: ₹${Number(
-              production.finishedUnitCost
-            ).toFixed(
-              2
-            )}/${production.finishedBaseUnit || "unit"}.`;
-        }
-
-        setMessage(
-          successMessage
-        );
-
-        setFormulaId(
-          ""
-        );
-
-        setProductionDate(
-          today
-        );
-
-        setPlannedBatchSize(
-          ""
-        );
-
-        setActualOutputQty(
-          ""
-        );
-
-        setFinishedLotNo(
-          ""
-        );
-
-        setMfgDate(
-          today
-        );
-
-        setExpiryDate(
-          ""
-        );
-
-        setNotes("");
-
-        setLabourCost("");
-        setElectricityCost("");
-        setOtherOverheadCost("");
-
-        setCalculation(
-          null
-        );
-
-        setConsumption(
-          []
-        );
-      } catch (err) {
-        console.error(err);
-
-        setError(
-          err.response?.data
-            ?.message ||
-            "Unable to save production batch."
-        );
-      } finally {
-        setSaving(
-          false
-        );
-      }
-    };
 
   return (
     <div>
-      <div className="mb-4">
-        <h2 className="mb-1">Production Entry</h2>
+      <div className="d-flex justify-content-between align-items-start mb-4">
+        <div>
+          <h2 className="mb-1">Production Planning</h2>
+          <p className="text-muted mb-0">
+            Plan production from a formula first. Creating a plan does not change stock.
+            Starting the batch issues planned material into WIP; completion reconciles actual
+            usage, returns unused material and records the actual finished output.
+          </p>
+        </div>
 
-        <p className="text-muted mb-0">
-          Manufacture a batch from a saved formula. Stock quantities are
-          automatically converted to each item's base unit.
-        </p>
+        <button
+          type="button"
+          className="btn btn-outline-primary"
+          onClick={loadOpenBatches}
+          disabled={loadingOpen}
+        >
+          {loadingOpen ? "Refreshing..." : "Refresh Open Batches"}
+        </button>
       </div>
 
       {message && <div className="alert alert-success">{message}</div>}
-
       {error && <div className="alert alert-danger">{error}</div>}
 
-      {/* PRODUCTION HEADER */}
       <div className="card mb-4">
         <div className="card-body">
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <h5 className="mb-1">New Production Plan</h5>
+              <div className="text-muted small">
+                The formula defines the standard. The completed batch will record
+                what actually happened.
+              </div>
+            </div>
+          </div>
+
           <div className="row">
             <div className="col-md-3 mb-3">
               <label className="form-label">Production Date *</label>
-
               <input
                 type="date"
                 className="form-control"
@@ -660,30 +200,22 @@ function Production() {
 
             <div className="col-md-5 mb-3">
               <label className="form-label">Formula *</label>
-
               <select
                 className="form-select"
                 value={formulaId}
                 onChange={handleFormulaChange}
               >
                 <option value="">Select Formula</option>
-
                 {formulas.map((formula) => (
                   <option key={formula.id} value={formula.id}>
-                    {formula.code}
-                    {" - "}
-                    {formula.name}
-                    {" (V"}
-                    {formula.version_no}
-                    {")"}
+                    {formula.code} - {formula.name} (V{formula.version_no})
                   </option>
                 ))}
               </select>
             </div>
 
             <div className="col-md-2 mb-3">
-              <label className="form-label">Planned Batch *</label>
-
+              <label className="form-label">Planned Output *</label>
               <input
                 type="number"
                 min="0"
@@ -692,22 +224,29 @@ function Production() {
                 value={plannedBatchSize}
                 onChange={(event) => {
                   setPlannedBatchSize(event.target.value);
-
                   setCalculation(null);
-
-                  setConsumption([]);
                 }}
               />
             </div>
 
             <div className="col-md-2 mb-3">
               <label className="form-label">Unit</label>
-
               <input
                 type="text"
                 className="form-control"
                 value={selectedFormula?.batch_unit_code || ""}
                 disabled
+              />
+            </div>
+
+            <div className="col-12 mb-3">
+              <label className="form-label">Plan Notes</label>
+              <input
+                type="text"
+                className="form-control"
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                placeholder="Optional production instruction or note"
               />
             </div>
           </div>
@@ -724,395 +263,178 @@ function Production() {
       </div>
 
       {calculation && (
-        <>
-          {/* COMPONENT REQUIREMENTS */}
-          <div className="card mb-4">
-            <div className="card-body">
-              <div className="mb-3">
-                <h5 className="mb-1">Component Requirements</h5>
-
-                <div className="text-muted">
-                  {calculation.formula.finished_item_name}
-                  {" — "}
-                  {plannedBatchSize} {calculation.formula.batch_unit_code}
-                </div>
+        <div className="card mb-4">
+          <div className="card-body">
+            <div className="mb-3">
+              <h5 className="mb-1">Planned Material Requirements</h5>
+              <div className="text-muted">
+                {calculation.formula.finished_item_name} — {Number(plannedBatchSize).toFixed(3)}{" "}
+                {calculation.formula.batch_unit_code}
               </div>
+            </div>
 
-              <div className="alert alert-light border py-2">
-                Formula quantities remain in their selected units. Stock
-                deductions are automatically converted to each item's base stock
-                unit.
-              </div>
+            <div className="alert alert-light border">
+              This is a planning preview only. Creating the plan does not deduct
+              stock. Planned material is issued to WIP only when production is started;
+              actual consumption is reconciled when the batch is completed.
+            </div>
 
-              <div className="table-responsive">
-                <table className="table table-bordered align-middle">
-                  <thead className="table-light">
-                    <tr>
-                      <th style={{ minWidth: 220 }}>Component</th>
-
-                      <th>Planned</th>
-
-                      <th style={{ minWidth: 130 }}>Actual</th>
-
-                      <th>Formula Unit</th>
-
-                      <th>Stock Deduction</th>
-
-                      <th>Available Stock</th>
-
-                      <th>After Production</th>
-
-                      <th style={{ minWidth: 130 }}>Lot No.</th>
-
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {calculation.ingredients.map((ingredient, index) => {
-                      const actualQty = Number(
-                        consumption[index]?.actualQuantity || 0,
-                      );
-
-                      const actualBaseQty = getActualBaseQuantity(
-                        ingredient,
-                        actualQty,
-                      );
-
-                      const availableBase = Number(
-                        ingredient.currentStockBase || 0,
-                      );
-
-                      const afterBase = availableBase - actualBaseQty;
-
-                      const enoughStock = afterBase >= -0.0000001;
-
-                      return (
-                        <tr
-                          key={ingredient.ingredientItemId}
-                          className={enoughStock ? "" : "table-danger"}
+            <div className="table-responsive mb-3">
+              <table className="table table-bordered align-middle">
+                <thead className="table-light">
+                  <tr>
+                    <th>Component</th>
+                    <th>Type</th>
+                    <th>Planned Qty</th>
+                    <th>Formula Unit</th>
+                    <th>Stock Requirement</th>
+                    <th>Available Stock</th>
+                    <th>Availability</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {calculation.ingredients.map((ingredient) => (
+                    <tr key={ingredient.ingredientItemId}>
+                      <td>
+                        <div>{ingredient.ingredientName}</div>
+                        <small className="text-muted">
+                          {ingredient.ingredientCode}
+                        </small>
+                      </td>
+                      <td>
+                        <span
+                          className={`badge ${
+                            ingredient.categoryCode === "PACK"
+                              ? "text-bg-warning"
+                              : "text-bg-primary"
+                          }`}
                         >
-                          <td>
-                            <div className="fw-semibold">
-                              {ingredient.ingredientName}
-                            </div>
+                          {ingredient.categoryCode || "RAW"}
+                        </span>
+                      </td>
+                      <td>{Number(ingredient.requiredQuantity).toFixed(3)}</td>
+                      <td>{ingredient.unitCode}</td>
+                      <td>
+                        {Number(ingredient.requiredBaseQuantity).toFixed(3)}{" "}
+                        {ingredient.baseUnitCode}
+                      </td>
+                      <td>
+                        {Number(ingredient.currentStockBase).toFixed(3)}{" "}
+                        {ingredient.baseUnitCode}
+                      </td>
+                      <td>
+                        {ingredient.sufficientStock ? (
+                          <span className="badge text-bg-success">Available</span>
+                        ) : (
+                          <span className="badge text-bg-warning">Short at present</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-                            <small className="text-muted">
-                              {ingredient.ingredientCode}
-                            </small>
-                          </td>
+            <div className="d-flex gap-2">
+              <button
+                type="button"
+                className="btn btn-success"
+                onClick={createPlan}
+                disabled={saving}
+              >
+                {saving ? "Creating Plan..." : "Create Production Plan"}
+              </button>
 
-                          <td>
-                            <div>
-                              {Number(ingredient.requiredQuantity || 0).toFixed(
-                                3,
-                              )}{" "}
-                              {ingredient.unitCode}
-                            </div>
-
-                            {ingredient.unitCode !==
-                              ingredient.baseUnitCode && (
-                              <small className="text-muted">
-                                ={" "}
-                                {Number(
-                                  ingredient.requiredBaseQuantity || 0,
-                                ).toFixed(3)}{" "}
-                                {ingredient.baseUnitCode}
-                              </small>
-                            )}
-                          </td>
-
-                          <td>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.001"
-                              className="form-control"
-                              value={consumption[index]?.actualQuantity ?? ""}
-                              onChange={(event) =>
-                                updateConsumption(
-                                  index,
-                                  "actualQuantity",
-                                  event.target.value,
-                                )
-                              }
-                            />
-                          </td>
-
-                          <td>{ingredient.unitCode}</td>
-
-                          <td>
-                            <strong>
-                              {actualBaseQty.toFixed(3)}{" "}
-                              {ingredient.baseUnitCode}
-                            </strong>
-
-                            {ingredient.unitCode !==
-                              ingredient.baseUnitCode && (
-                              <div>
-                                <small className="text-muted">
-                                  from {actualQty.toFixed(3)}{" "}
-                                  {ingredient.unitCode}
-                                </small>
-                              </div>
-                            )}
-                          </td>
-
-                          <td>
-                            {availableBase.toFixed(3)} {ingredient.baseUnitCode}
-                            {ingredient.unitCode !==
-                              ingredient.baseUnitCode && (
-                              <div>
-                                <small className="text-muted">
-                                  {Number(ingredient.currentStock || 0).toFixed(
-                                    3,
-                                  )}{" "}
-                                  {ingredient.unitCode}
-                                </small>
-                              </div>
-                            )}
-                          </td>
-
-                          <td>
-                            <span
-                              className={
-                                enoughStock ? "" : "text-danger fw-bold"
-                              }
-                            >
-                              {afterBase.toFixed(3)} {ingredient.baseUnitCode}
-                            </span>
-                          </td>
-
-                          <td>
-                            <input
-                              type="text"
-                              className="form-control"
-                              value={consumption[index]?.lotNo || ""}
-                              onChange={(event) =>
-                                updateConsumption(
-                                  index,
-                                  "lotNo",
-                                  event.target.value,
-                                )
-                              }
-                            />
-                          </td>
-
-                          <td>
-                            {enoughStock ? (
-                              <span className="badge text-bg-success">OK</span>
-                            ) : (
-                              <span className="badge text-bg-danger">
-                                Insufficient
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="text-muted small">
-                Component totals are not added together because a formula can
-                contain different units such as L, ML, KG, G and PCS.
-              </div>
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={() => setCalculation(null)}
+                disabled={saving}
+              >
+                Clear Preview
+              </button>
             </div>
           </div>
-
-          {/* FINISHED BATCH */}
-          <div className="card mb-4">
-            <div className="card-body">
-              <h5 className="mb-3">Finished Batch</h5>
-
-              <div className="row">
-                <div className="col-md-3 mb-3">
-                  <label className="form-label">Actual Output *</label>
-
-                  <div className="input-group">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.001"
-                      className="form-control"
-                      value={actualOutputQty}
-                      onChange={(event) =>
-                        setActualOutputQty(event.target.value)
-                      }
-                    />
-
-                    <span className="input-group-text">
-                      {calculation.formula.batch_unit_code}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="col-md-3 mb-3">
-                  <label className="form-label">Finished Lot No.</label>
-
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={finishedLotNo}
-                    onChange={(event) => setFinishedLotNo(event.target.value)}
-                  />
-                </div>
-
-                <div className="col-md-3 mb-3">
-                  <label className="form-label">Mfg Date</label>
-
-                  <input
-                    type="date"
-                    className="form-control"
-                    value={mfgDate}
-                    onChange={(event) => setMfgDate(event.target.value)}
-                  />
-                </div>
-
-                <div className="col-md-3 mb-3">
-                  <label className="form-label">Expiry Date</label>
-
-                  <input
-                    type="date"
-                    className="form-control"
-                    value={expiryDate}
-                    onChange={(event) => setExpiryDate(event.target.value)}
-                  />
-                </div>
-
-                <div className="col-md-4 mb-3">
-                  <label className="form-label">Theoretical Output</label>
-
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={`${Number(plannedBatchSize || 0).toFixed(3)} ${
-                      calculation.formula.batch_unit_code
-                    }`}
-                    disabled
-                  />
-                </div>
-
-                <div className="col-md-4 mb-3">
-                  <label className="form-label">Yield Difference</label>
-
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={`${outputDifference.toFixed(3)} ${
-                      calculation.formula.batch_unit_code
-                    }`}
-                    disabled
-                  />
-                </div>
-
-                <div className="col-md-4 mb-3">
-                  <label className="form-label">Loss %</label>
-
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={`${outputLossPercent.toFixed(2)}%`}
-                    disabled
-                  />
-                </div>
-
-                <div className="col-12 mt-2">
-                  <h6>Manufacturing Overheads</h6>
-
-                  <div className="text-muted small mb-3">
-                    Enter costs for this production batch. These costs will be
-                    included in finished-product inventory value.
-                  </div>
-                </div>
-
-                <div className="col-md-4 mb-3">
-                  <label className="form-label">Direct Labour</label>
-
-                  <div className="input-group">
-                    <span className="input-group-text">₹</span>
-
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className="form-control"
-                      value={labourCost}
-                      onChange={(event) => setLabourCost(event.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="col-md-4 mb-3">
-                  <label className="form-label">Electricity / Utilities</label>
-
-                  <div className="input-group">
-                    <span className="input-group-text">₹</span>
-
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className="form-control"
-                      value={electricityCost}
-                      onChange={(event) =>
-                        setElectricityCost(event.target.value)
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="col-md-4 mb-3">
-                  <label className="form-label">Other Manufacturing Cost</label>
-
-                  <div className="input-group">
-                    <span className="input-group-text">₹</span>
-
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className="form-control"
-                      value={otherOverheadCost}
-                      onChange={(event) =>
-                        setOtherOverheadCost(event.target.value)
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="col-12">
-                  <label className="form-label">Notes</label>
-
-                  <textarea
-                    className="form-control"
-                    rows="3"
-                    value={notes}
-                    onChange={(event) => setNotes(event.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {hasInsufficientStock && (
-            <div className="alert alert-danger">
-              Production cannot be saved because one or more components have
-              insufficient stock.
-            </div>
-          )}
-
-          <button
-            type="button"
-            className="btn btn-success"
-            onClick={handleSave}
-            disabled={saving || hasInsufficientStock}
-          >
-            {saving ? "Saving Batch..." : "Post Production Batch"}
-          </button>
-        </>
+        </div>
       )}
+
+      <div className="card">
+        <div className="card-body">
+          <div className="mb-3">
+            <h5 className="mb-1">Open Production Batches</h5>
+            <div className="text-muted small">
+              Start a planned batch, then enter actual consumption, wastage and
+              production outcome when the work is finished.
+            </div>
+          </div>
+
+          <div className="table-responsive">
+            <table className="table table-bordered table-hover align-middle">
+              <thead className="table-light">
+                <tr>
+                  <th>Batch</th>
+                  <th>Date</th>
+                  <th>Product</th>
+                  <th>Formula</th>
+                  <th>Planned Output</th>
+                  <th>Status</th>
+                  <th style={{ width: 160 }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loadingOpen ? (
+                  <tr>
+                    <td colSpan={7} className="text-center text-muted">
+                      Loading open production batches...
+                    </td>
+                  </tr>
+                ) : openBatches.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center text-muted">
+                      No open production batches.
+                    </td>
+                  </tr>
+                ) : (
+                  openBatches.map((batch) => (
+                    <tr key={batch.id}>
+                      <td>{batch.batch_no}</td>
+                      <td>{batch.production_date}</td>
+                      <td>{batch.finished_item_name}</td>
+                      <td>
+                        {batch.formula_code} V{batch.version_no}
+                      </td>
+                      <td>
+                        {Number(batch.planned_batch_size || 0).toFixed(3)}{" "}
+                        {batch.batch_unit_code}
+                      </td>
+                      <td>
+                        <span
+                          className={`badge ${
+                            batch.status === "IN_PRODUCTION"
+                              ? "text-bg-warning"
+                              : "text-bg-secondary"
+                          }`}
+                        >
+                          {batch.status === "IN_PRODUCTION" ? "In Production" : "Draft"}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-primary"
+                          onClick={() => navigate(`/production/${batch.id}/work`)}
+                        >
+                          Open Batch
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

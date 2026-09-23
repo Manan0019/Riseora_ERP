@@ -60,13 +60,30 @@ export function getDashboardSummary() {
       Number(item.current_stock || 0) <= Number(item.reorder_level || 0),
   );
 
+  const workInProgress = db.prepare(`
+    SELECT
+      COUNT(*) AS batch_count,
+      COALESCE(SUM(wip_material_cost), 0) AS material_value
+    FROM production_batches
+    WHERE status = 'IN_PRODUCTION'
+  `).get();
+
+  const draftProduction = db.prepare(`
+    SELECT COUNT(*) AS batch_count
+    FROM production_batches
+    WHERE status = 'DRAFT'
+  `).get();
+
   const recentProduction = db.prepare(`
     SELECT
-      pb.id, pb.batch_no, pb.production_date, pb.actual_output_qty, pb.status,
+      pb.id, pb.batch_no, pb.production_date,
+      COALESCE(NULLIF(pb.good_output_qty, 0), pb.actual_output_qty) AS actual_output_qty,
+      pb.status,
       i.name AS finished_item_name, u.code AS unit_code
     FROM production_batches pb
     INNER JOIN items i ON i.id = pb.finished_item_id
     INNER JOIN units u ON u.id = pb.batch_unit_id
+    WHERE pb.status IN ('COMPLETED', 'CLOSED')
     ORDER BY pb.production_date DESC, pb.id DESC
     LIMIT 5
   `).all();
@@ -79,6 +96,9 @@ export function getDashboardSummary() {
     stockItemCount: stockRows.length,
     lowStockCount: lowStockItems.length,
     lowStockItems,
+    wipBatchCount: Number(workInProgress?.batch_count || 0),
+    wipMaterialValue: Number(workInProgress?.material_value || 0),
+    draftProductionCount: Number(draftProduction?.batch_count || 0),
     recentProduction,
   };
 }

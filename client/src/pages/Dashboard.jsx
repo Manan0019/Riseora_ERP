@@ -199,6 +199,51 @@ function Dashboard() {
             </div>
           </div>
         </div>
+
+        <div className="col-md-4 col-xl-2">
+          <div className="card h-100">
+            <div className="card-body">
+              <div className="text-muted small">
+                WIP Batches
+              </div>
+
+              <div className="fs-5 fw-bold">
+                {Number(
+                  summary.wipBatchCount ||
+                    0
+                )}
+              </div>
+
+              <small className="text-muted">
+                ₹{Number(
+                  summary.wipMaterialValue ||
+                    0
+                ).toFixed(2)} material
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-md-4 col-xl-2">
+          <div className="card h-100">
+            <div className="card-body">
+              <div className="text-muted small">
+                Draft Production
+              </div>
+
+              <div className="fs-5 fw-bold">
+                {Number(
+                  summary.draftProductionCount ||
+                    0
+                )}
+              </div>
+
+              <small className="text-muted">
+                Awaiting material issue
+              </small>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="row g-4">

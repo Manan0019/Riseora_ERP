@@ -10,6 +10,8 @@ const emptyForm = {
   trackLot: false,
   trackExpiry: false,
   density: "",
+  defaultSellingPrice: "0",
+  targetMarginPercent: "0",
   notes: "",
 };
 
@@ -113,6 +115,12 @@ function Items() {
           ? String(item.density)
           : "",
 
+      defaultSellingPrice:
+        String(item.default_selling_price ?? 0),
+
+      targetMarginPercent:
+        String(item.target_margin_percent ?? 0),
+
       notes: item.notes || "",
     });
 
@@ -212,6 +220,31 @@ function Items() {
     ) {
       setError(
         "Density must be greater than zero."
+      );
+      return;
+    }
+
+    if (
+      !Number.isFinite(
+        Number(form.defaultSellingPrice || 0)
+      ) ||
+      Number(form.defaultSellingPrice || 0) < 0
+    ) {
+      setError(
+        "Default selling price cannot be negative."
+      );
+      return;
+    }
+
+    if (
+      !Number.isFinite(
+        Number(form.targetMarginPercent || 0)
+      ) ||
+      Number(form.targetMarginPercent || 0) < 0 ||
+      Number(form.targetMarginPercent || 0) >= 100
+    ) {
+      setError(
+        "Target margin must be between 0 and less than 100 percent."
       );
       return;
     }
@@ -625,6 +658,53 @@ function Items() {
                 </div>
               </div>
 
+              <div className="col-md-4 mb-3">
+                <label className="form-label">
+                  Default Selling Price
+                </label>
+
+                <div className="input-group">
+                  <span className="input-group-text">₹</span>
+
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="form-control"
+                    name="defaultSellingPrice"
+                    value={form.defaultSellingPrice}
+                    onChange={handleChange}
+                    disabled={!editing}
+                  />
+                </div>
+
+                <div className="form-text">
+                  Used as the default rate on sales invoices. Production costing never changes this automatically.
+                </div>
+              </div>
+
+              <div className="col-md-4 mb-3">
+                <label className="form-label">
+                  Target Gross Margin %
+                </label>
+
+                <input
+                  type="number"
+                  min="0"
+                  max="99.99"
+                  step="0.01"
+                  className="form-control"
+                  name="targetMarginPercent"
+                  value={form.targetMarginPercent}
+                  onChange={handleChange}
+                  disabled={!editing}
+                />
+
+                <div className="form-text">
+                  For finished goods, the ERP compares actual production cost with this target and suggests a selling price.
+                </div>
+              </div>
+
               <div className="col-md-3 mb-3">
                 <div className="form-check mt-4">
                   <input
@@ -758,6 +838,8 @@ function Items() {
                   <th>Category</th>
                   <th>Unit</th>
                   <th>Reorder</th>
+                  <th>Sale Price</th>
+                  <th>Target Margin</th>
                   <th>Lot</th>
                   <th>Expiry</th>
                   <th>Status</th>
@@ -810,6 +892,20 @@ function Items() {
                       </td>
 
                       <td>
+                        ₹{Number(
+                          item.default_selling_price ||
+                            0
+                        ).toFixed(2)}
+                      </td>
+
+                      <td>
+                        {Number(
+                          item.target_margin_percent ||
+                            0
+                        ).toFixed(2)}%
+                      </td>
+
+                      <td>
                         {item.track_lot
                           ? "Yes"
                           : "No"}
@@ -840,7 +936,7 @@ function Items() {
                   0 && (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={10}
                       className="text-center text-muted"
                     >
                       No items found.

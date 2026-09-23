@@ -17,6 +17,7 @@ import StockAdjustment from "./pages/StockAdjustment";
 import Formulas from "./pages/Formulas";
 import Production from "./pages/Production";
 import ProductionRegister from "./pages/ProductionRegister";
+import ProductionWork from "./pages/ProductionWork";
 import Sales from "./pages/Sales";
 import SalesRegister from "./pages/SalesRegister";
 import CustomerLedger from "./pages/CustomerLedger";
@@ -80,6 +81,8 @@ function App() {
           <Route path="formulas" element={<Formulas />} />
 
           <Route path="production" element={<Production />} />
+
+          <Route path="production/:id/work" element={<ProductionWork />} />
 
           <Route path="production-register" element={<ProductionRegister />} />
 

@@ -16,6 +16,8 @@ import { runInventoryCostingMigration } from "./migrations/012_inventory_costing
 import { runProductionOverheadMigration } from "./migrations/013_production_overheads.js";
 import { runSalesCreditNoteMigration } from "./migrations/014_sales_credit_notes.js";
 import { runSalesRefundMigration } from "./migrations/015_sales_refunds.js";
+import { runAdvancedProductionMigration } from "./migrations/016_advanced_production.js";
+import { runProductPricingMigration } from "./migrations/017_product_pricing.js";
 
 
 export async function initDatabase() {
@@ -34,6 +36,8 @@ export async function initDatabase() {
   runProductionOverheadMigration();
   runSalesCreditNoteMigration();
   runSalesRefundMigration();
+  runAdvancedProductionMigration();
+  runProductPricingMigration();
 
   seedUnits();
   seedItemCategories();

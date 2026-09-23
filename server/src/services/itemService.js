@@ -1,5 +1,27 @@
 import db from "../db/database.js";
 
+function normalizePricing(data) {
+  const defaultSellingPrice = Number(data.defaultSellingPrice || 0);
+  const targetMarginPercent = Number(data.targetMarginPercent || 0);
+
+  if (!Number.isFinite(defaultSellingPrice) || defaultSellingPrice < 0) {
+    throw new Error("Default selling price cannot be negative.");
+  }
+
+  if (
+    !Number.isFinite(targetMarginPercent) ||
+    targetMarginPercent < 0 ||
+    targetMarginPercent >= 100
+  ) {
+    throw new Error("Target margin must be between 0 and less than 100 percent.");
+  }
+
+  return {
+    defaultSellingPrice,
+    targetMarginPercent,
+  };
+}
+
 export function getItems(includeInactive = false) {
   const sql = `
     SELECT
@@ -55,6 +77,8 @@ export function createItem(data) {
     );
   }
 
+  const pricing = normalizePricing(data);
+
   const result = db
     .prepare(`
       INSERT INTO items (
@@ -66,9 +90,11 @@ export function createItem(data) {
         track_lot,
         track_expiry,
         density,
+        default_selling_price,
+        target_margin_percent,
         notes
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     .run(
       code,
@@ -81,6 +107,8 @@ export function createItem(data) {
       data.density
         ? Number(data.density)
         : null,
+      pricing.defaultSellingPrice,
+      pricing.targetMarginPercent,
       data.notes?.trim() || null
     );
 
@@ -111,6 +139,8 @@ export function updateItem(id, data) {
     );
   }
 
+  const pricing = normalizePricing(data);
+
   db.prepare(`
     UPDATE items
     SET
@@ -122,6 +152,8 @@ export function updateItem(id, data) {
       track_lot = ?,
       track_expiry = ?,
       density = ?,
+      default_selling_price = ?,
+      target_margin_percent = ?,
       notes = ?,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
@@ -136,6 +168,8 @@ export function updateItem(id, data) {
     data.density
       ? Number(data.density)
       : null,
+    pricing.defaultSellingPrice,
+    pricing.targetMarginPercent,
     data.notes?.trim() || null,
     id
   );
