@@ -21,6 +21,7 @@ import salesRoutes from "./routes/salesRoutes.js";
 import customerLedgerRoutes from "./routes/customerLedgerRoutes.js";
 import supplierLedgerRoutes from "./routes/supplierLedgerRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
+import reportRoutes from "./routes/reportRoutes.js";
 
 import { requireAuth, requireAdmin } from "./middleware/authMiddleware.js";
 import { runStartupBackup } from "./services/startupBackupService.js";
@@ -42,6 +43,7 @@ app.use(
   cors({
     origin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
     credentials: true,
+    exposedHeaders: ["Content-Disposition"],
   }),
 );
 
@@ -94,6 +96,7 @@ app.use("/api/sales", ...adminOnly, salesRoutes);
 app.use("/api/customer-ledger", ...adminOnly, customerLedgerRoutes);
 app.use("/api/supplier-ledger", ...adminOnly, supplierLedgerRoutes);
 app.use("/api/dashboard", ...adminOnly, dashboardRoutes);
+app.use("/api/reports", ...adminOnly, reportRoutes);
 app.use("/api/backups", ...adminOnly, backupRoutes);
 
 app.use((err, req, res, next) => {

@@ -23,6 +23,8 @@ import SalesRegister from "./pages/SalesRegister";
 import SalesInvoicePrint from "./pages/SalesInvoicePrint";
 import CustomerLedger from "./pages/CustomerLedger";
 import SupplierLedger from "./pages/SupplierLedger";
+import Reports from "./pages/Reports";
+import ReportPrint from "./pages/ReportPrint";
 
 import MainLayout from "./layouts/MainLayout";
 
@@ -50,6 +52,11 @@ function App() {
         <Route
           path="/sales/:id/invoice-print"
           element={user ? <SalesInvoicePrint /> : <Navigate to="/login" replace />}
+        />
+
+        <Route
+          path="/reports/print"
+          element={user ? <ReportPrint /> : <Navigate to="/login" replace />}
         />
 
         <Route
@@ -99,6 +106,8 @@ function App() {
           <Route path="customer-ledger" element={<CustomerLedger />} />
 
           <Route path="supplier-ledger" element={<SupplierLedger />} />
+
+          <Route path="reports" element={<Reports />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
 

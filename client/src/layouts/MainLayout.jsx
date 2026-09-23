@@ -212,6 +212,17 @@ function MainLayout() {
               Customer Ledger
             </NavLink>
 
+            <div className="sidebar-heading">Reports</div>
+
+            <NavLink
+              to="/reports"
+              className={({ isActive }) =>
+                isActive ? "sidebar-link active" : "sidebar-link"
+              }
+            >
+              Business Reports
+            </NavLink>
+
             <div className="sidebar-heading">System</div>
 
             <NavLink
