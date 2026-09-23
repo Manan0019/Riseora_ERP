@@ -143,6 +143,7 @@ function MainLayout() {
                     <button
                       type="button"
                       className="sidebar-heading"
+                      aria-expanded={!isCollapsed}
                       onClick={() =>
                         setCollapsed((current) => ({
                           ...current,
@@ -159,22 +160,28 @@ function MainLayout() {
                     </button>
                   )}
 
-                  <div className={`nav-group-items ${isCollapsed ? "collapsed" : ""}`}>
-                    {group.items.map((item) => (
-                      <NavLink
-                        key={item.to}
-                        to={item.to}
-                        onClick={() => setSidebarOpen(false)}
-                        className={({ isActive }) =>
-                          isActive ? "sidebar-link active" : "sidebar-link"
-                        }
-                      >
-                        <span className="sidebar-icon">
-                          <AppIcon name={item.icon} size={18} />
-                        </span>
-                        <span className="sidebar-label">{item.label}</span>
-                      </NavLink>
-                    ))}
+                  <div
+                    className={`nav-group-items ${isCollapsed ? "collapsed" : ""}`}
+                    aria-hidden={Boolean(isCollapsed)}
+                  >
+                    <div className="nav-group-items-inner">
+                      {group.items.map((item) => (
+                        <NavLink
+                          key={item.to}
+                          to={item.to}
+                          onClick={() => setSidebarOpen(false)}
+                          className={({ isActive }) =>
+                            isActive ? "sidebar-link active" : "sidebar-link"
+                          }
+                          tabIndex={isCollapsed ? -1 : undefined}
+                        >
+                          <span className="sidebar-icon">
+                            <AppIcon name={item.icon} size={18} />
+                          </span>
+                          <span className="sidebar-label">{item.label}</span>
+                        </NavLink>
+                      ))}
+                    </div>
                   </div>
                 </section>
               );
