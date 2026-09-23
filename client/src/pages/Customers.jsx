@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../api/api";
+import { useUi } from "../context/UiContext";
 
 const emptyForm = {
   code: "",
@@ -18,6 +19,7 @@ const emptyForm = {
 };
 
 function Customers() {
+  const { confirm: confirmAction } = useUi();
   const [customers, setCustomers] =
     useState([]);
 
@@ -280,10 +282,14 @@ function Customers() {
         return;
       }
 
-      const confirmed =
-        window.confirm(
-          `Deactivate "${customer.code} - ${customer.name}"?`
-        );
+      const confirmed = await confirmAction({
+        title: "Deactivate customer?",
+        message: `${customer.code} - ${customer.name} will no longer be available for new transactions.`,
+        detail: "Historical invoices and ledger records remain unchanged.",
+        confirmLabel: "Deactivate Customer",
+        cancelLabel: "Keep Active",
+        variant: "warning",
+      });
 
       if (!confirmed) {
         return;
@@ -334,10 +340,13 @@ function Customers() {
         return;
       }
 
-      const confirmed =
-        window.confirm(
-          `Activate "${customer.code} - ${customer.name}"?`
-        );
+      const confirmed = await confirmAction({
+        title: "Activate customer?",
+        message: `${customer.code} - ${customer.name} will become available for new transactions.`,
+        confirmLabel: "Activate Customer",
+        cancelLabel: "Keep Inactive",
+        variant: "primary",
+      });
 
       if (!confirmed) {
         return;

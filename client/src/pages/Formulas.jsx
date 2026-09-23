@@ -5,6 +5,7 @@ import {
 } from "react";
 
 import api from "../api/api";
+import { useUi } from "../context/UiContext";
 
 const emptyIngredient =
   () => ({
@@ -27,6 +28,7 @@ const emptyForm =
   });
 
 function Formulas() {
+  const { confirm: confirmAction } = useUi();
   const [
     formulas,
     setFormulas,
@@ -1087,10 +1089,14 @@ function Formulas() {
     async (
       formula
     ) => {
-      const confirmed =
-        window.confirm(
-          `Deactivate ${formula.code} V${formula.version_no}?`
-        );
+      const confirmed = await confirmAction({
+        title: "Deactivate formula version?",
+        message: `${formula.code} V${formula.version_no} will be removed from active production selection.`,
+        detail: "Historical production batches keep their formula/version snapshot.",
+        confirmLabel: "Deactivate Formula",
+        cancelLabel: "Keep Active",
+        variant: "warning",
+      });
 
       if (
         !confirmed
@@ -1126,10 +1132,14 @@ function Formulas() {
     async (
       formula
     ) => {
-      const confirmed =
-        window.confirm(
-          `Activate ${formula.code} V${formula.version_no}? Other versions of this formula code will be made inactive.`
-        );
+      const confirmed = await confirmAction({
+        title: "Activate formula version?",
+        message: `${formula.code} V${formula.version_no} will become the active version.`,
+        detail: "Other versions of the same formula code will be made inactive to keep one current manufacturing standard.",
+        confirmLabel: "Activate Version",
+        cancelLabel: "Keep Current Version",
+        variant: "primary",
+      });
 
       if (
         !confirmed

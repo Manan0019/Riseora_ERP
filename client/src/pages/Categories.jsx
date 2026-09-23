@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../api/api";
+import { useUi } from "../context/UiContext";
 
 const emptyForm = {
   code: "",
@@ -7,6 +8,7 @@ const emptyForm = {
 };
 
 function Categories() {
+  const { confirm: confirmAction } = useUi();
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState(emptyForm);
 
@@ -187,9 +189,14 @@ function Categories() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Deactivate "${selectedCategory.code} - ${selectedCategory.name}"?`
-    );
+    const confirmed = await confirmAction({
+      title: "Deactivate category?",
+      message: `${selectedCategory.code} - ${selectedCategory.name} will be unavailable for new item setup.`,
+      detail: "Existing items and history remain intact.",
+      confirmLabel: "Deactivate Category",
+      cancelLabel: "Keep Active",
+      variant: "warning",
+    });
 
     if (!confirmed) {
       return;
@@ -245,9 +252,13 @@ function Categories() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Activate "${selectedCategory.code} - ${selectedCategory.name}"?`
-    );
+    const confirmed = await confirmAction({
+      title: "Activate category?",
+      message: `${selectedCategory.code} - ${selectedCategory.name} will become available for item setup.`,
+      confirmLabel: "Activate Category",
+      cancelLabel: "Keep Inactive",
+      variant: "primary",
+    });
 
     if (!confirmed) {
       return;

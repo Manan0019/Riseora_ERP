@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
+import { useUi } from "../context/UiContext";
 
 const emptyLine = () => ({
   itemId: "",
@@ -12,6 +13,7 @@ const emptyLine = () => ({
 });
 
 function Purchases() {
+  const { success: toastSuccess, error: toastError } = useUi();
   const today = new Date().toISOString().slice(0, 10);
 
   const [suppliers, setSuppliers] = useState([]);
@@ -312,9 +314,9 @@ function Purchases() {
           }
         );
 
-      setMessage(
-        `Purchase ${response.data.purchase.purchaseNo} saved successfully.`
-      );
+      const successMessage = `Purchase ${response.data.purchase.purchaseNo} saved successfully.`;
+      setMessage(successMessage);
+      toastSuccess(successMessage, "Purchase posted");
 
       setForm({
         purchaseDate: today,
@@ -332,18 +334,17 @@ function Purchases() {
     } catch (err) {
       console.error(err);
 
-      setError(
-        err.response?.data?.message ||
-          "Unable to save purchase."
-      );
+      const errorMessage = err.response?.data?.message || "Unable to save purchase.";
+      setError(errorMessage);
+      toastError(errorMessage, "Purchase not saved");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div>
-      <div className="mb-4">
+    <div className="transaction-page purchase-entry-page">
+      <div className="transaction-intro mb-4">
         <h2 className="mb-1">
           Purchase Entry
         </h2>
@@ -366,8 +367,11 @@ function Purchases() {
         </div>
       )}
 
-      <div className="card mb-4">
+      <div className="card mb-4 transaction-card">
         <div className="card-body">
+          <div className="transaction-section-heading">
+            <div><span className="transaction-step">01</span><div><h5>Purchase Details</h5><p>Supplier, document date and supplier invoice reference.</p></div></div>
+          </div>
           <div className="row">
             <div className="col-md-3 mb-3">
               <label className="form-label">
@@ -464,12 +468,10 @@ function Purchases() {
         </div>
       </div>
 
-      <div className="card mb-4">
+      <div className="card mb-4 transaction-card transaction-lines-card">
         <div className="card-body">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="mb-0">
-              Purchase Items
-            </h5>
+          <div className="d-flex justify-content-between align-items-center mb-3 transaction-section-heading compact">
+            <div><span className="transaction-step">02</span><div><h5>Purchase Items</h5><p>Quantities, rates, GST and traceability details.</p></div></div>
 
             <button
               type="button"
@@ -481,7 +483,7 @@ function Purchases() {
           </div>
 
           <div className="table-responsive">
-            <table className="table table-bordered align-middle">
+            <table className="table table-bordered align-middle entry-table">
               <thead className="table-light">
                 <tr>
                   <th style={{ minWidth: 220 }}>
@@ -780,8 +782,9 @@ function Purchases() {
 
       <div className="row">
         <div className="col-lg-7">
-          <div className="card mb-4">
+          <div className="card mb-4 transaction-card">
             <div className="card-body">
+              <div className="transaction-mini-title">Notes & Purchase Context</div>
               <label className="form-label">
                 Notes
               </label>
@@ -800,8 +803,9 @@ function Purchases() {
         </div>
 
         <div className="col-lg-5">
-          <div className="card mb-4">
+          <div className="card mb-4 transaction-card totals-card">
             <div className="card-body">
+              <div className="transaction-mini-title">Charges & Purchase Total</div>
               <div className="row">
                 <div className="col-6 mb-3">
                   <label className="form-label">
@@ -911,16 +915,21 @@ function Purchases() {
         </div>
       </div>
 
-      <button
-        type="button"
-        className="btn btn-success"
-        onClick={handleSave}
-        disabled={saving}
-      >
-        {saving
-          ? "Saving Purchase..."
-          : "Save Purchase"}
-      </button>
+      <div className="transaction-action-bar">
+        <div className="transaction-action-copy">
+          <span>Purchase total</span>
+          <strong>₹{totals.grandTotal.toFixed(2)}</strong>
+          <small>{lines.length} line{lines.length === 1 ? "" : "s"} ready to post</small>
+        </div>
+        <button
+          type="button"
+          className="btn btn-success btn-lg"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? "Saving Purchase..." : "Post Purchase"}
+        </button>
+      </div>
     </div>
   );
 }

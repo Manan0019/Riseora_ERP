@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../api/api";
+import { useUi } from "../context/UiContext";
 
 const emptyForm = {
   code: "",
@@ -18,6 +19,7 @@ const emptyForm = {
 };
 
 function Items() {
+  const { confirm: confirmAction } = useUi();
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [units, setUnits] = useState([]);
@@ -329,9 +331,14 @@ function Items() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Deactivate "${selectedItem.code} - ${selectedItem.name}"?`
-    );
+    const confirmed = await confirmAction({
+      title: "Deactivate item?",
+      message: `${selectedItem.code} - ${selectedItem.name} will be hidden from new transactions.`,
+      detail: "Current stock and historical transactions are preserved. The server will block unsafe deactivation when dependencies require it.",
+      confirmLabel: "Deactivate Item",
+      cancelLabel: "Keep Active",
+      variant: "warning",
+    });
 
     if (!confirmed) {
       return;
@@ -387,9 +394,13 @@ function Items() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Activate "${selectedItem.code} - ${selectedItem.name}"?`
-    );
+    const confirmed = await confirmAction({
+      title: "Activate item?",
+      message: `${selectedItem.code} - ${selectedItem.name} will become available for new transactions.`,
+      confirmLabel: "Activate Item",
+      cancelLabel: "Keep Inactive",
+      variant: "primary",
+    });
 
     if (!confirmed) {
       return;

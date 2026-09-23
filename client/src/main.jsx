@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { AuthProvider } from "./context/AuthContext.jsx";
+import { UiProvider } from "./context/UiContext.jsx";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -11,8 +12,10 @@ createRoot(
   document.getElementById("root")
 ).render(
   <StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <UiProvider>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </UiProvider>
 </StrictMode>
 );

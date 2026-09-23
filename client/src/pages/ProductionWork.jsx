@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import api from "../api/api";
+import { useUi } from "../context/UiContext";
 
 function ProductionWork() {
+  const { success: toastSuccess, error: toastError } = useUi();
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -121,11 +123,15 @@ function ProductionWork() {
           lotNo: item.lotNo.trim(),
         })),
       });
-      setMessage(response.data.message || "Production started.");
+      const successMessage = response.data.message || "Production started.";
+      setMessage(successMessage);
+      toastSuccess(successMessage, "Production started");
       await loadBatch(true);
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || "Unable to start production batch.");
+      const errorMessage = err.response?.data?.message || "Unable to start production batch.";
+      setError(errorMessage);
+      toastError(errorMessage, "Production not started");
     } finally {
       setStarting(false);
     }
@@ -259,25 +265,30 @@ function ProductionWork() {
             ).toFixed(2)}.`
           : "";
 
-      setMessage(
-        `${production.batchNo} ${
-          correctionMode ? "corrected" : "completed"
-        } successfully. Good output: ${Number(production.goodOutputQty || 0).toFixed(3)} ${
-          production.actualOutputUnit
-        }. Total cost: ₹${Number(production.totalProductionCost || 0).toFixed(
-          2,
-        )}. Unit cost: ₹${Number(production.finishedUnitCost || 0).toFixed(2)}/${
-          production.finishedBaseUnit || "unit"
-        }.${pricingMessage}`,
+      const successMessage = `${production.batchNo} ${
+        correctionMode ? "corrected" : "completed"
+      } successfully. Good output: ${Number(production.goodOutputQty || 0).toFixed(3)} ${
+        production.actualOutputUnit
+      }. Total cost: ₹${Number(production.totalProductionCost || 0).toFixed(
+        2,
+      )}. Unit cost: ₹${Number(production.finishedUnitCost || 0).toFixed(2)}/${
+        production.finishedBaseUnit || "unit"
+      }.${pricingMessage}`;
+
+      setMessage(successMessage);
+      toastSuccess(
+        successMessage,
+        correctionMode ? "Production corrected" : "Production completed",
       );
 
       await loadBatch(true);
     } catch (err) {
       console.error(err);
-      setError(
+      const errorMessage =
         err.response?.data?.message ||
-          `Unable to ${correctionMode ? "correct" : "complete"} production batch.`,
-      );
+        `Unable to ${correctionMode ? "correct" : "complete"} production batch.`;
+      setError(errorMessage);
+      toastError(errorMessage, "Production update failed");
     } finally {
       setSaving(false);
     }
@@ -304,7 +315,7 @@ function ProductionWork() {
   const editable = canEditLots || canEditActuals;
 
   return (
-    <div>
+    <div className="transaction-page production-work-page">
       <div className="d-flex justify-content-between align-items-start mb-4">
         <div>
           <h2 className="mb-1">
@@ -356,7 +367,7 @@ function ProductionWork() {
         </div>
       )}
 
-      <div className="card mb-4">
+      <div className="card mb-4 transaction-card">
         <div className="card-body">
           <h5 className="mb-3">Batch Plan</h5>
           <div className="row g-3">
@@ -390,7 +401,7 @@ function ProductionWork() {
         </div>
       </div>
 
-      <div className="card mb-4">
+      <div className="card mb-4 transaction-card">
         <div className="card-body">
           <div className="mb-3">
             <h5 className="mb-1">Actual Material Consumption</h5>
@@ -402,7 +413,7 @@ function ProductionWork() {
           </div>
 
           <div className="table-responsive">
-            <table className="table table-bordered align-middle">
+            <table className="table table-bordered align-middle entry-table">
               <thead className="table-light">
                 <tr>
                   <th>Component</th>
@@ -513,7 +524,7 @@ function ProductionWork() {
         </div>
       </div>
 
-      <div className="card mb-4">
+      <div className="card mb-4 transaction-card">
         <div className="card-body">
           <div className="mb-3">
             <h5 className="mb-1">Production Outcome</h5>
@@ -614,7 +625,7 @@ function ProductionWork() {
         </div>
       </div>
 
-      <div className="card mb-4">
+      <div className="card mb-4 transaction-card">
         <div className="card-body">
           <h5 className="mb-3">Actual Manufacturing Costs</h5>
           <div className="row">
@@ -676,10 +687,16 @@ function ProductionWork() {
       )}
 
       {canComplete && (
-        <div className="d-flex gap-2">
+        <div className="transaction-action-bar">
+          <div className="transaction-action-copy">
+            <span>{correctionMode ? "Production correction" : "Production completion"}</span>
+            <strong>{outcome.good.toFixed(3)} {batch.batch_unit_code} good output</strong>
+            <small>Yield {outcome.yieldPercent.toFixed(2)}% • variance {outcome.variancePercent.toFixed(2)}%</small>
+          </div>
+          <div className="d-flex gap-2">
           <button
             type="button"
-            className={correctionMode ? "btn btn-warning" : "btn btn-success"}
+            className={correctionMode ? "btn btn-warning btn-lg" : "btn btn-success btn-lg"}
             onClick={handleSave}
             disabled={saving || !canComplete}
           >
@@ -694,12 +711,13 @@ function ProductionWork() {
 
           <button
             type="button"
-            className="btn btn-outline-secondary"
+            className="btn btn-outline-secondary btn-lg"
             onClick={() => navigate("/production-register")}
             disabled={saving}
           >
             Back to Register
           </button>
+          </div>
         </div>
       )}
     </div>

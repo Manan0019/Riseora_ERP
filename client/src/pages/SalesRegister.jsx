@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 
 import api from "../api/api";
+import { useUi } from "../context/UiContext";
 
 function SalesRegister() {
+  const { confirm: confirmAction, success: toastSuccess, error: toastError } = useUi();
   const today = new Date().toISOString().slice(0, 10);
 
   const [invoices, setInvoices] = useState([]);
@@ -192,6 +194,7 @@ function SalesRegister() {
       });
 
       setMessage("Payment recorded successfully.");
+      toastSuccess(`₹${amount.toFixed(2)} received against ${selectedInvoice.invoice_no}.`, "Payment recorded");
 
       await loadInvoices();
 
@@ -199,7 +202,9 @@ function SalesRegister() {
     } catch (err) {
       console.error(err);
 
-      setError(err.response?.data?.message || "Unable to record payment.");
+      const errorMessage = err.response?.data?.message || "Unable to record payment.";
+      setError(errorMessage);
+      toastError(errorMessage, "Payment failed");
     } finally {
       setSavingPayment(false);
     }
@@ -224,9 +229,14 @@ function SalesRegister() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Cancel ${selectedInvoice.invoice_no}? Sold stock will be returned to inventory.`,
-    );
+    const confirmed = await confirmAction({
+      title: "Cancel sales invoice?",
+      message: `${selectedInvoice.invoice_no} will be cancelled and its sale stock movement will be reversed.`,
+      detail: "Paid invoices cannot be cancelled directly. Use Credit Note / Refund for customer returns after payment.",
+      confirmLabel: "Cancel Invoice",
+      cancelLabel: "Keep Invoice",
+      variant: "danger",
+    });
 
     if (!confirmed) {
       return;
@@ -239,6 +249,7 @@ function SalesRegister() {
       await api.patch(`/sales/${selectedInvoice.id}/cancel`);
 
       setMessage("Sales invoice cancelled successfully.");
+      toastSuccess(`${selectedInvoice.invoice_no} was cancelled and stock was restored.`, "Invoice cancelled");
 
       setSelectedInvoice(null);
 
@@ -246,7 +257,9 @@ function SalesRegister() {
     } catch (err) {
       console.error(err);
 
-      setError(err.response?.data?.message || "Unable to cancel invoice.");
+      const errorMessage = err.response?.data?.message || "Unable to cancel invoice.";
+      setError(errorMessage);
+      toastError(errorMessage, "Invoice cancellation failed");
     }
   };
 
@@ -481,6 +494,13 @@ function SalesRegister() {
         );
       }
 
+      toastSuccess(
+        Number(result.refundDue || 0) > 0
+          ? `${result.creditNoteNo} posted. Refund due: ₹${Number(result.refundDue).toFixed(2)}.`
+          : `${result.creditNoteNo} posted successfully.`,
+        "Credit note created",
+      );
+
       setReturnForm(
         null
       );
@@ -493,11 +513,9 @@ function SalesRegister() {
     } catch (err) {
       console.error(err);
 
-      setError(
-        err.response?.data
-          ?.message ||
-          "Unable to create credit note."
-      );
+      const errorMessage = err.response?.data?.message || "Unable to create credit note.";
+      setError(errorMessage);
+      toastError(errorMessage, "Credit note failed");
     } finally {
       setSavingReturn(false);
     }
@@ -542,12 +560,16 @@ function SalesRegister() {
         notes: refundForm.notes.trim(),
       });
 
-      setMessage(`${response.data.refund.refundNo} recorded successfully.`);
+      const successMessage = `${response.data.refund.refundNo} recorded successfully.`;
+      setMessage(successMessage);
+      toastSuccess(successMessage, "Customer refund recorded");
       await loadInvoices();
       await loadInvoiceDetails(selectedInvoice.id);
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || "Unable to record refund.");
+      const errorMessage = err.response?.data?.message || "Unable to record refund.";
+      setError(errorMessage);
+      toastError(errorMessage, "Refund failed");
     } finally {
       setSavingRefund(false);
     }

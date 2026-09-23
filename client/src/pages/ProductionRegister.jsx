@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import api from "../api/api";
+import { useUi } from "../context/UiContext";
 
 function statusBadge(status) {
   const map = {
@@ -31,6 +32,7 @@ function qcBadge(status) {
 }
 
 function ProductionRegister() {
+  const { confirm: confirmAction, success: toastSuccess, error: toastError } = useUi();
   const navigate = useNavigate();
   const [batches, setBatches] = useState([]);
   const [selectedBatch, setSelectedBatch] = useState(null);
@@ -167,20 +169,29 @@ function ProductionRegister() {
   const handleCancel = async () => {
     if (!selectedBatch) return;
 
-    const confirmed = window.confirm(
-      `Cancel ${selectedBatch.batch_no}? Completed batches will be reversed only when inventory safety checks pass.`,
-    );
+    const confirmed = await confirmAction({
+      title: "Cancel production batch?",
+      message: `${selectedBatch.batch_no} will be cancelled.`,
+      detail: "Completed output and material movements are reversed only when inventory safety checks pass. Closed batches cannot be cancelled directly.",
+      confirmLabel: "Cancel Batch",
+      cancelLabel: "Keep Batch",
+      variant: "danger",
+    });
     if (!confirmed) return;
 
     try {
       setActionLoading(true);
       setError("");
       await api.patch(`/production/${selectedBatch.id}/cancel`);
-      setMessage(`${selectedBatch.batch_no} cancelled successfully.`);
+      const successMessage = `${selectedBatch.batch_no} cancelled successfully.`;
+      setMessage(successMessage);
+      toastSuccess(successMessage, "Production cancelled");
       await refreshSelected();
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || "Unable to cancel production batch.");
+      const errorMessage = err.response?.data?.message || "Unable to cancel production batch.";
+      setError(errorMessage);
+      toastError(errorMessage, "Cancellation failed");
     } finally {
       setActionLoading(false);
     }
@@ -189,20 +200,29 @@ function ProductionRegister() {
   const handleClose = async () => {
     if (!selectedBatch) return;
 
-    const confirmed = window.confirm(
-      `Close ${selectedBatch.batch_no}? Closed batches are locked against direct correction/cancellation.`,
-    );
+    const confirmed = await confirmAction({
+      title: "Close production batch?",
+      message: `${selectedBatch.batch_no} will be finalized and locked.`,
+      detail: "After closing, direct correction and cancellation are intentionally disabled to protect manufacturing history.",
+      confirmLabel: "Close Batch",
+      cancelLabel: "Keep Open",
+      variant: "warning",
+    });
     if (!confirmed) return;
 
     try {
       setActionLoading(true);
       setError("");
       await api.patch(`/production/${selectedBatch.id}/close`);
-      setMessage(`${selectedBatch.batch_no} closed successfully.`);
+      const successMessage = `${selectedBatch.batch_no} closed successfully.`;
+      setMessage(successMessage);
+      toastSuccess(successMessage, "Production closed");
       await refreshSelected();
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || "Unable to close production batch.");
+      const errorMessage = err.response?.data?.message || "Unable to close production batch.";
+      setError(errorMessage);
+      toastError(errorMessage, "Closing failed");
     } finally {
       setActionLoading(false);
     }
@@ -219,10 +239,13 @@ function ProductionRegister() {
         qcNotes: qcNotes.trim(),
       });
       setMessage("QC status updated successfully.");
+      toastSuccess("The quality-control status and notes were saved.", "QC updated");
       await refreshSelected();
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || "Unable to update QC status.");
+      const errorMessage = err.response?.data?.message || "Unable to update QC status.";
+      setError(errorMessage);
+      toastError(errorMessage, "QC update failed");
     } finally {
       setActionLoading(false);
     }

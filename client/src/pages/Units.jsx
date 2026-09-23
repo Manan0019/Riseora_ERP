@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../api/api";
+import { useUi } from "../context/UiContext";
 
 const emptyForm = {
   code: "",
@@ -8,6 +9,7 @@ const emptyForm = {
 };
 
 function Units() {
+  const { confirm: confirmAction } = useUi();
   const [units, setUnits] = useState([]);
   const [form, setForm] = useState(emptyForm);
 
@@ -164,9 +166,14 @@ function Units() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Deactivate "${selectedUnit.code} - ${selectedUnit.name}"?`,
-    );
+    const confirmed = await confirmAction({
+      title: "Deactivate unit?",
+      message: `${selectedUnit.code} - ${selectedUnit.name} will no longer be available for new master or transaction entries.`,
+      detail: "Existing historical records keep their original unit.",
+      confirmLabel: "Deactivate Unit",
+      cancelLabel: "Keep Active",
+      variant: "warning",
+    });
 
     if (!confirmed) {
       return;
@@ -209,9 +216,13 @@ function Units() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Activate "${selectedUnit.code} - ${selectedUnit.name}"?`,
-    );
+    const confirmed = await confirmAction({
+      title: "Activate unit?",
+      message: `${selectedUnit.code} - ${selectedUnit.name} will become available for new entries.`,
+      confirmLabel: "Activate Unit",
+      cancelLabel: "Keep Inactive",
+      variant: "primary",
+    });
 
     if (!confirmed) {
       return;

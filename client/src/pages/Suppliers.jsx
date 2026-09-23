@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../api/api";
+import { useUi } from "../context/UiContext";
 
 const emptyForm = {
   code: "",
@@ -17,6 +18,7 @@ const emptyForm = {
 };
 
 function Suppliers() {
+  const { confirm: confirmAction } = useUi();
   const [suppliers, setSuppliers] =
     useState([]);
 
@@ -267,10 +269,14 @@ function Suppliers() {
         return;
       }
 
-      const confirmed =
-        window.confirm(
-          `Deactivate "${supplier.code} - ${supplier.name}"?`
-        );
+      const confirmed = await confirmAction({
+        title: "Deactivate supplier?",
+        message: `${supplier.code} - ${supplier.name} will no longer be available for new purchases.`,
+        detail: "Historical purchases, payments and ledger entries remain unchanged.",
+        confirmLabel: "Deactivate Supplier",
+        cancelLabel: "Keep Active",
+        variant: "warning",
+      });
 
       if (!confirmed) {
         return;
@@ -317,10 +323,13 @@ function Suppliers() {
         return;
       }
 
-      const confirmed =
-        window.confirm(
-          `Activate "${supplier.code} - ${supplier.name}"?`
-        );
+      const confirmed = await confirmAction({
+        title: "Activate supplier?",
+        message: `${supplier.code} - ${supplier.name} will become available for new purchases.`,
+        confirmLabel: "Activate Supplier",
+        cancelLabel: "Keep Inactive",
+        variant: "primary",
+      });
 
       if (!confirmed) {
         return;

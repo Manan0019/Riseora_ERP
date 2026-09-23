@@ -2,8 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import api from "../api/api";
+import { useUi } from "../context/UiContext";
+import FormSection from "../components/ui/FormSection";
+import SummaryStrip from "../components/ui/SummaryStrip";
 
 function Production() {
+  const { success: toastSuccess, error: toastError } = useUi();
   const navigate = useNavigate();
   const today = new Date().toISOString().slice(0, 10);
 
@@ -132,9 +136,9 @@ function Production() {
       });
 
       const production = response.data.production;
-      setMessage(
-        `${production.batchNo} created as a production plan. Actual consumption and output will be entered after production.`,
-      );
+      const successMessage = `${production.batchNo} created as a production plan. Actual consumption and output will be entered after production.`;
+      setMessage(successMessage);
+      toastSuccess(successMessage, "Production plan created");
 
       setFormulaId("");
       setPlannedBatchSize("");
@@ -144,14 +148,16 @@ function Production() {
       await loadOpenBatches();
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || "Unable to create production plan.");
+      const errorMessage = err.response?.data?.message || "Unable to create production plan.";
+      setError(errorMessage);
+      toastError(errorMessage, "Production plan not created");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div>
+    <div className="transaction-page production-plan-page">
       <div className="d-flex justify-content-between align-items-start mb-4">
         <div>
           <h2 className="mb-1">Production Planning</h2>
@@ -175,17 +181,11 @@ function Production() {
       {message && <div className="alert alert-success">{message}</div>}
       {error && <div className="alert alert-danger">{error}</div>}
 
-      <div className="card mb-4">
-        <div className="card-body">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <div>
-              <h5 className="mb-1">New Production Plan</h5>
-              <div className="text-muted small">
-                The formula defines the standard. The completed batch will record
-                what actually happened.
-              </div>
-            </div>
-          </div>
+      <FormSection
+        title="New Production Plan"
+        subtitle="The formula defines the standard. The completed batch records what actually happened."
+        badge="Step 1 · Plan"
+      >
 
           <div className="row">
             <div className="col-md-3 mb-3">
@@ -259,19 +259,22 @@ function Production() {
           >
             {calculating ? "Calculating..." : "Calculate Requirements"}
           </button>
-        </div>
-      </div>
+      </FormSection>
 
       {calculation && (
-        <div className="card mb-4">
-          <div className="card-body">
-            <div className="mb-3">
-              <h5 className="mb-1">Planned Material Requirements</h5>
-              <div className="text-muted">
-                {calculation.formula.finished_item_name} — {Number(plannedBatchSize).toFixed(3)}{" "}
-                {calculation.formula.batch_unit_code}
-              </div>
-            </div>
+        <FormSection
+          title="Planned Material Requirements"
+          subtitle={`${calculation.formula.finished_item_name} — ${Number(plannedBatchSize).toFixed(3)} ${calculation.formula.batch_unit_code}`}
+          badge="Step 2 · Review"
+        >
+          <SummaryStrip
+            className="mb-3"
+            items={[
+              { label: "Planned Output", value: `${Number(plannedBatchSize).toFixed(3)} ${calculation.formula.batch_unit_code}` },
+              { label: "Components", value: calculation.ingredients.length },
+              { label: "Stock Check", value: calculation.ingredients.every((item) => item.sufficientStock) ? "Ready" : "Shortage", className: calculation.ingredients.every((item) => item.sufficientStock) ? "text-success" : "text-warning" },
+            ]}
+          />
 
             <div className="alert alert-light border">
               This is a planning preview only. Creating the plan does not deduct
@@ -280,7 +283,7 @@ function Production() {
             </div>
 
             <div className="table-responsive mb-3">
-              <table className="table table-bordered align-middle">
+              <table className="table table-bordered align-middle entry-table">
                 <thead className="table-light">
                   <tr>
                     <th>Component</th>
@@ -354,19 +357,14 @@ function Production() {
                 Clear Preview
               </button>
             </div>
-          </div>
-        </div>
+        </FormSection>
       )}
 
-      <div className="card">
-        <div className="card-body">
-          <div className="mb-3">
-            <h5 className="mb-1">Open Production Batches</h5>
-            <div className="text-muted small">
-              Start a planned batch, then enter actual consumption, wastage and
-              production outcome when the work is finished.
-            </div>
-          </div>
+      <FormSection
+        title="Open Production Batches"
+        subtitle="Start a planned batch, then enter actual consumption, wastage and production outcome when the work is finished."
+        badge="Work Queue"
+      >
 
           <div className="table-responsive">
             <table className="table table-bordered table-hover align-middle">
@@ -433,8 +431,7 @@ function Production() {
               </tbody>
             </table>
           </div>
-        </div>
-      </div>
+      </FormSection>
     </div>
   );
 }

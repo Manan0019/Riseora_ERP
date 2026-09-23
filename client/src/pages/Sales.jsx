@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
+import { useUi } from "../context/UiContext";
 
 const createEmptyLine = () => ({
   itemId: "",
@@ -11,6 +12,7 @@ const createEmptyLine = () => ({
 });
 
 function Sales() {
+  const { success: toastSuccess, error: toastError } = useUi();
   const today = new Date().toISOString().slice(0, 10);
 
   const [customers, setCustomers] = useState([]);
@@ -515,9 +517,9 @@ function Sales() {
           }
         );
 
-      setMessage(
-        `Invoice ${response.data.sale.invoiceNo} saved successfully.`
-      );
+      const successMessage = `Invoice ${response.data.sale.invoiceNo} saved successfully.`;
+      setMessage(successMessage);
+      toastSuccess(successMessage, "Sales invoice posted");
 
       setForm({
         invoiceDate: today,
@@ -541,18 +543,17 @@ function Sales() {
     } catch (err) {
       console.error(err);
 
-      setError(
-        err.response?.data?.message ||
-          "Unable to save sales invoice."
-      );
+      const errorMessage = err.response?.data?.message || "Unable to save sales invoice.";
+      setError(errorMessage);
+      toastError(errorMessage, "Invoice not saved");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div>
-      <div className="mb-4">
+    <div className="transaction-page sales-entry-page">
+      <div className="transaction-intro mb-4">
         <h2 className="mb-1">
           Sales Invoice
         </h2>
@@ -574,8 +575,11 @@ function Sales() {
         </div>
       )}
 
-      <div className="card mb-4">
+      <div className="card mb-4 transaction-card">
         <div className="card-body">
+          <div className="transaction-section-heading">
+            <div><span className="transaction-step">01</span><div><h5>Invoice & Customer</h5><p>Choose the customer and establish invoice/tax context.</p></div></div>
+          </div>
           <div className="row">
             <div className="col-md-3 mb-3">
               <label className="form-label">
@@ -687,12 +691,16 @@ function Sales() {
         </div>
       </div>
 
-      <div className="card mb-4">
+      <div className="card mb-4 transaction-card transaction-lines-card">
         <div className="card-body">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="mb-0">
-              Sale Items
-            </h5>
+          <div className="d-flex justify-content-between align-items-center mb-3 transaction-section-heading compact">
+            <div>
+              <span className="transaction-step">02</span>
+              <div>
+                <h5>Sale Items</h5>
+                <p>Finished goods, available stock, pricing, discount and GST.</p>
+              </div>
+            </div>
 
             <button
               type="button"
@@ -704,7 +712,7 @@ function Sales() {
           </div>
 
           <div className="table-responsive">
-            <table className="table table-bordered align-middle">
+            <table className="table table-bordered align-middle entry-table">
               <thead className="table-light">
                 <tr>
                   <th style={{ minWidth: 240 }}>
@@ -1009,8 +1017,9 @@ function Sales() {
 
       <div className="row">
         <div className="col-lg-6">
-          <div className="card mb-4">
+          <div className="card mb-4 transaction-card">
             <div className="card-body">
+              <div className="transaction-mini-title">Notes & Customer Context</div>
               <label className="form-label">
                 Notes
               </label>
@@ -1031,8 +1040,9 @@ function Sales() {
         </div>
 
         <div className="col-lg-6">
-          <div className="card mb-4">
+          <div className="card mb-4 transaction-card totals-card">
             <div className="card-body">
+              <div className="transaction-mini-title">Settlement & Invoice Total</div>
               <div className="row">
                 <div className="col-md-6 mb-3">
                   <label className="form-label">
@@ -1270,16 +1280,21 @@ function Sales() {
         </div>
       </div>
 
-      <button
-        type="button"
-        className="btn btn-success"
-        onClick={handleSave}
-        disabled={saving}
-      >
-        {saving
-          ? "Saving Invoice..."
-          : "Save Sales Invoice"}
-      </button>
+      <div className="transaction-action-bar">
+        <div className="transaction-action-copy">
+          <span>Invoice total</span>
+          <strong>₹{totals.grandTotal.toFixed(2)}</strong>
+          <small>Balance after this receipt: ₹{totals.balance.toFixed(2)}</small>
+        </div>
+        <button
+          type="button"
+          className="btn btn-success btn-lg"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? "Saving Invoice..." : "Post Sales Invoice"}
+        </button>
+      </div>
     </div>
   );
 }

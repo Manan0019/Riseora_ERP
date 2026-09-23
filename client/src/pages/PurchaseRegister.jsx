@@ -5,8 +5,10 @@ import {
 } from "react";
 
 import api from "../api/api";
+import { useUi } from "../context/UiContext";
 
 function PurchaseRegister() {
+  const { confirm: confirmAction, success: toastSuccess, error: toastError } = useUi();
   const [purchases, setPurchases] =
     useState([]);
 
@@ -117,9 +119,14 @@ function PurchaseRegister() {
         return;
       }
 
-      const confirmed = window.confirm(
-        `Cancel ${selectedPurchase.purchase_no}? Stock from this purchase will be reversed.`,
-      );
+      const confirmed = await confirmAction({
+        title: "Cancel purchase?",
+        message: `${selectedPurchase.purchase_no} will be cancelled and its inventory receipt will be reversed.`,
+        detail: "This is only allowed when payment and downstream stock safety checks pass.",
+        confirmLabel: "Cancel Purchase",
+        cancelLabel: "Keep Purchase",
+        variant: "danger",
+      });
 
       if (!confirmed) {
         return;
@@ -129,12 +136,15 @@ function PurchaseRegister() {
         setError("");
 
         await api.patch(`/purchases/${selectedPurchase.id}/cancel`);
+        toastSuccess(`${selectedPurchase.purchase_no} cancelled successfully.`, "Purchase cancelled");
 
         setSelectedPurchase(null);
 
         await loadPurchases();
       } catch (err) {
-        setError(err.response?.data?.message || "Unable to cancel purchase.");
+        const errorMessage = err.response?.data?.message || "Unable to cancel purchase.";
+        setError(errorMessage);
+        toastError(errorMessage, "Purchase cancellation failed");
       }
     };
 

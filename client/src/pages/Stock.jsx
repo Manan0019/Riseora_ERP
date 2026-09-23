@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
+import { useUi } from "../context/UiContext";
 
 function Stock() {
+  const { confirm: confirmAction, success: toastSuccess, error: toastError } = useUi();
   const [stock, setStock] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -107,9 +109,14 @@ function Stock() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Rebuild costing for ${costingPreview.item.code} - ${costingPreview.item.name}?`,
-    );
+    const confirmed = await confirmAction({
+      title: "Apply inventory costing rebuild?",
+      message: `${costingPreview.item.code} - ${costingPreview.item.name} will be recalculated from its stock history.`,
+      detail: "Only continue after reviewing the preview. The operation updates the costing state, not the physical stock ledger.",
+      confirmLabel: "Apply Rebuild",
+      cancelLabel: "Keep Current Cost",
+      variant: "warning",
+    });
 
     if (!confirmed) {
       return;
@@ -123,12 +130,18 @@ function Stock() {
       await api.post(`/stock/item/${costingPreview.item.id}/rebuild-costing`);
 
       setCostingPreview(null);
+      toastSuccess(
+        `${costingPreview.item.code} - ${costingPreview.item.name} costing state was rebuilt.`,
+        "Inventory costing rebuilt",
+      );
 
       await loadStock();
     } catch (err) {
       console.error(err);
 
-      setError(err.response?.data?.message || "Unable to rebuild costing.");
+      const errorMessage = err.response?.data?.message || "Unable to rebuild costing.";
+      setError(errorMessage);
+      toastError(errorMessage, "Cost rebuild failed");
     } finally {
       setRebuildingCosting(false);
     }
