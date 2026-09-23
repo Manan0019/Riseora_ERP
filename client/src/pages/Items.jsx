@@ -12,6 +12,8 @@ const emptyForm = {
   density: "",
   defaultSellingPrice: "0",
   targetMarginPercent: "0",
+  hsnCode: "",
+  defaultGstRate: "0",
   notes: "",
 };
 
@@ -120,6 +122,11 @@ function Items() {
 
       targetMarginPercent:
         String(item.target_margin_percent ?? 0),
+
+      hsnCode: item.hsn_code || "",
+
+      defaultGstRate:
+        String(item.default_gst_rate ?? 0),
 
       notes: item.notes || "",
     });
@@ -245,6 +252,19 @@ function Items() {
     ) {
       setError(
         "Target margin must be between 0 and less than 100 percent."
+      );
+      return;
+    }
+
+    if (
+      !Number.isFinite(
+        Number(form.defaultGstRate || 0)
+      ) ||
+      Number(form.defaultGstRate || 0) < 0 ||
+      Number(form.defaultGstRate || 0) > 100
+    ) {
+      setError(
+        "Default GST rate must be between 0 and 100 percent."
       );
       return;
     }
@@ -705,6 +725,44 @@ function Items() {
                 </div>
               </div>
 
+              <div className="col-md-4 mb-3">
+                <label className="form-label">
+                  HSN Code
+                </label>
+
+                <input
+                  type="text"
+                  className="form-control text-uppercase"
+                  name="hsnCode"
+                  value={form.hsnCode}
+                  onChange={handleChange}
+                  disabled={!editing}
+                  placeholder="e.g. 3305"
+                />
+              </div>
+
+              <div className="col-md-4 mb-3">
+                <label className="form-label">
+                  Default GST %
+                </label>
+
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  className="form-control"
+                  name="defaultGstRate"
+                  value={form.defaultGstRate}
+                  onChange={handleChange}
+                  disabled={!editing}
+                />
+
+                <div className="form-text">
+                  Used as the default GST rate on new sales invoice lines.
+                </div>
+              </div>
+
               <div className="col-md-3 mb-3">
                 <div className="form-check mt-4">
                   <input
@@ -837,6 +895,8 @@ function Items() {
                   <th>Name</th>
                   <th>Category</th>
                   <th>Unit</th>
+                  <th>HSN</th>
+                  <th>GST %</th>
                   <th>Reorder</th>
                   <th>Sale Price</th>
                   <th>Target Margin</th>
@@ -883,6 +943,16 @@ function Items() {
                         {
                           item.unit_code
                         }
+                      </td>
+
+                      <td>
+                        {item.hsn_code || "-"}
+                      </td>
+
+                      <td>
+                        {Number(
+                          item.default_gst_rate || 0
+                        ).toFixed(2)}%
                       </td>
 
                       <td>
@@ -936,7 +1006,7 @@ function Items() {
                   0 && (
                   <tr>
                     <td
-                      colSpan={10}
+                      colSpan={12}
                       className="text-center text-muted"
                     >
                       No items found.

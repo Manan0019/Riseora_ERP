@@ -123,6 +123,24 @@ function SalesRegister() {
     );
   }, [invoices, search]);
 
+  const openInvoicePreview = () => {
+    if (!selectedInvoice) return;
+    window.open(
+      `/sales/${selectedInvoice.id}/invoice-print`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
+
+  const printInvoice = () => {
+    if (!selectedInvoice) return;
+    window.open(
+      `/sales/${selectedInvoice.id}/invoice-print?print=1`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
+
   const handlePaymentChange = (event) => {
     const { name, value } = event.target;
 
@@ -691,8 +709,25 @@ function SalesRegister() {
       {selectedInvoice && (
         <div className="card">
           <div className="card-body">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <div className="d-flex gap-2">
+            <div className="d-flex justify-content-between align-items-center mb-3 gap-3 flex-wrap">
+              <h5 className="mb-0">Invoice Details</h5>
+
+              <div className="d-flex gap-2 flex-wrap">
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={openInvoicePreview}
+                >
+                  Invoice Preview
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={printInvoice}
+                >
+                  Print / Save PDF
+                </button>
                 {selectedInvoice.status !== "CANCELLED" && (
                   <button
                     type="button"

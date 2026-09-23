@@ -14,6 +14,12 @@ export function getCompany() {
         phone,
         email,
         gstin,
+        bank_name,
+        bank_account_name,
+        bank_account_no,
+        bank_ifsc,
+        upi_id,
+        invoice_terms,
         is_active,
         created_at,
         updated_at
@@ -38,9 +44,15 @@ export function saveCompany(data) {
         pincode,
         phone,
         email,
-        gstin
+        gstin,
+        bank_name,
+        bank_account_name,
+        bank_account_no,
+        bank_ifsc,
+        upi_id,
+        invoice_terms
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       data.name,
       data.legalName || null,
@@ -50,7 +62,13 @@ export function saveCompany(data) {
       data.pincode || null,
       data.phone || null,
       data.email || null,
-      data.gstin || null
+      data.gstin || null,
+      data.bankName?.trim() || null,
+      data.bankAccountName?.trim() || null,
+      data.bankAccountNo?.trim() || null,
+      data.bankIfsc?.trim().toUpperCase() || null,
+      data.upiId?.trim() || null,
+      data.invoiceTerms?.trim() || null
     );
 
     return db
@@ -70,6 +88,12 @@ export function saveCompany(data) {
       phone = ?,
       email = ?,
       gstin = ?,
+      bank_name = ?,
+      bank_account_name = ?,
+      bank_account_no = ?,
+      bank_ifsc = ?,
+      upi_id = ?,
+      invoice_terms = ?,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `).run(
@@ -82,6 +106,12 @@ export function saveCompany(data) {
     data.phone || null,
     data.email || null,
     data.gstin || null,
+    data.bankName?.trim() || null,
+    data.bankAccountName?.trim() || null,
+    data.bankAccountNo?.trim() || null,
+    data.bankIfsc?.trim().toUpperCase() || null,
+    data.upiId?.trim() || null,
+    data.invoiceTerms?.trim() || null,
     existing.id
   );
 

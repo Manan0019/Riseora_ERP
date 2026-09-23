@@ -22,6 +22,29 @@ function generateRefundNumber() {
   return `REF-${year}-${String(nextNumber).padStart(5, "0")}`;
 }
 
+
+function normalizeState(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function resolveTaxType(companyState, customerState, requestedTaxType) {
+  if (["INTRA_STATE", "INTER_STATE"].includes(requestedTaxType)) {
+    return requestedTaxType;
+  }
+
+  const sellerState = normalizeState(companyState);
+  const buyerState = normalizeState(customerState);
+
+  if (sellerState && buyerState && sellerState !== buyerState) {
+    return "INTER_STATE";
+  }
+
+  return "INTRA_STATE";
+}
+
 function getBasePaymentStatus(total, paid) {
   if (paid <= EPSILON) return "UNPAID";
   if (paid + EPSILON >= total) return "PAID";
@@ -112,6 +135,13 @@ export function createSale(data) {
       throw new Error("At least one product is required.");
     }
 
+    const customer = db.prepare(`SELECT * FROM customers WHERE id = ?`).get(Number(data.customerId));
+    if (!customer) throw new Error("Please select a valid customer.");
+
+    const company = db.prepare(`SELECT * FROM companies ORDER BY id LIMIT 1`).get() || {};
+    const taxType = resolveTaxType(company.state, customer.state, data.taxType);
+    const placeOfSupply = String(data.placeOfSupply || customer.state || "").trim() || null;
+
     const itemIds = data.items.map((item) => Number(item.itemId));
     const duplicateItemId = itemIds.find(
       (itemId, index) => itemIds.indexOf(itemId) !== index,
@@ -137,7 +167,15 @@ export function createSale(data) {
       if (!Number.isFinite(quantity) || quantity <= 0) throw new Error("Sale quantity must be greater than zero.");
       if (!Number.isFinite(rate) || rate < 0) throw new Error("Sale rate cannot be negative.");
       if (!Number.isFinite(discountAmount) || discountAmount < 0) throw new Error("Discount cannot be negative.");
-      if (!Number.isFinite(gstRate) || gstRate < 0) throw new Error("GST rate cannot be negative.");
+      if (!Number.isFinite(gstRate) || gstRate < 0 || gstRate > 100) throw new Error("GST rate must be between 0 and 100 percent.");
+
+      const masterItem = db.prepare(`
+        SELECT i.*, u.code AS unit_code
+        FROM items i
+        INNER JOIN units u ON u.id = i.base_unit_id
+        WHERE i.id = ?
+      `).get(itemId);
+      if (!masterItem) throw new Error("Selected product was not found.");
 
       const currentStock = Number(getItemStock(itemId));
       if (quantity > currentStock + EPSILON) {
@@ -165,6 +203,10 @@ export function createSale(data) {
         gstAmount: lineGst,
         lineTotal,
         lotNo: item.lotNo || null,
+        itemCode: masterItem.code,
+        itemName: masterItem.name,
+        unitCode: masterItem.unit_code,
+        hsnCode: masterItem.hsn_code || null,
       };
     });
 
@@ -174,10 +216,6 @@ export function createSale(data) {
     if (invoiceDiscount > subtotal + EPSILON) throw new Error("Invoice discount cannot exceed subtotal.");
     if (!Number.isFinite(otherCharges) || otherCharges < 0) throw new Error("Other charges cannot be negative.");
 
-    /*
-     * Invoice-level discount reduces the taxable value.
-     * Recalculate GST proportionally after applying it.
-     */
     gstAmount = 0;
     for (const item of calculatedItems) {
       const invoiceDiscountShare = subtotal > 0
@@ -199,8 +237,18 @@ export function createSale(data) {
       INSERT INTO sales_invoices (
         invoice_no, invoice_date, customer_id, customer_reference,
         subtotal, discount_amount, gst_amount, other_charges, grand_total,
-        amount_paid, payment_status, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        amount_paid, payment_status, notes, place_of_supply, tax_type,
+        seller_name, seller_legal_name, seller_gstin, seller_address,
+        seller_city, seller_state, seller_pincode, seller_phone, seller_email,
+        seller_bank_name, seller_bank_account_name, seller_bank_account_no,
+        seller_bank_ifsc, seller_upi_id, invoice_terms_snapshot,
+        buyer_code, buyer_name, buyer_phone, buyer_email, buyer_gstin,
+        buyer_address, buyer_city, buyer_state, buyer_pincode
+      ) VALUES (
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?, ?
+      )
     `).run(
       invoiceNo,
       data.invoiceDate,
@@ -214,22 +262,60 @@ export function createSale(data) {
       amountPaid,
       paymentStatus,
       data.notes || null,
+      placeOfSupply,
+      taxType,
+      company.name || null,
+      company.legal_name || null,
+      company.gstin || null,
+      company.address || null,
+      company.city || null,
+      company.state || null,
+      company.pincode || null,
+      company.phone || null,
+      company.email || null,
+      company.bank_name || null,
+      company.bank_account_name || null,
+      company.bank_account_no || null,
+      company.bank_ifsc || null,
+      company.upi_id || null,
+      company.invoice_terms || null,
+      customer.code || null,
+      customer.name || null,
+      customer.phone || null,
+      customer.email || null,
+      customer.gstin || null,
+      customer.address || null,
+      customer.city || null,
+      customer.state || null,
+      customer.pincode || null,
     );
 
     const salesInvoiceId = Number(invoiceResult.lastInsertRowid);
     const insertItem = db.prepare(`
       INSERT INTO sales_items (
         sales_invoice_id, item_id, quantity, rate, discount_amount,
-        taxable_amount, gst_rate, gst_amount, line_total, lot_no
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        taxable_amount, gst_rate, gst_amount, line_total, lot_no,
+        item_code_snapshot, item_name_snapshot, unit_code_snapshot, hsn_code_snapshot
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     let totalCogs = 0;
     for (const item of calculatedItems) {
       insertItem.run(
-        salesInvoiceId, item.itemId, item.quantity, item.rate,
-        item.discountAmount, item.taxableAmount, item.gstRate,
-        item.gstAmount, item.lineTotal, item.lotNo,
+        salesInvoiceId,
+        item.itemId,
+        item.quantity,
+        item.rate,
+        item.discountAmount,
+        item.taxableAmount,
+        item.gstRate,
+        item.gstAmount,
+        item.lineTotal,
+        item.lotNo,
+        item.itemCode,
+        item.itemName,
+        item.unitCode,
+        item.hsnCode,
       );
 
       const costResult = removeInventoryValue(item.itemId, item.quantity);
@@ -279,6 +365,8 @@ export function createSale(data) {
       amountPaid,
       balanceAmount: grandTotal - amountPaid,
       paymentStatus,
+      taxType,
+      placeOfSupply,
       totalCogs,
       netSales,
       grossProfit,
@@ -320,10 +408,15 @@ export function getSalesInvoiceById(id) {
   const invoice = db.prepare(`
     SELECT
       si.*,
-      c.code AS customer_code,
-      c.name AS customer_name,
-      c.phone AS customer_phone,
-      c.gstin AS customer_gstin
+      COALESCE(si.buyer_code, c.code) AS customer_code,
+      COALESCE(si.buyer_name, c.name) AS customer_name,
+      COALESCE(si.buyer_phone, c.phone) AS customer_phone,
+      COALESCE(si.buyer_email, c.email) AS customer_email,
+      COALESCE(si.buyer_gstin, c.gstin) AS customer_gstin,
+      COALESCE(si.buyer_address, c.address) AS customer_address,
+      COALESCE(si.buyer_city, c.city) AS customer_city,
+      COALESCE(si.buyer_state, c.state) AS customer_state,
+      COALESCE(si.buyer_pincode, c.pincode) AS customer_pincode
     FROM sales_invoices si
     INNER JOIN customers c ON c.id = si.customer_id
     WHERE si.id = ?
@@ -334,9 +427,10 @@ export function getSalesInvoiceById(id) {
   const items = db.prepare(`
     SELECT
       si.*,
-      i.code AS item_code,
-      i.name AS item_name,
-      u.code AS unit_code,
+      COALESCE(si.item_code_snapshot, i.code) AS item_code,
+      COALESCE(si.item_name_snapshot, i.name) AS item_name,
+      COALESCE(si.unit_code_snapshot, u.code) AS unit_code,
+      COALESCE(si.hsn_code_snapshot, i.hsn_code) AS hsn_code,
       COALESCE((
         SELECT st.unit_cost
         FROM stock_transactions st

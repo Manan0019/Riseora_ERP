@@ -16,6 +16,7 @@ function Sales() {
   const [customers, setCustomers] = useState([]);
   const [items, setItems] = useState([]);
   const [stock, setStock] = useState([]);
+  const [company, setCompany] = useState(null);
 
   const [form, setForm] = useState({
     invoiceDate: today,
@@ -27,6 +28,8 @@ function Sales() {
     paymentMode: "CASH",
     paymentReference: "",
     notes: "",
+    placeOfSupply: "",
+    taxType: "AUTO",
   });
 
   const [lines, setLines] = useState([
@@ -49,10 +52,12 @@ function Sales() {
         customerResponse,
         itemResponse,
         stockResponse,
+        companyResponse,
       ] = await Promise.all([
         api.get("/customers"),
         api.get("/items"),
         api.get("/stock"),
+        api.get("/company"),
       ]);
 
       setCustomers(
@@ -70,6 +75,10 @@ function Sales() {
 
       setStock(
         stockResponse.data.stock || []
+      );
+
+      setCompany(
+        companyResponse.data.company || null
       );
     } catch (err) {
       console.error(err);
@@ -130,10 +139,32 @@ function Sales() {
                     )
                   )
                 : "",
+              gstRate: selectedProduct
+                ? String(
+                    Number(
+                      selectedProduct.default_gst_rate ||
+                        0
+                    )
+                  )
+                : "0",
             }
           : line
       )
     );
+  };
+
+  const handleCustomerChange = (event) => {
+    const value = event.target.value;
+    const selectedCustomer = customers.find(
+      (customer) => customer.id === Number(value)
+    );
+
+    setForm((current) => ({
+      ...current,
+      customerId: value,
+      placeOfSupply: selectedCustomer?.state || "",
+      taxType: "AUTO",
+    }));
   };
 
   const addLine = () => {
@@ -415,6 +446,12 @@ function Sales() {
             customerReference:
               form.customerReference.trim(),
 
+            placeOfSupply:
+              form.placeOfSupply.trim(),
+
+            taxType:
+              form.taxType,
+
             discountAmount:
               Number(
                 form.discountAmount ||
@@ -492,6 +529,8 @@ function Sales() {
         paymentMode: "CASH",
         paymentReference: "",
         notes: "",
+        placeOfSupply: "",
+        taxType: "AUTO",
       });
 
       setLines([
@@ -568,7 +607,7 @@ function Sales() {
                   form.customerId
                 }
                 onChange={
-                  handleFormChange
+                  handleCustomerChange
                 }
               >
                 <option value="">
@@ -611,6 +650,39 @@ function Sales() {
                 }
               />
             </div>
+
+            <div className="col-md-4 mb-3">
+              <label className="form-label">
+                Place of Supply
+              </label>
+
+              <input
+                className="form-control"
+                name="placeOfSupply"
+                value={form.placeOfSupply}
+                onChange={handleFormChange}
+                placeholder="Defaults to customer state"
+              />
+            </div>
+
+            <div className="col-md-4 mb-3">
+              <label className="form-label">
+                GST Type
+              </label>
+
+              <select
+                className="form-select"
+                name="taxType"
+                value={form.taxType}
+                onChange={handleFormChange}
+              >
+                <option value="AUTO">
+                  Auto ({company?.state || "company state"} vs customer state)
+                </option>
+                <option value="INTRA_STATE">CGST + SGST</option>
+                <option value="INTER_STATE">IGST</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -638,6 +710,8 @@ function Sales() {
                   <th style={{ minWidth: 240 }}>
                     Product
                   </th>
+
+                  <th>HSN</th>
 
                   <th>
                     Available
@@ -762,6 +836,10 @@ function Sales() {
                               )
                             )}
                           </select>
+                        </td>
+
+                        <td>
+                          {item?.hsn_code || "-"}
                         </td>
 
                         <td>

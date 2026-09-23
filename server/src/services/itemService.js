@@ -3,6 +3,7 @@ import db from "../db/database.js";
 function normalizePricing(data) {
   const defaultSellingPrice = Number(data.defaultSellingPrice || 0);
   const targetMarginPercent = Number(data.targetMarginPercent || 0);
+  const defaultGstRate = Number(data.defaultGstRate || 0);
 
   if (!Number.isFinite(defaultSellingPrice) || defaultSellingPrice < 0) {
     throw new Error("Default selling price cannot be negative.");
@@ -16,9 +17,14 @@ function normalizePricing(data) {
     throw new Error("Target margin must be between 0 and less than 100 percent.");
   }
 
+  if (!Number.isFinite(defaultGstRate) || defaultGstRate < 0 || defaultGstRate > 100) {
+    throw new Error("Default GST rate must be between 0 and 100 percent.");
+  }
+
   return {
     defaultSellingPrice,
     targetMarginPercent,
+    defaultGstRate,
   };
 }
 
@@ -92,9 +98,11 @@ export function createItem(data) {
         density,
         default_selling_price,
         target_margin_percent,
+        hsn_code,
+        default_gst_rate,
         notes
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     .run(
       code,
@@ -109,6 +117,8 @@ export function createItem(data) {
         : null,
       pricing.defaultSellingPrice,
       pricing.targetMarginPercent,
+      data.hsnCode?.trim().toUpperCase() || null,
+      pricing.defaultGstRate,
       data.notes?.trim() || null
     );
 
@@ -154,6 +164,8 @@ export function updateItem(id, data) {
       density = ?,
       default_selling_price = ?,
       target_margin_percent = ?,
+      hsn_code = ?,
+      default_gst_rate = ?,
       notes = ?,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
@@ -170,6 +182,8 @@ export function updateItem(id, data) {
       : null,
     pricing.defaultSellingPrice,
     pricing.targetMarginPercent,
+    data.hsnCode?.trim().toUpperCase() || null,
+    pricing.defaultGstRate,
     data.notes?.trim() || null,
     id
   );

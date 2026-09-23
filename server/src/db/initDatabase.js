@@ -18,6 +18,7 @@ import { runSalesCreditNoteMigration } from "./migrations/014_sales_credit_notes
 import { runSalesRefundMigration } from "./migrations/015_sales_refunds.js";
 import { runAdvancedProductionMigration } from "./migrations/016_advanced_production.js";
 import { runProductPricingMigration } from "./migrations/017_product_pricing.js";
+import { runProfessionalInvoicingMigration } from "./migrations/018_professional_invoicing.js";
 
 
 export async function initDatabase() {
@@ -38,6 +39,7 @@ export async function initDatabase() {
   runSalesRefundMigration();
   runAdvancedProductionMigration();
   runProductPricingMigration();
+  runProfessionalInvoicingMigration();
 
   seedUnits();
   seedItemCategories();

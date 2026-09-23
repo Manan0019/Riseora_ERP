@@ -11,6 +11,12 @@ const emptyForm = {
   phone: "",
   email: "",
   gstin: "",
+  bankName: "",
+  bankAccountName: "",
+  bankAccountNo: "",
+  bankIfsc: "",
+  upiId: "",
+  invoiceTerms: "",
 };
 
 function Company() {
@@ -43,6 +49,12 @@ function Company() {
           phone: company.phone || "",
           email: company.email || "",
           gstin: company.gstin || "",
+          bankName: company.bank_name || "",
+          bankAccountName: company.bank_account_name || "",
+          bankAccountNo: company.bank_account_no || "",
+          bankIfsc: company.bank_ifsc || "",
+          upiId: company.upi_id || "",
+          invoiceTerms: company.invoice_terms || "",
         });
       }
     } catch {
@@ -244,6 +256,80 @@ function Company() {
                       gstin: e.target.value.toUpperCase(),
                     }))
                   }
+                />
+              </div>
+
+              <div className="col-12 mt-2 mb-2">
+                <h6 className="mb-1">Invoice / Payment Details</h6>
+                <div className="text-muted small">
+                  These details are printed on professional sales invoices.
+                </div>
+              </div>
+
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Bank Name</label>
+                <input
+                  className="form-control"
+                  name="bankName"
+                  value={form.bankName}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="col-md-6 mb-3">
+                <label className="form-label">Account Name</label>
+                <input
+                  className="form-control"
+                  name="bankAccountName"
+                  value={form.bankAccountName}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="col-md-4 mb-3">
+                <label className="form-label">Account Number</label>
+                <input
+                  className="form-control"
+                  name="bankAccountNo"
+                  value={form.bankAccountNo}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="col-md-4 mb-3">
+                <label className="form-label">IFSC</label>
+                <input
+                  className="form-control text-uppercase"
+                  name="bankIfsc"
+                  value={form.bankIfsc}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      bankIfsc: event.target.value.toUpperCase(),
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="col-md-4 mb-3">
+                <label className="form-label">UPI ID</label>
+                <input
+                  className="form-control"
+                  name="upiId"
+                  value={form.upiId}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="col-12 mb-3">
+                <label className="form-label">Invoice Terms / Footer</label>
+                <textarea
+                  className="form-control"
+                  name="invoiceTerms"
+                  rows="3"
+                  value={form.invoiceTerms}
+                  onChange={handleChange}
+                  placeholder="Example: Goods once sold will not be returned without approval."
                 />
               </div>
             </div>

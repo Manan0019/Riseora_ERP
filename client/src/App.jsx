@@ -20,6 +20,7 @@ import ProductionRegister from "./pages/ProductionRegister";
 import ProductionWork from "./pages/ProductionWork";
 import Sales from "./pages/Sales";
 import SalesRegister from "./pages/SalesRegister";
+import SalesInvoicePrint from "./pages/SalesInvoicePrint";
 import CustomerLedger from "./pages/CustomerLedger";
 import SupplierLedger from "./pages/SupplierLedger";
 
@@ -44,6 +45,11 @@ function App() {
         <Route
           path="/login"
           element={user ? <Navigate to="/dashboard" replace /> : <Login />}
+        />
+
+        <Route
+          path="/sales/:id/invoice-print"
+          element={user ? <SalesInvoicePrint /> : <Navigate to="/login" replace />}
         />
 
         <Route
