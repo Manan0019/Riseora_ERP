@@ -6,7 +6,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon src/app.js",
-    "start": "node src/app.js"
+    "start": "node src/app.js",
+    "test:regression": "node scripts/regressionTest.js"
   },
   "keywords": [],
   "author": "",

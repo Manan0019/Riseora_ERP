@@ -6,13 +6,16 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dataDir = path.resolve(__dirname, "../../../data");
+const defaultDataDir = path.resolve(__dirname, "../../../data");
+const configuredDbPath = String(process.env.RISEORA_DB_PATH || "").trim();
+const dbPath = configuredDbPath
+  ? path.resolve(configuredDbPath)
+  : path.join(defaultDataDir, "riseora_erp.db");
+const dataDir = path.dirname(dbPath);
 
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
-
-const dbPath = path.join(dataDir, "riseora_erp.db");
 
 const db = new Database(dbPath);
 
