@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../api/api";
-import riseoraLogo from "../assets/riseora-logo-Horizontal.jpeg";
+import riseoraLogo from "../assets/riseora-logo-Horizontal.png";
 
 function formatValue(value, format) {
   if (format === "currency") {

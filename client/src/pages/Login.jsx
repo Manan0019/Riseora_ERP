@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import riseoraLogoVerti from "../assets/riseora-Logo-Vertical.jpeg";
+import riseoraLogoVerti from "../assets/riseora-Logo-Vertical.png";
 
 function Login() {
   const navigate = useNavigate();

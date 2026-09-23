@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import api from "../api/api";
-import logo from "../assets/riseora-logo-Horizontal.jpeg";
+import logo from "../assets/riseora-logo-Horizontal.png";
 
 const money = (value) =>
   Number(value || 0).toLocaleString("en-IN", {

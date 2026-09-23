@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import AppIcon from "../components/AppIcon";
-import riseoraLogoHori from "../assets/riseora-logo-Horizontal.jpeg";
+import riseoraLogoHori from "../assets/riseora-logo-Horizontal.png";
 
 const navGroups = [
   {
