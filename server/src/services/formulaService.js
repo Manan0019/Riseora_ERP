@@ -1,4 +1,5 @@
 import db from "../db/database.js";
+import { convertQuantityByUnitIds } from "./unitConversionService.js";
 
 function normalizeCode(value) {
   return String(value || "")
@@ -27,6 +28,8 @@ function assertFormulaItems(data) {
         i.id,
         i.code,
         i.name,
+        i.base_unit_id,
+        i.is_active,
         c.code AS category_code
       FROM items i
       INNER JOIN item_categories c
@@ -40,6 +43,10 @@ function assertFormulaItems(data) {
     );
   }
 
+  if (Number(finishedItem.is_active) !== 1) {
+    throw new Error("Inactive finished products cannot be used on a new or revised formula.");
+  }
+
   if (
     finishedItem.category_code !==
     "FG"
@@ -47,6 +54,25 @@ function assertFormulaItems(data) {
     throw new Error(
       "Finished product must belong to the FG category."
     );
+  }
+
+  const batchSize = Number(data.batchSize);
+  const batchUnitId = Number(data.batchUnitId);
+  if (!Number.isFinite(batchSize) || batchSize <= 0) {
+    throw new Error("Formula batch size must be greater than zero.");
+  }
+  const batchUnit = db.prepare(`
+    SELECT id, code, is_active
+    FROM units
+    WHERE id = ?
+  `).get(batchUnitId);
+  if (!batchUnit || Number(batchUnit.is_active) !== 1) {
+    throw new Error("Please select an active batch unit.");
+  }
+  try {
+    convertQuantityByUnitIds(1, batchUnitId, Number(finishedItem.base_unit_id));
+  } catch {
+    throw new Error("Formula batch unit must be compatible with the finished product base unit.");
   }
 
   const seenIngredientIds =
@@ -98,6 +124,8 @@ function assertFormulaItems(data) {
           i.id,
           i.code,
           i.name,
+          i.base_unit_id,
+          i.is_active,
           c.code AS category_code
         FROM items i
         INNER JOIN item_categories c
@@ -113,6 +141,33 @@ function assertFormulaItems(data) {
           index + 1
         }.`
       );
+    }
+
+    if (Number(item.is_active) !== 1) {
+      throw new Error(`${item.name}: inactive items cannot be used on a new or revised formula.`);
+    }
+
+    const componentQuantity = Number(ingredient.quantity);
+    if (!Number.isFinite(componentQuantity) || componentQuantity <= 0) {
+      throw new Error(`${item.name}: component quantity must be greater than zero.`);
+    }
+
+    const componentUnitId = Number(ingredient.unitId);
+    const componentUnit = db.prepare(`SELECT id, is_active FROM units WHERE id = ?`).get(componentUnitId);
+    if (!componentUnit || Number(componentUnit.is_active) !== 1) {
+      throw new Error(`${item.name}: select an active component unit.`);
+    }
+    try {
+      convertQuantityByUnitIds(1, componentUnitId, Number(item.base_unit_id));
+    } catch {
+      throw new Error(`${item.name}: component unit is not compatible with the item's base unit.`);
+    }
+
+    if (ingredient.percentage !== "" && ingredient.percentage != null) {
+      const percentage = Number(ingredient.percentage);
+      if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) {
+        throw new Error(`${item.name}: percentage must be between 0 and 100.`);
+      }
     }
 
     if (

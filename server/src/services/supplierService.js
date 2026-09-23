@@ -1,5 +1,13 @@
 import db from "../db/database.js";
 
+function normalizePaymentTerms(data) {
+  const days = Number(data.paymentTermsDays || 0);
+  if (!Number.isInteger(days) || days < 0) {
+    throw new Error("Payment terms must be a non-negative whole number of days.");
+  }
+  return days;
+}
+
 export function getSuppliers(includeInactive = false) {
   const sql = includeInactive
     ? `
@@ -45,6 +53,8 @@ export function createSupplier(data) {
     );
   }
 
+  const paymentTermsDays = normalizePaymentTerms(data);
+
   const result = db
     .prepare(`
       INSERT INTO suppliers (
@@ -74,7 +84,7 @@ export function createSupplier(data) {
       data.city?.trim() || null,
       data.state?.trim() || null,
       data.pincode?.trim() || null,
-      Number(data.paymentTermsDays || 0),
+      paymentTermsDays,
       data.notes?.trim() || null
     );
 
@@ -99,6 +109,8 @@ export function updateSupplier(id, data) {
       "A supplier with this code already exists."
     );
   }
+
+  const paymentTermsDays = normalizePaymentTerms(data);
 
   db.prepare(`
     UPDATE suppliers
@@ -128,7 +140,7 @@ export function updateSupplier(id, data) {
     data.city?.trim() || null,
     data.state?.trim() || null,
     data.pincode?.trim() || null,
-    Number(data.paymentTermsDays || 0),
+    paymentTermsDays,
     data.notes?.trim() || null,
     id
   );

@@ -85,10 +85,10 @@ export function getReturnableSale(
         si.line_total,
         si.lot_no,
 
-        i.code AS item_code,
-        i.name AS item_name,
+        COALESCE(si.item_code_snapshot, i.code) AS item_code,
+        COALESCE(si.item_name_snapshot, i.name) AS item_name,
 
-        u.code AS unit_code,
+        COALESCE(si.unit_code_snapshot, u.code) AS unit_code,
 
         COALESCE(
           (
@@ -178,6 +178,15 @@ export function createSalesCreditNote(
       }
 
       if (
+        String(data.creditNoteDate) <
+        String(invoice.invoice_date)
+      ) {
+        throw new Error(
+          "Credit note date cannot be earlier than the sales invoice date."
+        );
+      }
+
+      if (
         !data.reason?.trim()
       ) {
         throw new Error(
@@ -196,6 +205,18 @@ export function createSalesCreditNote(
           "At least one returned item is required."
         );
       }
+
+      const originalSubtotal =
+        Number(
+          invoice.subtotal ||
+            0
+        );
+
+      const originalInvoiceDiscount =
+        Number(
+          invoice.discount_amount ||
+            0
+        );
 
       const requestedIds =
         new Set();
@@ -314,8 +335,15 @@ export function createSalesCreditNote(
           ) *
           ratio;
 
+        const invoiceDiscountShare =
+          originalSubtotal > 0
+            ? originalInvoiceDiscount *
+              (Number(originalItem.taxable_amount || 0) / originalSubtotal) *
+              ratio
+            : 0;
+
         const lineTotal =
-          taxableAmount +
+          Math.max(0, taxableAmount - invoiceDiscountShare) +
           lineGst;
 
         const saleCost =
@@ -402,6 +430,8 @@ export function createSalesCreditNote(
           gstAmount:
             lineGst,
 
+          invoiceDiscountShare,
+
           lineTotal,
 
           unitCost:
@@ -422,26 +452,11 @@ export function createSalesCreditNote(
        * discount proportionally to the
        * returned taxable value.
        */
-      const originalSubtotal =
-        Number(
-          invoice.subtotal ||
-            0
-        );
-
-      const originalInvoiceDiscount =
-        Number(
-          invoice.discount_amount ||
-            0
-        );
-
       const creditDiscount =
-        originalSubtotal > 0
-          ? originalInvoiceDiscount *
-            (
-              subtotal /
-              originalSubtotal
-            )
-          : 0;
+        calculatedItems.reduce(
+          (total, item) => total + Number(item.invoiceDiscountShare || 0),
+          0,
+        );
 
       /*
        * Other charges are intentionally

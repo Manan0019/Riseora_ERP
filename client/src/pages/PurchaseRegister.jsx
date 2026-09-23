@@ -179,6 +179,7 @@ function PurchaseRegister() {
                 <tr>
                   <th>Purchase No</th>
                   <th>Date</th>
+                  <th>Due Date</th>
                   <th>Supplier</th>
                   <th>Supplier Invoice</th>
                   <th>Subtotal</th>
@@ -191,7 +192,7 @@ function PurchaseRegister() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="text-center text-muted">
+                    <td colSpan={9} className="text-center text-muted">
                       Loading purchases...
                     </td>
                   </tr>
@@ -213,6 +214,8 @@ function PurchaseRegister() {
                         <td>{purchase.purchase_no}</td>
 
                         <td>{purchase.purchase_date}</td>
+
+                        <td>{purchase.due_date || "-"}</td>
 
                         <td>{purchase.supplier_name}</td>
 
@@ -240,7 +243,7 @@ function PurchaseRegister() {
 
                     {filteredPurchases.length === 0 && (
                       <tr>
-                        <td colSpan={8} className="text-center text-muted">
+                        <td colSpan={9} className="text-center text-muted">
                           No purchases found.
                         </td>
                       </tr>

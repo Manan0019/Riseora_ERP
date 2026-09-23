@@ -65,32 +65,41 @@ export function createStockAdjustment(data) {
     `);
 
    for (const item of data.items) {
-  const itemId =
-    Number(item.itemId);
+  const itemId = Number(item.itemId);
+  const quantity = Number(item.quantity);
+  const enteredUnitCost = Number(item.unitCost || 0);
 
-  const quantity =
-    Number(item.quantity);
-
-  const enteredUnitCost =
-    Number(
-      item.unitCost || 0
-    );
-
-  if (
-    !itemId
-  ) {
-    throw new Error(
-      "Item is required."
-    );
+  if (!Number.isInteger(itemId) || itemId <= 0) {
+    throw new Error("Item is required.");
   }
 
-  if (
-    !Number.isFinite(quantity) ||
-    quantity <= 0
-  ) {
-    throw new Error(
-      "Adjustment quantity must be greater than zero."
-    );
+  const masterItem = db.prepare(`
+    SELECT id, name, is_active, track_lot, track_expiry
+    FROM items
+    WHERE id = ?
+  `).get(itemId);
+
+  if (!masterItem) {
+    throw new Error("Selected item was not found.");
+  }
+  if (Number(masterItem.is_active) !== 1) {
+    throw new Error(`${masterItem.name}: inactive items cannot be adjusted.`);
+  }
+
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    throw new Error("Adjustment quantity must be greater than zero.");
+  }
+
+  const lotNo = String(item.lotNo || "").trim();
+  const expiryDate = String(item.expiryDate || "").trim();
+
+  if (data.adjustmentType === "IN") {
+    if (Number(masterItem.track_lot) === 1 && !lotNo) {
+      throw new Error(`${masterItem.name}: lot/batch number is required for stock adjustment IN.`);
+    }
+    if (Number(masterItem.track_expiry) === 1 && !expiryDate) {
+      throw new Error(`${masterItem.name}: expiry date is required for stock adjustment IN.`);
+    }
   }
 
   let transactionUnitCost = 0;
@@ -168,9 +177,9 @@ export function createStockAdjustment(data) {
     itemId,
     quantity,
     transactionUnitCost,
-    item.lotNo ||
+    lotNo ||
       null,
-    item.expiryDate ||
+    expiryDate ||
       null
   );
 
@@ -211,11 +220,11 @@ export function createStockAdjustment(data) {
       transactionUnitCost,
 
     lotNo:
-      item.lotNo ||
+      lotNo ||
       null,
 
     expiryDate:
-      item.expiryDate ||
+      expiryDate ||
       null,
 
     notes:

@@ -22,6 +22,7 @@ import customerLedgerRoutes from "./routes/customerLedgerRoutes.js";
 import supplierLedgerRoutes from "./routes/supplierLedgerRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
+import openingBalanceRoutes from "./routes/openingBalanceRoutes.js";
 
 import { requireAuth, requireAdmin } from "./middleware/authMiddleware.js";
 import { runStartupBackup } from "./services/startupBackupService.js";
@@ -97,6 +98,7 @@ app.use("/api/customer-ledger", ...adminOnly, customerLedgerRoutes);
 app.use("/api/supplier-ledger", ...adminOnly, supplierLedgerRoutes);
 app.use("/api/dashboard", ...adminOnly, dashboardRoutes);
 app.use("/api/reports", ...adminOnly, reportRoutes);
+app.use("/api/opening-balances", ...adminOnly, openingBalanceRoutes);
 app.use("/api/backups", ...adminOnly, backupRoutes);
 
 app.use((err, req, res, next) => {

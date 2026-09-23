@@ -58,6 +58,7 @@ const columns = {
   salesRegister: [
     { key: "invoice_no", label: "Invoice", format: "text" },
     { key: "invoice_date", label: "Date", format: "date" },
+    { key: "due_date", label: "Due Date", format: "date" },
     { key: "customer_name", label: "Customer", format: "text" },
     { key: "grand_total", label: "Invoice Total", format: "currency" },
     { key: "credited_amount", label: "Credit Notes", format: "currency" },
@@ -79,6 +80,7 @@ const columns = {
   purchaseRegister: [
     { key: "purchase_no", label: "Purchase", format: "text" },
     { key: "purchase_date", label: "Date", format: "date" },
+    { key: "due_date", label: "Due Date", format: "date" },
     { key: "supplier_name", label: "Supplier", format: "text" },
     { key: "supplier_invoice_no", label: "Supplier Invoice", format: "text" },
     { key: "subtotal", label: "Taxable", format: "currency" },
@@ -143,6 +145,7 @@ const columns = {
     { key: "customer_code", label: "Code", format: "text" },
     { key: "customer_name", label: "Customer", format: "text" },
     { key: "customer_type", label: "Type", format: "text" },
+    { key: "opening_balance", label: "Opening Balance", format: "currency" },
     { key: "total_sales", label: "Net Sales", format: "currency" },
     { key: "total_paid", label: "Net Paid", format: "currency" },
     { key: "total_credits", label: "Credit Notes", format: "currency" },
@@ -161,6 +164,7 @@ const columns = {
   supplierOutstanding: [
     { key: "supplier_code", label: "Code", format: "text" },
     { key: "supplier_name", label: "Supplier", format: "text" },
+    { key: "opening_balance", label: "Opening Balance", format: "currency" },
     { key: "total_purchases", label: "Purchases", format: "currency" },
     { key: "total_paid", label: "Paid", format: "currency" },
     { key: "outstanding", label: "Outstanding", format: "currency" },
@@ -238,6 +242,7 @@ function salesRegister(filters) {
       si.id,
       si.invoice_no,
       si.invoice_date,
+      si.due_date,
       COALESCE(si.buyer_name, c.name) AS customer_name,
       si.grand_total,
       COALESCE((
@@ -604,6 +609,7 @@ function customerOutstandingReport() {
     columns.customerOutstanding,
     rows,
     [
+      { label: "Opening Balance", value: rows.reduce((t, r) => t + num(r.opening_balance), 0), format: "currency" },
       { label: "Net Sales", value: rows.reduce((t, r) => t + num(r.total_sales), 0), format: "currency" },
       { label: "Net Paid", value: rows.reduce((t, r) => t + num(r.total_paid), 0), format: "currency" },
       { label: "Outstanding", value: rows.reduce((t, r) => t + num(r.outstanding), 0), format: "currency" },
@@ -622,16 +628,26 @@ function customerLedgerReport(filters) {
     if (toDate && row.transactionDate > toDate) return false;
     return true;
   });
+  const priorRows = fromDate
+    ? data.ledger.filter((row) => row.transactionDate < fromDate)
+    : [];
+  const openingAtFromDate = priorRows.length
+    ? num(priorRows[priorRows.length - 1].balance)
+    : 0;
+  const closingBalance = rows.length
+    ? num(rows[rows.length - 1].balance)
+    : openingAtFromDate;
   return reportBase(
     "customer-ledger",
     `Customer Ledger — ${data.customer.code} - ${data.customer.name}`,
-    "Invoice, payment, credit-note and refund ledger.",
+    "Opening balance, invoices, payments, credit notes and refunds.",
     columns.customerLedger,
     rows,
     [
-      { label: "Net Sales", value: data.summary.netSales, format: "currency" },
-      { label: "Net Paid", value: data.summary.netPaid, format: "currency" },
-      { label: "Outstanding", value: data.summary.outstanding, format: "currency" },
+      { label: "Opening at From Date", value: openingAtFromDate, format: "currency" },
+      { label: "Period Debit", value: rows.reduce((t, r) => t + num(r.debit), 0), format: "currency" },
+      { label: "Period Credit", value: rows.reduce((t, r) => t + num(r.credit), 0), format: "currency" },
+      { label: "Closing Balance", value: closingBalance, format: "currency" },
     ],
   );
 }
@@ -645,6 +661,7 @@ function supplierOutstandingReport() {
     columns.supplierOutstanding,
     rows,
     [
+      { label: "Opening Balance", value: rows.reduce((t, r) => t + num(r.opening_balance), 0), format: "currency" },
       { label: "Purchases", value: rows.reduce((t, r) => t + num(r.total_purchases), 0), format: "currency" },
       { label: "Paid", value: rows.reduce((t, r) => t + num(r.total_paid), 0), format: "currency" },
       { label: "Outstanding", value: rows.reduce((t, r) => t + num(r.outstanding), 0), format: "currency" },
@@ -663,16 +680,26 @@ function supplierLedgerReport(filters) {
     if (toDate && row.transactionDate > toDate) return false;
     return true;
   });
+  const priorRows = fromDate
+    ? data.ledger.filter((row) => row.transactionDate < fromDate)
+    : [];
+  const openingAtFromDate = priorRows.length
+    ? num(priorRows[priorRows.length - 1].balance)
+    : 0;
+  const closingBalance = rows.length
+    ? num(rows[rows.length - 1].balance)
+    : openingAtFromDate;
   return reportBase(
     "supplier-ledger",
     `Supplier Ledger — ${data.supplier.code} - ${data.supplier.name}`,
-    "Purchase and payment ledger.",
+    "Opening balance, purchases and supplier payments.",
     columns.supplierLedger,
     rows,
     [
-      { label: "Purchases", value: data.summary.totalPurchases, format: "currency" },
-      { label: "Paid", value: data.summary.totalPaid, format: "currency" },
-      { label: "Outstanding", value: data.summary.outstanding, format: "currency" },
+      { label: "Opening at From Date", value: openingAtFromDate, format: "currency" },
+      { label: "Period Debit", value: rows.reduce((t, r) => t + num(r.debit), 0), format: "currency" },
+      { label: "Period Credit", value: rows.reduce((t, r) => t + num(r.credit), 0), format: "currency" },
+      { label: "Closing Balance", value: closingBalance, format: "currency" },
     ],
   );
 }

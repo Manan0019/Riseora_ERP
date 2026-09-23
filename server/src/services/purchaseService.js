@@ -9,6 +9,15 @@ import {
   reverseInventoryReceipt,
 } from "./costService.js";
 
+function addDaysToDate(dateText, days) {
+  const date = new Date(`${dateText}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("A valid purchase date is required.");
+  }
+  date.setUTCDate(date.getUTCDate() + Number(days || 0));
+  return date.toISOString().slice(0, 10);
+}
+
 function generatePurchaseNumber() {
   const year =
     new Date().getFullYear();
@@ -32,6 +41,37 @@ function generatePurchaseNumber() {
 export function createPurchase(data) {
   const transaction =
     db.transaction(() => {
+      if (!Array.isArray(data.items) || data.items.length === 0) {
+        throw new Error("At least one purchase item is required.");
+      }
+
+      const supplier = db.prepare(`
+        SELECT id, code, name, is_active, payment_terms_days
+        FROM suppliers
+        WHERE id = ?
+      `).get(Number(data.supplierId));
+
+      if (!supplier) throw new Error("Please select a valid supplier.");
+      if (Number(supplier.is_active) !== 1) {
+        throw new Error("Inactive suppliers cannot be used on a new purchase.");
+      }
+
+      const supplierInvoiceNo = String(data.supplierInvoiceNo || "").trim();
+      if (supplierInvoiceNo) {
+        const duplicateInvoice = db.prepare(`
+          SELECT purchase_no
+          FROM purchases
+          WHERE supplier_id = ?
+            AND status = 'POSTED'
+            AND UPPER(TRIM(COALESCE(supplier_invoice_no, ''))) = UPPER(?)
+          LIMIT 1
+        `).get(Number(data.supplierId), supplierInvoiceNo);
+
+        if (duplicateInvoice) {
+          throw new Error(`Supplier invoice ${supplierInvoiceNo} is already recorded as ${duplicateInvoice.purchase_no}.`);
+        }
+      }
+
       const purchaseNo =
         generatePurchaseNumber();
 
@@ -39,7 +79,7 @@ export function createPurchase(data) {
       let gstAmount = 0;
 
       const calculatedItems =
-        data.items.map((item) => {
+        data.items.map((item, index) => {
           const quantity =
             Number(
               item.quantity
@@ -55,20 +95,45 @@ export function createPurchase(data) {
               item.gstRate || 0
             );
 
-          if (
-            quantity <= 0
-          ) {
-            throw new Error(
-              "Purchase quantity must be greater than zero."
-            );
+          const itemId = Number(item.itemId);
+          if (!Number.isInteger(itemId) || itemId <= 0) {
+            throw new Error(`Please select a valid item in row ${index + 1}.`);
           }
 
-          if (
-            rate < 0
-          ) {
-            throw new Error(
-              "Purchase rate cannot be negative."
-            );
+          if (!Number.isFinite(quantity) || quantity <= 0) {
+            throw new Error(`Purchase quantity must be greater than zero in row ${index + 1}.`);
+          }
+
+          if (!Number.isFinite(rate) || rate < 0) {
+            throw new Error(`Purchase rate cannot be negative in row ${index + 1}.`);
+          }
+
+          if (!Number.isFinite(gstRate) || gstRate < 0 || gstRate > 100) {
+            throw new Error(`GST rate must be between 0 and 100 percent in row ${index + 1}.`);
+          }
+
+          const masterItem = db.prepare(`
+            SELECT id, code, name, is_active, track_lot, track_expiry
+            FROM items
+            WHERE id = ?
+          `).get(itemId);
+
+          if (!masterItem) throw new Error(`Item not found in row ${index + 1}.`);
+          if (Number(masterItem.is_active) !== 1) {
+            throw new Error(`${masterItem.name}: inactive items cannot be purchased.`);
+          }
+
+          const lotNo = String(item.lotNo || "").trim();
+          const expiryDate = String(item.expiryDate || "").trim();
+          const mfgDate = String(item.mfgDate || "").trim();
+          if (Number(masterItem.track_lot) === 1 && !lotNo) {
+            throw new Error(`${masterItem.name}: lot/batch number is required.`);
+          }
+          if (Number(masterItem.track_expiry) === 1 && !expiryDate) {
+            throw new Error(`${masterItem.name}: expiry date is required.`);
+          }
+          if (mfgDate && expiryDate && expiryDate < mfgDate) {
+            throw new Error(`${masterItem.name}: expiry date cannot be earlier than manufacturing date.`);
           }
 
           const taxableAmount =
@@ -91,10 +156,7 @@ export function createPurchase(data) {
           return {
             ...item,
 
-            itemId:
-              Number(
-                item.itemId
-              ),
+            itemId,
 
             quantity,
             rate,
@@ -107,15 +169,15 @@ export function createPurchase(data) {
             lineTotal,
 
             lotNo:
-              item.lotNo ||
+              lotNo ||
               null,
 
             mfgDate:
-              item.mfgDate ||
+              mfgDate ||
               null,
 
             expiryDate:
-              item.expiryDate ||
+              expiryDate ||
               null,
           };
         });
@@ -182,7 +244,7 @@ export function createPurchase(data) {
           Number(
             data.supplierId
           ),
-          data.supplierInvoiceNo ||
+          supplierInvoiceNo ||
             null,
           data.supplierInvoiceDate ||
             null,
@@ -199,6 +261,14 @@ export function createPurchase(data) {
           purchaseResult
             .lastInsertRowid
         );
+
+      const paymentTermsDaysSnapshot = Number(supplier.payment_terms_days || 0);
+      const dueDate = addDaysToDate(data.purchaseDate, paymentTermsDaysSnapshot);
+      db.prepare(`
+        UPDATE purchases
+        SET payment_terms_days_snapshot = ?, due_date = ?
+        WHERE id = ?
+      `).run(paymentTermsDaysSnapshot, dueDate, purchaseId);
 
       const insertItem =
         db.prepare(`
@@ -300,6 +370,8 @@ export function createPurchase(data) {
         freightAmount,
         otherCharges,
         grandTotal,
+        paymentTermsDaysSnapshot,
+        dueDate,
       };
     });
 
@@ -312,6 +384,8 @@ export function getPurchases() {
       p.id,
       p.purchase_no,
       p.purchase_date,
+      p.due_date,
+      p.payment_terms_days_snapshot,
       p.supplier_invoice_no,
       p.supplier_invoice_date,
 

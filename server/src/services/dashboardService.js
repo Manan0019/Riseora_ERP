@@ -1,4 +1,6 @@
 import db from "../db/database.js";
+import { getCustomerOutstanding } from "./customerLedgerService.js";
+import { getSupplierOutstanding } from "./supplierLedgerService.js";
 
 export function getDashboardSummary() {
   const grossSales = Number(db.prepare(`
@@ -14,33 +16,18 @@ export function getDashboardSummary() {
     WHERE scn.status = 'POSTED' AND si.status = 'POSTED'
   `).get()?.total || 0);
 
-  const totalPayments = Number(db.prepare(`
-    SELECT COALESCE(SUM(sp.amount), 0) AS total
-    FROM sales_payments sp
-    INNER JOIN sales_invoices si ON si.id = sp.sales_invoice_id
-    WHERE sp.status = 'POSTED' AND si.status = 'POSTED'
-  `).get()?.total || 0);
-
-  const totalRefunds = Number(db.prepare(`
-    SELECT COALESCE(SUM(sr.amount), 0) AS total
-    FROM sales_refunds sr
-    INNER JOIN sales_invoices si ON si.id = sr.sales_invoice_id
-    WHERE sr.status = 'POSTED' AND si.status = 'POSTED'
-  `).get()?.total || 0);
-
   const purchases = db.prepare(`
     SELECT COALESCE(SUM(CASE WHEN status = 'POSTED' THEN grand_total ELSE 0 END), 0) AS total
     FROM purchases
   `).get();
 
-  const supplierOutstanding = db.prepare(`
-    SELECT COALESCE(SUM(CASE WHEN status = 'POSTED' THEN grand_total - amount_paid ELSE 0 END), 0) AS outstanding
-    FROM purchases
-  `).get();
+  const customerOutstanding = getCustomerOutstanding()
+    .reduce((total, row) => total + Number(row.outstanding || 0), 0);
+
+  const supplierOutstanding = getSupplierOutstanding()
+    .reduce((total, row) => total + Number(row.outstanding || 0), 0);
 
   const netSales = grossSales - salesCredits;
-  const netReceived = totalPayments - totalRefunds;
-  const customerOutstanding = netSales - netReceived;
 
   const stockRows = db.prepare(`
     SELECT
@@ -92,7 +79,7 @@ export function getDashboardSummary() {
     totalSales: netSales,
     totalPurchases: Number(purchases?.total || 0),
     customerOutstanding,
-    supplierOutstanding: Number(supplierOutstanding?.outstanding || 0),
+    supplierOutstanding,
     stockItemCount: stockRows.length,
     lowStockCount: lowStockItems.length,
     lowStockItems,

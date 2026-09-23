@@ -1,4 +1,5 @@
 import db from "../db/database.js";
+import { getCustomerOpeningBalance } from "./openingBalanceService.js";
 
 function getCustomerFinancialTotals(customerId = null) {
   const customerFilter = customerId == null ? "" : "AND si.customer_id = ?";
@@ -37,7 +38,23 @@ function getCustomerFinancialTotals(customerId = null) {
   const totalRefunds = Number(refunds?.total || 0);
   const netSales = totalSales - totalCredits;
   const netPaid = totalPayments - totalRefunds;
-  const outstanding = netSales - netPaid;
+
+  let openingBalance = 0;
+  let openingOriginal = 0;
+  let openingSettled = 0;
+  let openingBalanceType = null;
+  let openingRemainingType = "SETTLED";
+
+  if (customerId != null) {
+    const opening = getCustomerOpeningBalance(Number(customerId), { includeSettlements: true });
+    openingBalance = Number(opening?.remaining_signed || 0);
+    openingOriginal = Number(opening?.signed_opening || 0);
+    openingSettled = Number(opening?.settled_amount || 0);
+    openingBalanceType = opening?.balance_type || null;
+    openingRemainingType = opening?.remaining_type || "SETTLED";
+  }
+
+  const outstanding = openingBalance + netSales - netPaid;
 
   return {
     totalSales,
@@ -46,6 +63,11 @@ function getCustomerFinancialTotals(customerId = null) {
     totalRefunds,
     netSales,
     netPaid,
+    openingBalance,
+    openingOriginal,
+    openingSettled,
+    openingBalanceType,
+    openingRemainingType,
     outstanding,
   };
 }
@@ -57,16 +79,21 @@ export function getCustomerOutstanding() {
       c.code AS customer_code,
       c.name AS customer_name,
       c.phone,
-      c.customer_type
+      c.customer_type,
+      c.is_active
     FROM customers c
-    WHERE c.is_active = 1
-    ORDER BY c.name
+    ORDER BY c.is_active DESC, c.name
   `).all();
 
   return customers.map((customer) => {
     const totals = getCustomerFinancialTotals(customer.customer_id);
     return {
       ...customer,
+      opening_balance: totals.openingBalance,
+      opening_original: totals.openingOriginal,
+      opening_settled: totals.openingSettled,
+      opening_balance_type: totals.openingBalanceType,
+      opening_remaining_type: totals.openingRemainingType,
       total_sales: totals.netSales,
       total_paid: totals.netPaid,
       total_credits: totals.totalCredits,
@@ -80,18 +107,22 @@ export function getCustomerLedger(customerId) {
   const customer = db.prepare(`
     SELECT
       id, code, name, phone, email, gstin,
-      customer_type, credit_days, credit_limit
+      customer_type, credit_days, credit_limit, is_active
     FROM customers
     WHERE id = ?
   `).get(Number(customerId));
 
   if (!customer) return null;
 
+  const openingBalance = getCustomerOpeningBalance(customer.id, { includeSettlements: true });
+
   const invoices = db.prepare(`
     SELECT
       si.id,
       si.invoice_no,
       si.invoice_date,
+      si.due_date,
+      si.credit_days_snapshot,
       si.grand_total,
       si.amount_paid,
       si.payment_status,
@@ -160,12 +191,43 @@ export function getCustomerLedger(customerId) {
 
   const transactions = [];
 
+  if (openingBalance && Number(openingBalance.amount || 0) > 0) {
+    const openingIsDebit = openingBalance.balance_type === "DEBIT";
+    transactions.push({
+      id: `OPEN-${openingBalance.id}`,
+      transactionDate: openingBalance.opening_date,
+      sortOrder: 0,
+      transactionType: "OPENING_BALANCE",
+      referenceNo: "OPENING",
+      debit: openingIsDebit ? Number(openingBalance.amount || 0) : 0,
+      credit: openingIsDebit ? 0 : Number(openingBalance.amount || 0),
+      notes: openingBalance.notes || null,
+    });
+
+    for (const settlement of openingBalance.settlements || []) {
+      if (settlement.status !== "POSTED") continue;
+      const isReceipt = settlement.settlement_type === "RECEIPT";
+      transactions.push({
+        id: `OPENSET-${settlement.id}`,
+        transactionDate: settlement.settlement_date,
+        sortOrder: 1,
+        transactionType: isReceipt ? "OPENING_RECEIPT" : "OPENING_REFUND",
+        referenceNo: settlement.reference_no || "OPENING",
+        debit: isReceipt ? 0 : Number(settlement.amount || 0),
+        credit: isReceipt ? Number(settlement.amount || 0) : 0,
+        paymentMode: settlement.payment_mode,
+        paymentReference: settlement.reference_no,
+        notes: settlement.notes || null,
+      });
+    }
+  }
+
   for (const invoice of invoices) {
     if (invoice.status !== "POSTED") continue;
     transactions.push({
       id: `INV-${invoice.id}`,
       transactionDate: invoice.invoice_date,
-      sortOrder: 1,
+      sortOrder: 2,
       transactionType: "INVOICE",
       referenceNo: invoice.invoice_no,
       debit: Number(invoice.grand_total || 0),
@@ -179,7 +241,7 @@ export function getCustomerLedger(customerId) {
     transactions.push({
       id: `PAY-${payment.id}`,
       transactionDate: payment.payment_date,
-      sortOrder: 2,
+      sortOrder: 3,
       transactionType: "PAYMENT",
       referenceNo: payment.invoice_no,
       debit: 0,
@@ -195,7 +257,7 @@ export function getCustomerLedger(customerId) {
     transactions.push({
       id: `CN-${creditNote.id}`,
       transactionDate: creditNote.credit_note_date,
-      sortOrder: 3,
+      sortOrder: 4,
       transactionType: "CREDIT_NOTE",
       referenceNo: creditNote.credit_note_no,
       debit: 0,
@@ -209,7 +271,7 @@ export function getCustomerLedger(customerId) {
     transactions.push({
       id: `REF-${refund.id}`,
       transactionDate: refund.refund_date,
-      sortOrder: 4,
+      sortOrder: 5,
       transactionType: "REFUND",
       referenceNo: refund.refund_no,
       debit: Number(refund.amount || 0),
@@ -238,6 +300,7 @@ export function getCustomerLedger(customerId) {
 
   return {
     customer,
+    openingBalance,
     summary: totals,
     invoices,
     payments,

@@ -253,6 +253,7 @@ function SalesInvoicePrint() {
           <div className="invoice-box invoice-document-meta">
             <div><span>Invoice No.</span><strong>{invoice.invoice_no}</strong></div>
             <div><span>Invoice Date</span><strong>{formatDate(invoice.invoice_date)}</strong></div>
+            <div><span>Due Date</span><strong>{formatDate(invoice.due_date || invoice.invoice_date)}</strong></div>
             <div><span>Place of Supply</span><strong>{invoice.place_of_supply || buyer.state || "-"}</strong></div>
             <div><span>Tax Type</span><strong>{taxType === "INTER_STATE" ? "IGST" : "CGST + SGST"}</strong></div>
             <div><span>Customer Ref.</span><strong>{invoice.customer_reference || "-"}</strong></div>

@@ -19,6 +19,8 @@ import { runSalesRefundMigration } from "./migrations/015_sales_refunds.js";
 import { runAdvancedProductionMigration } from "./migrations/016_advanced_production.js";
 import { runProductPricingMigration } from "./migrations/017_product_pricing.js";
 import { runProfessionalInvoicingMigration } from "./migrations/018_professional_invoicing.js";
+import { runOpeningPartyBalanceMigration } from "./migrations/019_opening_party_balances.js";
+import { runCreditTermsDueDateMigration } from "./migrations/020_credit_terms_due_dates.js";
 
 
 export async function initDatabase() {
@@ -40,6 +42,8 @@ export async function initDatabase() {
   runAdvancedProductionMigration();
   runProductPricingMigration();
   runProfessionalInvoicingMigration();
+  runOpeningPartyBalanceMigration();
+  runCreditTermsDueDateMigration();
 
   seedUnits();
   seedItemCategories();

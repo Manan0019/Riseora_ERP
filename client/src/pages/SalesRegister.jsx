@@ -597,6 +597,8 @@ function SalesRegister() {
 
                   <th>Date</th>
 
+                  <th>Due Date</th>
+
                   <th>Customer</th>
 
                   <th>Effective Total</th>
@@ -614,7 +616,7 @@ function SalesRegister() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="text-center text-muted">
+                    <td colSpan={9} className="text-center text-muted">
                       Loading invoices...
                     </td>
                   </tr>
@@ -642,6 +644,8 @@ function SalesRegister() {
                           <td>{invoice.invoice_no}</td>
 
                           <td>{invoice.invoice_date}</td>
+
+                          <td>{invoice.due_date || "-"}</td>
 
                           <td>{invoice.customer_name}</td>
 
@@ -692,7 +696,7 @@ function SalesRegister() {
 
                     {filteredInvoices.length === 0 && (
                       <tr>
-                        <td colSpan={8} className="text-center text-muted">
+                        <td colSpan={9} className="text-center text-muted">
                           No sales invoices found.
                         </td>
                       </tr>
@@ -956,7 +960,7 @@ function SalesRegister() {
                           </td>
 
                           <td>
-                            ₹{Number(item.taxable_amount || 0).toFixed(2)}
+                            ₹{Number(item.net_sales_amount ?? item.taxable_amount ?? 0).toFixed(2)}
                           </td>
 
                           <td>

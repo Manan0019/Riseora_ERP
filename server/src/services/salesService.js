@@ -1,8 +1,19 @@
 import db from "../db/database.js";
 import { addStockTransaction, getItemStock } from "./stockService.js";
 import { addInventoryValue, removeInventoryValue } from "./costService.js";
+import { getCustomerOutstanding } from "./customerLedgerService.js";
 
 const EPSILON = 0.000001;
+
+
+function addDaysToDate(dateText, days) {
+  const date = new Date(`${dateText}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("A valid invoice date is required.");
+  }
+  date.setUTCDate(date.getUTCDate() + Number(days || 0));
+  return date.toISOString().slice(0, 10);
+}
 
 function generateInvoiceNumber() {
   const year = new Date().getFullYear();
@@ -137,6 +148,9 @@ export function createSale(data) {
 
     const customer = db.prepare(`SELECT * FROM customers WHERE id = ?`).get(Number(data.customerId));
     if (!customer) throw new Error("Please select a valid customer.");
+    if (Number(customer.is_active) !== 1) {
+      throw new Error("Inactive customers cannot be used on a new sales invoice.");
+    }
 
     const company = db.prepare(`SELECT * FROM companies ORDER BY id LIMIT 1`).get() || {};
     const taxType = resolveTaxType(company.state, customer.state, data.taxType);
@@ -170,12 +184,19 @@ export function createSale(data) {
       if (!Number.isFinite(gstRate) || gstRate < 0 || gstRate > 100) throw new Error("GST rate must be between 0 and 100 percent.");
 
       const masterItem = db.prepare(`
-        SELECT i.*, u.code AS unit_code
+        SELECT i.*, u.code AS unit_code, c.code AS category_code
         FROM items i
         INNER JOIN units u ON u.id = i.base_unit_id
+        INNER JOIN item_categories c ON c.id = i.category_id
         WHERE i.id = ?
       `).get(itemId);
       if (!masterItem) throw new Error("Selected product was not found.");
+      if (Number(masterItem.is_active) !== 1) {
+        throw new Error(`${masterItem.name}: inactive items cannot be sold on a new invoice.`);
+      }
+      if (masterItem.category_code !== "FG") {
+        throw new Error(`${masterItem.name}: only Finished Goods (FG) can be sold through Sales Invoice.`);
+      }
 
       const currentStock = Number(getItemStock(itemId));
       if (quantity > currentStock + EPSILON) {
@@ -231,6 +252,23 @@ export function createSale(data) {
     const amountPaid = Number(data.amountPaid || 0);
     if (!Number.isFinite(amountPaid) || amountPaid < 0) throw new Error("Amount paid cannot be negative.");
     if (amountPaid > grandTotal + EPSILON) throw new Error("Amount paid cannot exceed invoice total.");
+
+    const creditDaysSnapshot = Number(customer.credit_days || 0);
+    const dueDate = addDaysToDate(data.invoiceDate, creditDaysSnapshot);
+    const invoiceCreditExposure = Math.max(0, grandTotal - amountPaid);
+    const creditLimit = Number(customer.credit_limit || 0);
+    if (creditLimit > EPSILON && invoiceCreditExposure > EPSILON) {
+      const currentRow = getCustomerOutstanding().find(
+        (row) => Number(row.customer_id) === Number(customer.id),
+      );
+      const currentOutstanding = Number(currentRow?.outstanding || 0);
+      const projectedOutstanding = currentOutstanding + invoiceCreditExposure;
+      if (projectedOutstanding > creditLimit + EPSILON) {
+        throw new Error(
+          `Customer credit limit would be exceeded. Current balance: ₹${currentOutstanding.toFixed(2)}, this invoice credit: ₹${invoiceCreditExposure.toFixed(2)}, limit: ₹${creditLimit.toFixed(2)}.`,
+        );
+      }
+    }
 
     const paymentStatus = getBasePaymentStatus(grandTotal, amountPaid);
     const invoiceResult = db.prepare(`
@@ -291,6 +329,13 @@ export function createSale(data) {
     );
 
     const salesInvoiceId = Number(invoiceResult.lastInsertRowid);
+
+    db.prepare(`
+      UPDATE sales_invoices
+      SET credit_days_snapshot = ?, due_date = ?
+      WHERE id = ?
+    `).run(creditDaysSnapshot, dueDate, salesInvoiceId);
+
     const insertItem = db.prepare(`
       INSERT INTO sales_items (
         sales_invoice_id, item_id, quantity, rate, discount_amount,
@@ -371,6 +416,8 @@ export function createSale(data) {
       netSales,
       grossProfit,
       grossMarginPercent,
+      creditDaysSnapshot,
+      dueDate,
     };
   });
 
@@ -380,7 +427,7 @@ export function createSale(data) {
 export function getSalesInvoices() {
   const invoices = db.prepare(`
     SELECT
-      si.id, si.invoice_no, si.invoice_date, si.subtotal,
+      si.id, si.invoice_no, si.invoice_date, si.due_date, si.credit_days_snapshot, si.subtotal,
       si.discount_amount, si.gst_amount, si.other_charges, si.grand_total,
       si.amount_paid, si.payment_status, si.status, si.customer_reference,
       c.code AS customer_code, c.name AS customer_name
@@ -450,15 +497,21 @@ export function getSalesInvoiceById(id) {
   const itemsWithCogs = items.map((item) => {
     const quantity = Number(item.quantity || 0);
     const taxableAmount = Number(item.taxable_amount || 0);
+    const invoiceDiscountShare = Number(invoice.subtotal || 0) > EPSILON
+      ? Number(invoice.discount_amount || 0) * (taxableAmount / Number(invoice.subtotal || 0))
+      : 0;
+    const netSalesAmount = Math.max(0, taxableAmount - invoiceDiscountShare);
     const cogsUnitCost = Number(item.cogs_unit_cost || 0);
     const cogsAmount = quantity * cogsUnitCost;
-    const grossProfit = taxableAmount - cogsAmount;
+    const grossProfit = netSalesAmount - cogsAmount;
     return {
       ...item,
+      invoice_discount_share: invoiceDiscountShare,
+      net_sales_amount: netSalesAmount,
       cogs_unit_cost: cogsUnitCost,
       cogs_amount: cogsAmount,
       gross_profit: grossProfit,
-      gross_margin_percent: taxableAmount > 0 ? (grossProfit / taxableAmount) * 100 : 0,
+      gross_margin_percent: netSalesAmount > 0 ? (grossProfit / netSalesAmount) * 100 : 0,
     };
   });
 
@@ -534,6 +587,10 @@ export function addSalesPayment(invoiceId, data) {
     if (invoice.status === "CANCELLED") throw new Error("Payment cannot be added to a cancelled invoice.");
 
     const paymentAmount = Number(data.amount);
+    if (!data.paymentDate) throw new Error("Payment date is required.");
+    if (String(data.paymentDate) < String(invoice.invoice_date)) {
+      throw new Error("Payment date cannot be earlier than the invoice date.");
+    }
     if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
       throw new Error("Payment amount must be greater than zero.");
     }
@@ -587,6 +644,9 @@ export function addSalesRefund(invoiceId, data) {
 
     const amount = Number(data.amount);
     if (!data.refundDate) throw new Error("Refund date is required.");
+    if (String(data.refundDate) < String(invoice.invoice_date)) {
+      throw new Error("Refund date cannot be earlier than the invoice date.");
+    }
     if (!Number.isFinite(amount) || amount <= 0) throw new Error("Refund amount must be greater than zero.");
 
     const before = getInvoiceFinancialSummary(invoice);

@@ -50,10 +50,10 @@ function Reports() {
         const [catalogResponse, itemsResponse, customersResponse, suppliersResponse, categoriesResponse] =
           await Promise.all([
             api.get("/reports"),
-            api.get("/items"),
-            api.get("/customers"),
-            api.get("/suppliers"),
-            api.get("/categories"),
+            api.get("/items", { params: { includeInactive: true } }),
+            api.get("/customers", { params: { includeInactive: true } }),
+            api.get("/suppliers", { params: { includeInactive: true } }),
+            api.get("/categories", { params: { includeInactive: true } }),
           ]);
 
         setCatalog(catalogResponse.data.reports || []);

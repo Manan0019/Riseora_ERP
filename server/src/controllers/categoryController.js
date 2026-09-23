@@ -111,11 +111,9 @@ export function removeCategory(req, res) {
       category,
     });
   } catch (error) {
-    console.error("Deactivate category error:", error);
-
-    return res.status(500).json({
+    return res.status(400).json({
       success: false,
-      message: "Unable to deactivate category",
+      message: error.message || "Unable to deactivate category",
     });
   }
 }
@@ -132,11 +130,9 @@ export function restoreCategory(req, res) {
       category,
     });
   } catch (error) {
-    console.error("Activate category error:", error);
-
-    return res.status(500).json({
+    return res.status(400).json({
       success: false,
-      message: "Unable to activate category",
+      message: error.message || "Unable to activate category",
     });
   }
 }

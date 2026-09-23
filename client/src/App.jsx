@@ -13,6 +13,7 @@ import Purchases from "./pages/Purchases";
 import Stock from "./pages/Stock";
 import PurchaseRegister from "./pages/PurchaseRegister";
 import OpeningStock from "./pages/OpeningStock";
+import OpeningBalances from "./pages/OpeningBalances";
 import StockAdjustment from "./pages/StockAdjustment";
 import Formulas from "./pages/Formulas";
 import Production from "./pages/Production";
@@ -35,8 +36,11 @@ function App() {
 
   if (loading) {
     return (
-      <div className="d-flex align-items-center justify-content-center vh-100">
-        <div>Loading Riseora ERP...</div>
+      <div className="app-boot-screen">
+        <div className="app-boot-mark">R</div>
+        <div className="app-boot-title">Riseora ERP</div>
+        <div className="app-boot-subtitle">Preparing your workspace...</div>
+        <div className="app-boot-loader"><span /></div>
       </div>
     );
   }
@@ -88,6 +92,8 @@ function App() {
           <Route path="purchase-register" element={<PurchaseRegister />} />
 
           <Route path="opening-stock" element={<OpeningStock />} />
+
+          <Route path="opening-balances" element={<OpeningBalances />} />
 
           <Route path="stock-adjustment" element={<StockAdjustment />} />
 

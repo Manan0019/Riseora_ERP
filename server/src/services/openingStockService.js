@@ -52,53 +52,63 @@ export function createOpeningStock(data) {
       VALUES (?, ?, ?, ?, ?, ?)
     `);
 
-    for (const item of data.items) {
+    for (let index = 0; index < data.items.length; index++) {
+      const item = data.items[index];
+      const itemId = Number(item.itemId);
       const quantity = Number(item.quantity);
-
       const unitCost = Number(item.unitCost || 0);
 
+      const masterItem = db.prepare(`
+        SELECT id, name, is_active, track_lot, track_expiry
+        FROM items
+        WHERE id = ?
+      `).get(itemId);
+
+      if (!masterItem) {
+        throw new Error(`Item not found in row ${index + 1}.`);
+      }
+      if (Number(masterItem.is_active) !== 1) {
+        throw new Error(`${masterItem.name}: inactive items cannot receive opening stock.`);
+      }
       if (!Number.isFinite(quantity) || quantity <= 0) {
-        throw new Error("Opening stock quantity must be greater than zero.");
+        throw new Error(`${masterItem.name}: opening stock quantity must be greater than zero.`);
+      }
+      if (!Number.isFinite(unitCost) || unitCost < 0) {
+        throw new Error(`${masterItem.name}: opening stock unit cost cannot be negative.`);
       }
 
-      if (!Number.isFinite(unitCost) || unitCost < 0) {
-        throw new Error("Opening stock unit cost cannot be negative.");
+      const lotNo = String(item.lotNo || "").trim();
+      const expiryDate = String(item.expiryDate || "").trim();
+      if (Number(masterItem.track_lot) === 1 && !lotNo) {
+        throw new Error(`${masterItem.name}: lot/batch number is required.`);
+      }
+      if (Number(masterItem.track_expiry) === 1 && !expiryDate) {
+        throw new Error(`${masterItem.name}: expiry date is required.`);
       }
 
       insertLine.run(
         openingStockId,
-        Number(item.itemId),
+        itemId,
         quantity,
         unitCost,
-        item.lotNo || null,
-        item.expiryDate || null,
+        lotNo || null,
+        expiryDate || null,
       );
 
-      addInventoryValue(Number(item.itemId), quantity, unitCost);
+      addInventoryValue(itemId, quantity, unitCost);
 
       addStockTransaction({
         transactionDate: data.openingDate,
-
-        itemId: Number(item.itemId),
-
+        itemId,
         transactionType: "OPENING_STOCK",
-
         referenceType: "OPENING_STOCK",
-
         referenceId: openingStockId,
-
         referenceNo: openingNo,
-
         quantityIn: quantity,
-
         quantityOut: 0,
-
-        unitCost: unitCost,
-
-        lotNo: item.lotNo || null,
-
-        expiryDate: item.expiryDate || null,
-
+        unitCost,
+        lotNo: lotNo || null,
+        expiryDate: expiryDate || null,
         notes: `Opening stock ${openingNo}`,
       });
     }
