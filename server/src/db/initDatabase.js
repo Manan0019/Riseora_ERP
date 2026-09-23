@@ -21,6 +21,7 @@ import { runProductPricingMigration } from "./migrations/017_product_pricing.js"
 import { runProfessionalInvoicingMigration } from "./migrations/018_professional_invoicing.js";
 import { runOpeningPartyBalanceMigration } from "./migrations/019_opening_party_balances.js";
 import { runCreditTermsDueDateMigration } from "./migrations/020_credit_terms_due_dates.js";
+import { runDefaultAdminCredentialsMigration } from "./migrations/021_default_admin_credentials.js";
 
 
 export async function initDatabase() {
@@ -44,6 +45,7 @@ export async function initDatabase() {
   runProfessionalInvoicingMigration();
   runOpeningPartyBalanceMigration();
   runCreditTermsDueDateMigration();
+  runDefaultAdminCredentialsMigration();
 
   seedUnits();
   seedItemCategories();

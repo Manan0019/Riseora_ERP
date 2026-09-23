@@ -221,7 +221,7 @@ function MainLayout() {
           <div className="topbar-user">
             <div className="user-avatar" aria-hidden="true">{initials}</div>
             <div className="user-copy">
-              <strong>{user?.fullName || user?.username || "Administrator"}</strong>
+              <strong>{user?.fullName || user?.username || "Ram"}</strong>
               <small>Administrator</small>
             </div>
             <button type="button" className="topbar-logout" onClick={handleLogout}>

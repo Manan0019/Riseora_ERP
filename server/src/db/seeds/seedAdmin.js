@@ -2,19 +2,25 @@ import bcrypt from "bcrypt";
 import db from "../database.js";
 
 export async function seedAdmin() {
+  const initialUsername =
+    process.env.INITIAL_ADMIN_USERNAME?.trim() || "ram";
+
+  const initialFullName =
+    process.env.INITIAL_ADMIN_FULL_NAME?.trim() || "Ram";
+
   const existingAdmin = db
     .prepare(`SELECT id FROM users WHERE username = ?`)
-    .get("admin");
+    .get(initialUsername);
 
   if (existingAdmin) {
-    console.log("Default admin already exists");
+    console.log(`Default admin ${initialUsername} already exists`);
     return;
   }
 
   const isProduction = process.env.NODE_ENV === "production";
   const initialPassword =
     process.env.INITIAL_ADMIN_PASSWORD ||
-    (isProduction ? null : "admin123");
+    (isProduction ? null : "1356");
 
   if (!initialPassword) {
     throw new Error(
@@ -33,14 +39,16 @@ export async function seedAdmin() {
     )
     VALUES (?, ?, ?, ?)
   `).run(
-    "admin",
+    initialUsername,
     passwordHash,
-    "Administrator",
+    initialFullName,
     "ADMIN",
   );
 
-  console.log("Default admin user created");
+  console.log(`Default admin user ${initialUsername} created`);
   if (!isProduction && !process.env.INITIAL_ADMIN_PASSWORD) {
-    console.warn("Development admin password is admin123. Change it from Settings.");
+    console.warn(
+      "Development admin login is ram / 1356. Replace it with a strong password before owner deployment.",
+    );
   }
 }

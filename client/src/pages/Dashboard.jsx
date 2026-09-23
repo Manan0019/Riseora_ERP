@@ -10,7 +10,7 @@ const money = (value) =>
     maximumFractionDigits: 2,
   }).format(Number(value || 0));
 
-function SummaryCard({ label, value, detail, icon, tone = "green" }) {
+function SummaryCard({ label, value, detail, icon, tone = "primary" }) {
   return (
     <div className="dashboard-metric card h-100">
       <div className="card-body">
