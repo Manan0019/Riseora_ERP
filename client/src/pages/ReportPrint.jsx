@@ -79,10 +79,10 @@ function ReportPrint() {
         body { background: #f6f0e8 !important; }
         .report-print-page { color: #352d29; font-family: Arial, Helvetica, sans-serif; }
         .report-sheet { max-width: ${landscape ? "1450px" : "950px"}; margin: 24px auto; background: white; padding: 28px; box-shadow: 0 6px 24px rgba(0,0,0,.08); }
-        .report-header { display: flex; justify-content: space-between; gap: 20px; border-bottom: 2px solid #765044; padding-bottom: 14px; margin-bottom: 16px; }
+        .report-header { display: flex; justify-content: space-between; gap: 20px; border-bottom: 2px solid #A96D57; padding-bottom: 14px; margin-bottom: 16px; }
         .report-logo { max-width: 190px; max-height: 62px; object-fit: contain; }
         .company-meta { text-align: right; font-size: 12px; line-height: 1.45; }
-        .report-title { font-size: 22px; font-weight: 700; color: #765044; margin: 0; }
+        .report-title { font-size: 22px; font-weight: 700; color: #A96D57; margin: 0; }
         .report-description { color: #7a706b; font-size: 12px; margin-top: 4px; }
         .report-meta { font-size: 11px; color: #786f69; margin: 10px 0 14px; }
         .summary-grid { display: grid; grid-template-columns: repeat(${Math.min(4, Math.max(1, report.summary?.length || 1))}, 1fr); gap: 10px; margin-bottom: 16px; }
@@ -90,7 +90,7 @@ function ReportPrint() {
         .summary-label { color: #83776f; font-size: 10px; text-transform: uppercase; }
         .summary-value { font-weight: 700; margin-top: 3px; }
         .report-table { width: 100%; border-collapse: collapse; font-size: ${landscape ? "9px" : "10px"}; }
-        .report-table th { background: #765044; color: white; text-align: left; padding: 7px 6px; border: 1px solid #765044; }
+        .report-table th { background: #A96D57; color: white; text-align: left; padding: 7px 6px; border: 1px solid #A96D57; }
         .report-table td { padding: 6px; border: 1px solid #e7dcd2; vertical-align: top; }
         .report-table tr:nth-child(even) td { background: #fcf7f3; }
         .text-number { text-align: right; white-space: nowrap; }

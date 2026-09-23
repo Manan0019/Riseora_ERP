@@ -19,8 +19,10 @@ function unitUsage(id) {
   const itemCount = Number(db.prepare(`SELECT COUNT(*) AS count FROM items WHERE base_unit_id = ?`).get(id)?.count || 0);
   const formulaBatchCount = Number(db.prepare(`SELECT COUNT(*) AS count FROM formulas WHERE batch_unit_id = ?`).get(id)?.count || 0);
   const ingredientCount = Number(db.prepare(`SELECT COUNT(*) AS count FROM formula_items WHERE unit_id = ?`).get(id)?.count || 0);
+  const compositionFormulaCount = Number(db.prepare(`SELECT COUNT(*) AS count FROM formulas WHERE composition_unit_id = ?`).get(id)?.count || 0);
   const activeItemCount = Number(db.prepare(`SELECT COUNT(*) AS count FROM items WHERE base_unit_id = ? AND is_active = 1`).get(id)?.count || 0);
   const activeFormulaCount = Number(db.prepare(`SELECT COUNT(*) AS count FROM formulas WHERE batch_unit_id = ? AND is_active = 1`).get(id)?.count || 0);
+  const activeCompositionFormulaCount = Number(db.prepare(`SELECT COUNT(*) AS count FROM formulas WHERE composition_unit_id = ? AND is_active = 1`).get(id)?.count || 0);
   const activeIngredientCount = Number(db.prepare(`
     SELECT COUNT(*) AS count
     FROM formula_items fi
@@ -28,8 +30,8 @@ function unitUsage(id) {
     WHERE fi.unit_id = ? AND f.is_active = 1
   `).get(id)?.count || 0);
   return {
-    any: itemCount + formulaBatchCount + ingredientCount > 0,
-    active: activeItemCount + activeFormulaCount + activeIngredientCount > 0,
+    any: itemCount + formulaBatchCount + ingredientCount + compositionFormulaCount > 0,
+    active: activeItemCount + activeFormulaCount + activeIngredientCount + activeCompositionFormulaCount > 0,
   };
 }
 

@@ -95,6 +95,11 @@ function buildFormulaSnapshot(formula) {
     batchSize: Number(formula.batch_size),
     batchUnitId: formula.batch_unit_id,
     batchUnitCode: formula.batch_unit_code,
+    entryMode: formula.entry_mode || "QUANTITY",
+    compositionSize:
+      formula.composition_size == null ? null : Number(formula.composition_size),
+    compositionUnitId: formula.composition_unit_id || null,
+    compositionUnitCode: formula.composition_unit_code || null,
     ingredients: formula.ingredients.map((ingredient) => ({
       itemId: ingredient.ingredient_item_id,
       itemCode: ingredient.ingredient_code,
@@ -103,6 +108,8 @@ function buildFormulaSnapshot(formula) {
       quantity: Number(ingredient.quantity),
       unitId: ingredient.unit_id,
       unitCode: ingredient.unit_code,
+      percentage:
+        ingredient.percentage == null ? null : Number(ingredient.percentage),
     })),
   });
 }

@@ -64,7 +64,7 @@ try {
     addCustomerOpeningSettlement,
     addSupplierOpeningSettlement,
   } = await import("../src/services/openingBalanceService.js");
-  const { createFormula, updateFormula } = await import("../src/services/formulaService.js");
+  const { createFormula, updateFormula, getFormulaById } = await import("../src/services/formulaService.js");
   const {
     createProductionPlan,
     startProductionBatch,
@@ -101,7 +101,7 @@ try {
   const categories = Object.fromEntries(
     db.prepare("SELECT id, code FROM item_categories").all().map((row) => [row.code, Number(row.id)]),
   );
-  assert.ok(units.KG && units.PCS && categories.RAW && categories.PACK && categories.FG && categories.CONS);
+  assert.ok(units.KG && units.G && units.ML && units.L && units.PCS && categories.RAW && categories.PACK && categories.FG && categories.CONS);
 
   step("Company master", () => {
     const company = saveCompany({
@@ -148,6 +148,20 @@ try {
     reorderLevel: 2,
     trackLot: false,
     trackExpiry: false,
+    defaultSellingPrice: 0,
+    targetMarginPercent: 0,
+    defaultGstRate: 5,
+  }));
+
+  const liquidRaw = step("Liquid raw-material item with density", () => createItem({
+    code: "RM-LIQ",
+    name: "Regression Liquid Extract",
+    categoryId: categories.RAW,
+    baseUnitId: units.ML,
+    reorderLevel: 0,
+    trackLot: false,
+    trackExpiry: false,
+    density: 0.9,
     defaultSellingPrice: 0,
     targetMarginPercent: 0,
     defaultGstRate: 5,
@@ -295,15 +309,61 @@ try {
     approx(payment.balanceAmount, 1175);
   });
 
-  const formula = step("Formula V1", () => createFormula({
+  step("Formula percentage > 100 guard", () => {
+    expectThrow(
+      () => createFormula({
+        code: "FORM-OVER",
+        name: "Invalid Percentage Formula",
+        finishedItemId: finished.id,
+        batchSize: 20,
+        batchUnitId: units.PCS,
+        entryMode: "PERCENTAGE",
+        compositionSize: 2,
+        compositionUnitId: units.KG,
+        ingredients: [
+          { ingredientItemId: raw.id, quantity: 0, unitId: units.KG, percentage: 101, notes: "" },
+          { ingredientItemId: pack.id, quantity: 20, unitId: units.PCS, percentage: "", notes: "" },
+        ],
+      }),
+      /cannot exceed 100|no more than 100/i,
+      "Formula percentage limit",
+    );
+  });
+
+  step("Formula percentage weight-volume density conversion", () => {
+    const mixed = createFormula({
+      code: "FORM-MIXED",
+      name: "Mixed Weight Volume Formula",
+      finishedItemId: finished.id,
+      batchSize: 20,
+      batchUnitId: units.PCS,
+      entryMode: "PERCENTAGE",
+      compositionSize: 1,
+      compositionUnitId: units.KG,
+      ingredients: [
+        { ingredientItemId: raw.id, quantity: 0, unitId: units.KG, percentage: 50, notes: "" },
+        { ingredientItemId: liquidRaw.id, quantity: 0, unitId: units.ML, percentage: 50, notes: "" },
+      ],
+    });
+    const details = getFormulaById(mixed.formulaId);
+    const liquidLine = details.ingredients.find((line) => Number(line.ingredient_item_id) === Number(liquidRaw.id));
+    assert.ok(liquidLine, "Density-converted formula line should exist");
+    approx(Number(liquidLine.quantity), 555.5555555556, 0.001);
+    approx(Number(liquidLine.percentage), 50);
+  });
+
+  const formula = step("Formula V1 - percentage entry", () => createFormula({
     code: "FORM-TST",
     name: "Regression Formula",
     finishedItemId: finished.id,
     batchSize: 20,
     batchUnitId: units.PCS,
+    entryMode: "PERCENTAGE",
+    compositionSize: 2,
+    compositionUnitId: units.KG,
     notes: "Regression formula",
     ingredients: [
-      { ingredientItemId: raw.id, quantity: 2, unitId: units.KG, percentage: "", notes: "" },
+      { ingredientItemId: raw.id, quantity: 0, unitId: units.KG, percentage: 100, notes: "" },
       { ingredientItemId: pack.id, quantity: 20, unitId: units.PCS, percentage: "", notes: "" },
     ],
   }));

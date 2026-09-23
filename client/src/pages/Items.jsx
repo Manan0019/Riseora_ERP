@@ -683,9 +683,9 @@ function Items() {
                 />
 
                 <div className="form-text">
-                  Used only when
-                  weight/volume conversion
-                  is required.
+                  Optional but recommended for liquids. Enter density in g/mL
+                  (the same numeric value as kg/L). It enables accurate
+                  weight ↔ volume conversion in formulas.
                 </div>
               </div>
 
