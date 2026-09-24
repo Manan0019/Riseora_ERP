@@ -299,7 +299,10 @@ function SalesInvoicePrint() {
           </tbody>
         </table>
 
-        <section className="invoice-summary-section">
+        <div className="invoice-page-fill" aria-hidden="true" />
+
+        <div className="invoice-bottom-zone">
+          <section className="invoice-summary-section">
           <div className="invoice-words-bank">
             <div className="invoice-box-title">Amount in Words</div>
             <div className="invoice-amount-words">{amountToWords(invoice.grand_total)}</div>
@@ -336,9 +339,9 @@ function SalesInvoicePrint() {
             <div><span>Paid</span><strong>₹{money(invoice.net_amount_paid ?? invoice.amount_paid)}</strong></div>
             <div><span>Balance</span><strong>₹{money(invoice.balance_amount)}</strong></div>
           </div>
-        </section>
+          </section>
 
-        <section className="invoice-footer-grid">
+          <section className="invoice-footer-grid">
           <div>
             {invoice.notes && (
               <div className="invoice-footer-block">
@@ -354,16 +357,22 @@ function SalesInvoicePrint() {
             )}
           </div>
 
-          <div className="invoice-signature">
-            <div>For <strong>{seller.name}</strong></div>
-            <div className="invoice-signature-space" />
-            <div>Authorised Signatory</div>
-          </div>
-        </section>
+            <div className="invoice-signature">
+              <div className="invoice-signature-company">
+                For <strong>{seller.name}</strong>
+              </div>
+              <div className="invoice-signature-space" />
+              <div className="invoice-signature-line" />
+              <div className="invoice-signature-caption">
+                Company Stamp &amp; Authorised Signatory
+              </div>
+            </div>
+          </section>
 
-        <footer className="invoice-document-footer">
-          This is a computer-generated invoice. Verify statutory tax configuration with your accountant before live GST use.
-        </footer>
+          <footer className="invoice-document-footer">
+            This is a computer-generated tax invoice.
+          </footer>
+        </div>
       </main>
     </div>
   );
