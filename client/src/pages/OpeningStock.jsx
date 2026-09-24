@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../api/api";
+import SearchableSelect from "../components/SearchableSelect";
 
 const createEmptyLine = () => ({
   itemId: "",
@@ -344,49 +345,23 @@ function OpeningStock() {
                     return (
                       <tr key={index}>
                         <td>
-                          <select
-                            className="form-select"
-                            value={
-                              line.itemId
+                          <SearchableSelect
+                            value={line.itemId}
+                            onChange={(value) =>
+                              handleLineChange(index, "itemId", value)
                             }
-                            onChange={(
-                              event
-                            ) =>
-                              handleLineChange(
-                                index,
-                                "itemId",
-                                event.target
-                                  .value
-                              )
+                            options={items}
+                            placeholder="Search item..."
+                            ariaLabel={`Opening stock item row ${index + 1}`}
+                            getOptionLabel={(itemOption) =>
+                              `${itemOption.code} - ${itemOption.name}`
                             }
-                          >
-                            <option value="">
-                              Select Item
-                            </option>
-
-                            {items.map(
-                              (
-                                itemOption
-                              ) => (
-                                <option
-                                  key={
-                                    itemOption.id
-                                  }
-                                  value={
-                                    itemOption.id
-                                  }
-                                >
-                                  {
-                                    itemOption.code
-                                  }{" "}
-                                  -{" "}
-                                  {
-                                    itemOption.name
-                                  }
-                                </option>
-                              )
-                            )}
-                          </select>
+                            getOptionMeta={(itemOption) =>
+                              [itemOption.category_name, itemOption.unit_code]
+                                .filter(Boolean)
+                                .join(" · ")
+                            }
+                          />
                         </td>
 
                         <td>

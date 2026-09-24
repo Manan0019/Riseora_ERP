@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
+import SearchableSelect from "../components/SearchableSelect";
 
 function formatValue(value, format) {
   if (format === "currency") {
@@ -50,10 +51,10 @@ function Reports() {
         const [catalogResponse, itemsResponse, customersResponse, suppliersResponse, categoriesResponse] =
           await Promise.all([
             api.get("/reports"),
-            api.get("/items", { params: { includeInactive: true } }),
-            api.get("/customers", { params: { includeInactive: true } }),
-            api.get("/suppliers", { params: { includeInactive: true } }),
-            api.get("/categories", { params: { includeInactive: true } }),
+            api.get("/items"),
+            api.get("/customers"),
+            api.get("/suppliers"),
+            api.get("/categories"),
           ]);
 
         setCatalog(catalogResponse.data.reports || []);
@@ -290,54 +291,58 @@ function Reports() {
                 {activeFilters.includes("customer") && (
                   <div className="col-md-4">
                     <label className="form-label">Customer</label>
-                    <select
-                      className="form-select"
+                    <SearchableSelect
                       value={filters.customerId}
-                      onChange={(event) => updateFilter("customerId", event.target.value)}
-                    >
-                      <option value="">All Customers</option>
-                      {customers.map((customer) => (
-                        <option key={customer.id} value={customer.id}>
-                          {customer.code} - {customer.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(value) => updateFilter("customerId", value)}
+                      options={customers}
+                      placeholder="All Customers / search..."
+                      ariaLabel="Report customer filter"
+                      getOptionLabel={(customer) => `${customer.code} - ${customer.name}`}
+                      getOptionMeta={(customer) =>
+                        [customer.city, customer.state].filter(Boolean).join(", ")
+                      }
+                      getOptionSearchText={(customer) =>
+                        `${customer.phone || ""} ${customer.alternate_phone || ""}`
+                      }
+                    />
                   </div>
                 )}
 
                 {activeFilters.includes("supplier") && (
                   <div className="col-md-4">
                     <label className="form-label">Supplier</label>
-                    <select
-                      className="form-select"
+                    <SearchableSelect
                       value={filters.supplierId}
-                      onChange={(event) => updateFilter("supplierId", event.target.value)}
-                    >
-                      <option value="">All Suppliers</option>
-                      {suppliers.map((supplier) => (
-                        <option key={supplier.id} value={supplier.id}>
-                          {supplier.code} - {supplier.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(value) => updateFilter("supplierId", value)}
+                      options={suppliers}
+                      placeholder="All Suppliers / search..."
+                      ariaLabel="Report supplier filter"
+                      getOptionLabel={(supplier) => `${supplier.code} - ${supplier.name}`}
+                      getOptionMeta={(supplier) =>
+                        [supplier.city, supplier.state].filter(Boolean).join(", ")
+                      }
+                      getOptionSearchText={(supplier) =>
+                        `${supplier.phone || ""} ${supplier.alternate_phone || ""}`
+                      }
+                    />
                   </div>
                 )}
 
                 {activeFilters.includes("item") && (
                   <div className="col-md-4">
                     <label className="form-label">Item / Product</label>
-                    <select
-                      className="form-select"
+                    <SearchableSelect
                       value={filters.itemId}
-                      onChange={(event) => updateFilter("itemId", event.target.value)}
-                    >
-                      <option value="">All Items</option>
-                      {items.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.code} - {item.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(value) => updateFilter("itemId", value)}
+                      options={items}
+                      placeholder="All Items / search..."
+                      ariaLabel="Report item filter"
+                      getOptionLabel={(item) => `${item.code} - ${item.name}`}
+                      getOptionMeta={(item) =>
+                        [item.category_name, item.unit_code].filter(Boolean).join(" · ")
+                      }
+                      getOptionSearchText={(item) => `${item.hsn_code || ""}`}
+                    />
                   </div>
                 )}
 

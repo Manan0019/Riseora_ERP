@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
+import SearchableSelect from "../components/SearchableSelect";
 
 const createEmptyLine = () => ({
   itemId: "",
@@ -496,49 +497,22 @@ function StockAdjustment() {
                     return (
                       <tr key={index}>
                         <td>
-                          <select
-                            className="form-select"
-                            value={
-                              line.itemId
+                          <SearchableSelect
+                            value={line.itemId}
+                            onChange={(value) =>
+                              handleLineChange(index, "itemId", value)
                             }
-                            onChange={(
-                              event
-                            ) =>
-                              handleLineChange(
-                                index,
-                                "itemId",
-                                event.target
-                                  .value
-                              )
+                            options={items}
+                            placeholder="Search item..."
+                            ariaLabel={`Stock adjustment item row ${index + 1}`}
+                            getOptionLabel={(itemOption) =>
+                              `${itemOption.code} - ${itemOption.name}`
                             }
-                          >
-                            <option value="">
-                              Select Item
-                            </option>
-
-                            {items.map(
-                              (
-                                itemOption
-                              ) => (
-                                <option
-                                  key={
-                                    itemOption.id
-                                  }
-                                  value={
-                                    itemOption.id
-                                  }
-                                >
-                                  {
-                                    itemOption.code
-                                  }{" "}
-                                  -{" "}
-                                  {
-                                    itemOption.name
-                                  }
-                                </option>
-                              )
-                            )}
-                          </select>
+                            getOptionMeta={(itemOption) => {
+                              const availableQty = getCurrentStock(itemOption.id);
+                              return `${itemOption.unit_code || ""} · Current ${availableQty.toFixed(3)}`;
+                            }}
+                          />
                         </td>
 
                         <td>

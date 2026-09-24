@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
+import SearchableSelect from "../components/SearchableSelect";
 import { useUi } from "../context/UiContext";
 
 const STANDARD_UNITS = {
@@ -768,10 +769,21 @@ function Formulas() {
                 </div>
                 <div className="col-lg-4 col-md-8 mb-3">
                   <label className="form-label">Finished Product *</label>
-                  <select className="form-select" name="finishedItemId" value={form.finishedItemId} onChange={handleFormChange} disabled={isReadOnly}>
-                    <option value="">Select Finished Product</option>
-                    {finishedItems.map((item) => <option key={item.id} value={item.id}>{item.code} - {item.name}</option>)}
-                  </select>
+                  <SearchableSelect
+                    value={form.finishedItemId}
+                    onChange={(value) =>
+                      handleFormChange({ target: { name: "finishedItemId", value } })
+                    }
+                    options={finishedItems}
+                    placeholder="Search finished product..."
+                    ariaLabel="Finished Product"
+                    disabled={isReadOnly}
+                    getOptionLabel={(item) => `${item.code} - ${item.name}`}
+                    getOptionMeta={(item) =>
+                      [item.category_name, item.unit_code].filter(Boolean).join(" · ")
+                    }
+                    getOptionSearchText={(item) => `${item.hsn_code || ""}`}
+                  />
                 </div>
                 <div className="col-lg-2 col-md-4 mb-3">
                   <label className="form-label">Version</label>
@@ -894,10 +906,22 @@ function Formulas() {
                       return (
                         <tr key={index}>
                           <td>
-                            <select className="form-select" value={ingredient.ingredientItemId} onChange={(event) => handleIngredientChange(index, "ingredientItemId", event.target.value)} disabled={isReadOnly}>
-                              <option value="">Select Component</option>
-                              {componentItems.map((component) => <option key={component.id} value={component.id}>{component.code} - {component.name} [{component.category_name || component.category_code}]</option>)}
-                            </select>
+                            <SearchableSelect
+                              value={ingredient.ingredientItemId}
+                              onChange={(value) =>
+                                handleIngredientChange(index, "ingredientItemId", value)
+                              }
+                              options={componentItems}
+                              placeholder="Search component..."
+                              ariaLabel={`Formula component row ${index + 1}`}
+                              disabled={isReadOnly}
+                              getOptionLabel={(component) => `${component.code} - ${component.name}`}
+                              getOptionMeta={(component) =>
+                                [component.category_name || component.category_code, component.unit_code]
+                                  .filter(Boolean)
+                                  .join(" · ")
+                              }
+                            />
                           </td>
                           <td>{getComponentTypeLabel(item)}</td>
                           <td>
@@ -998,19 +1022,22 @@ function Formulas() {
                         return (
                           <tr key={`extra-${index}`}>
                             <td>
-                              <select
-                                className="form-select"
+                              <SearchableSelect
                                 value={extra.ingredientItemId}
-                                onChange={(event) => handleProcessExtraChange(index, "ingredientItemId", event.target.value)}
+                                onChange={(value) =>
+                                  handleProcessExtraChange(index, "ingredientItemId", value)
+                                }
+                                options={rawMaterialItems}
+                                placeholder="Search raw material..."
+                                ariaLabel={`Process extra ingredient row ${index + 1}`}
                                 disabled={isReadOnly}
-                              >
-                                <option value="">Select Raw Material</option>
-                                {rawMaterialItems.map((component) => (
-                                  <option key={component.id} value={component.id}>
-                                    {component.code} - {component.name} [{component.category_name || component.category_code}]
-                                  </option>
-                                ))}
-                              </select>
+                                getOptionLabel={(component) => `${component.code} - ${component.name}`}
+                                getOptionMeta={(component) =>
+                                  [component.category_name || component.category_code, component.unit_code]
+                                    .filter(Boolean)
+                                    .join(" · ")
+                                }
+                              />
                             </td>
                             <td>{item?.category_name || "Raw Material"}</td>
                             <td>

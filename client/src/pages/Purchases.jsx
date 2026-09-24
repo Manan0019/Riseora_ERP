@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
+import SearchableSelect from "../components/SearchableSelect";
 import { useUi } from "../context/UiContext";
 
 const emptyLine = () => ({
@@ -396,38 +397,25 @@ function Purchases() {
                 Supplier *
               </label>
 
-              <select
-                className="form-select"
-                name="supplierId"
-                value={
-                  form.supplierId
+              <SearchableSelect
+                value={form.supplierId}
+                onChange={(value) =>
+                  setForm((current) => ({
+                    ...current,
+                    supplierId: value,
+                  }))
                 }
-                onChange={
-                  handleFormChange
+                options={suppliers}
+                placeholder="Search supplier by code or name..."
+                ariaLabel="Supplier"
+                getOptionLabel={(supplier) => `${supplier.code} - ${supplier.name}`}
+                getOptionMeta={(supplier) =>
+                  [supplier.city, supplier.state].filter(Boolean).join(", ")
                 }
-              >
-                <option value="">
-                  Select Supplier
-                </option>
-
-                {suppliers.map(
-                  (supplier) => (
-                    <option
-                      key={
-                        supplier.id
-                      }
-                      value={
-                        supplier.id
-                      }
-                    >
-                      {supplier.code} -{" "}
-                      {
-                        supplier.name
-                      }
-                    </option>
-                  )
-                )}
-              </select>
+                getOptionSearchText={(supplier) =>
+                  `${supplier.phone || ""} ${supplier.alternate_phone || ""}`
+                }
+              />
             </div>
 
             <div className="col-md-4 mb-3">
@@ -550,50 +538,26 @@ function Purchases() {
                     return (
                       <tr key={index}>
                         <td>
-                          <select
-                            className="form-select"
-                            value={
-                              line.itemId
+                          <SearchableSelect
+                            value={line.itemId}
+                            onChange={(value) =>
+                              handleLineChange(index, "itemId", value)
                             }
-                            onChange={(
-                              e
-                            ) =>
-                              handleLineChange(
-                                index,
-                                "itemId",
-                                e.target
-                                  .value
-                              )
+                            options={items}
+                            placeholder="Search item..."
+                            ariaLabel={`Purchase item row ${index + 1}`}
+                            getOptionLabel={(itemOption) =>
+                              `${itemOption.code} - ${itemOption.name}`
                             }
-                          >
-                            <option value="">
-                              Select
-                              Item
-                            </option>
-
-                            {items.map(
-                              (
-                                itemOption
-                              ) => (
-                                <option
-                                  key={
-                                    itemOption.id
-                                  }
-                                  value={
-                                    itemOption.id
-                                  }
-                                >
-                                  {
-                                    itemOption.code
-                                  }{" "}
-                                  -{" "}
-                                  {
-                                    itemOption.name
-                                  }
-                                </option>
-                              )
-                            )}
-                          </select>
+                            getOptionMeta={(itemOption) =>
+                              [itemOption.category_name, itemOption.unit_code]
+                                .filter(Boolean)
+                                .join(" · ")
+                            }
+                            getOptionSearchText={(itemOption) =>
+                              `${itemOption.hsn_code || ""}`
+                            }
+                          />
                         </td>
 
                         <td>

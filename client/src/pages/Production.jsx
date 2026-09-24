@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import api from "../api/api";
+import SearchableSelect from "../components/SearchableSelect";
 import { useUi } from "../context/UiContext";
 import FormSection from "../components/ui/FormSection";
 import SummaryStrip from "../components/ui/SummaryStrip";
@@ -200,18 +201,26 @@ function Production() {
 
             <div className="col-md-5 mb-3">
               <label className="form-label">Formula *</label>
-              <select
-                className="form-select"
+              <SearchableSelect
                 value={formulaId}
-                onChange={handleFormulaChange}
-              >
-                <option value="">Select Formula</option>
-                {formulas.map((formula) => (
-                  <option key={formula.id} value={formula.id}>
-                    {formula.code} - {formula.name} (V{formula.version_no})
-                  </option>
-                ))}
-              </select>
+                onChange={(value) =>
+                  handleFormulaChange({ target: { value } })
+                }
+                options={formulas}
+                placeholder="Search formula by code, name or product..."
+                ariaLabel="Formula"
+                getOptionLabel={(formula) =>
+                  `${formula.code} - ${formula.name} (V${formula.version_no})`
+                }
+                getOptionMeta={(formula) =>
+                  [formula.finished_item_name, formula.batch_unit_code]
+                    .filter(Boolean)
+                    .join(" · ")
+                }
+                getOptionSearchText={(formula) =>
+                  `${formula.finished_item_code || ""}`
+                }
+              />
             </div>
 
             <div className="col-md-2 mb-3">
