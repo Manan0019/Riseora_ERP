@@ -6,6 +6,7 @@ const emptyForm = {
   code: "",
   name: "",
   phone: "",
+  alternatePhone: "",
   email: "",
   gstin: "",
   address: "",
@@ -97,6 +98,7 @@ function Customers() {
       name: customer.name || "",
 
       phone: customer.phone || "",
+      alternatePhone: customer.alternate_phone || "",
       email: customer.email || "",
       gstin: customer.gstin || "",
 
@@ -391,6 +393,7 @@ function Customers() {
       customer.code.toLowerCase().includes(text) ||
       customer.name.toLowerCase().includes(text) ||
       (customer.phone || "").toLowerCase().includes(text) ||
+      (customer.alternate_phone || "").toLowerCase().includes(text) ||
       (customer.gstin || "").toLowerCase().includes(text) ||
       (customer.city || "").toLowerCase().includes(text) ||
       (customer.customer_type || "").toLowerCase().includes(text)
@@ -528,6 +531,21 @@ function Customers() {
                   value={form.phone}
                   onChange={handleChange}
                   disabled={!editing}
+                />
+              </div>
+
+              <div className="col-md-4 mb-3">
+                <label className="form-label">Alternate Number</label>
+
+                <input
+                  type="tel"
+                  className="form-control"
+                  name="alternatePhone"
+                  value={form.alternatePhone}
+                  onChange={handleChange}
+                  disabled={!editing}
+                  maxLength={20}
+                  placeholder="Optional"
                 />
               </div>
 
@@ -697,6 +715,7 @@ function Customers() {
                   <th>Name</th>
                   <th>Type</th>
                   <th>Phone</th>
+                  <th>Alternate No.</th>
                   <th>Credit Days</th>
                   <th>Credit Limit</th>
                   <th>Status</th>
@@ -723,6 +742,8 @@ function Customers() {
 
                     <td>{customer.phone || "-"}</td>
 
+                    <td>{customer.alternate_phone || "-"}</td>
+
                     <td>{customer.credit_days}</td>
 
                     <td>₹{Number(customer.credit_limit).toFixed(2)}</td>
@@ -741,7 +762,7 @@ function Customers() {
 
                 {filteredCustomers.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="text-center text-muted">
+                    <td colSpan={8} className="text-center text-muted">
                       No customers found.
                     </td>
                   </tr>

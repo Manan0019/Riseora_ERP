@@ -62,6 +62,7 @@ export function createSupplier(data) {
         name,
         contact_person,
         phone,
+        alternate_phone,
         email,
         gstin,
         address,
@@ -71,13 +72,14 @@ export function createSupplier(data) {
         payment_terms_days,
         notes
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     .run(
       code,
       name,
       data.contactPerson?.trim() || null,
       data.phone?.trim() || null,
+      data.alternatePhone?.trim() || null,
       data.email?.trim() || null,
       data.gstin?.trim().toUpperCase() || null,
       data.address?.trim() || null,
@@ -119,6 +121,7 @@ export function updateSupplier(id, data) {
       name = ?,
       contact_person = ?,
       phone = ?,
+      alternate_phone = ?,
       email = ?,
       gstin = ?,
       address = ?,
@@ -134,6 +137,7 @@ export function updateSupplier(id, data) {
     name,
     data.contactPerson?.trim() || null,
     data.phone?.trim() || null,
+    data.alternatePhone?.trim() || null,
     data.email?.trim() || null,
     data.gstin?.trim().toUpperCase() || null,
     data.address?.trim() || null,

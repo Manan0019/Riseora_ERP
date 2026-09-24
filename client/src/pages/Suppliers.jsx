@@ -7,6 +7,7 @@ const emptyForm = {
   name: "",
   contactPerson: "",
   phone: "",
+  alternatePhone: "",
   email: "",
   gstin: "",
   address: "",
@@ -99,6 +100,7 @@ function Suppliers() {
         supplier.contact_person || "",
 
       phone: supplier.phone || "",
+      alternatePhone: supplier.alternate_phone || "",
       email: supplier.email || "",
       gstin: supplier.gstin || "",
 
@@ -371,6 +373,7 @@ function Suppliers() {
     supplier.name.toLowerCase().includes(text) ||
     (supplier.contact_person || "").toLowerCase().includes(text) ||
     (supplier.phone || "").toLowerCase().includes(text) ||
+    (supplier.alternate_phone || "").toLowerCase().includes(text) ||
     (supplier.gstin || "").toLowerCase().includes(text) ||
     (supplier.city || "").toLowerCase().includes(text)
   );
@@ -501,6 +504,21 @@ function Suppliers() {
                   value={form.phone}
                   onChange={handleChange}
                   disabled={!editing}
+                />
+              </div>
+
+              <div className="col-md-4 mb-3">
+                <label className="form-label">Alternate Number</label>
+
+                <input
+                  type="tel"
+                  className="form-control"
+                  name="alternatePhone"
+                  value={form.alternatePhone}
+                  onChange={handleChange}
+                  disabled={!editing}
+                  maxLength={20}
+                  placeholder="Optional"
                 />
               </div>
 
@@ -655,6 +673,7 @@ function Suppliers() {
                   <th>Name</th>
                   <th>Contact</th>
                   <th>Phone</th>
+                  <th>Alternate No.</th>
                   <th>GSTIN</th>
                   <th>Terms</th>
                   <th>Status</th>
@@ -681,6 +700,8 @@ function Suppliers() {
 
                     <td>{supplier.phone || "-"}</td>
 
+                    <td>{supplier.alternate_phone || "-"}</td>
+
                     <td>{supplier.gstin || "-"}</td>
 
                     <td>{supplier.payment_terms_days} days</td>
@@ -699,7 +720,7 @@ function Suppliers() {
 
                 {filteredSuppliers.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="text-center text-muted">
+                    <td colSpan={8} className="text-center text-muted">
                       No suppliers found.
                     </td>
                   </tr>

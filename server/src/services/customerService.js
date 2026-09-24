@@ -73,6 +73,7 @@ export function createCustomer(data) {
         code,
         name,
         phone,
+        alternate_phone,
         email,
         gstin,
         address,
@@ -84,12 +85,13 @@ export function createCustomer(data) {
         credit_limit,
         notes
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     .run(
       code,
       name,
       data.phone?.trim() || null,
+      data.alternatePhone?.trim() || null,
       data.email?.trim() || null,
       data.gstin?.trim().toUpperCase() || null,
       data.address?.trim() || null,
@@ -132,6 +134,7 @@ export function updateCustomer(id, data) {
       code = ?,
       name = ?,
       phone = ?,
+      alternate_phone = ?,
       email = ?,
       gstin = ?,
       address = ?,
@@ -148,6 +151,7 @@ export function updateCustomer(id, data) {
     code,
     name,
     data.phone?.trim() || null,
+    data.alternatePhone?.trim() || null,
     data.email?.trim() || null,
     data.gstin?.trim().toUpperCase() || null,
     data.address?.trim() || null,
