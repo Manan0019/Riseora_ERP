@@ -3,6 +3,22 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import api from "../api/api";
 import { useUi } from "../context/UiContext";
+import SearchableSelect from "../components/SearchableSelect";
+
+const ACTUAL_EXTRA_ROLE = "ACTUAL_EXTRA";
+
+const emptyActualMaterial = () => ({
+  itemId: "",
+  actualQuantity: "",
+  wasteQuantity: "0",
+  lotNo: "",
+  reason: "",
+  originalActualQuantity: 0,
+});
+
+function isActualExtraRow(item) {
+  return String(item?.component_role || "").toUpperCase() === ACTUAL_EXTRA_ROLE;
+}
 
 function ProductionWork() {
   const { success: toastSuccess, error: toastError } = useUi();
@@ -14,7 +30,10 @@ function ProductionWork() {
   const today = new Date().toISOString().slice(0, 10);
 
   const [batch, setBatch] = useState(null);
+  const [items, setItems] = useState([]);
+  const [stock, setStock] = useState([]);
   const [consumption, setConsumption] = useState([]);
+  const [additionalMaterials, setAdditionalMaterials] = useState([]);
   const [goodOutputQty, setGoodOutputQty] = useState("");
   const [rejectedQty, setRejectedQty] = useState("0");
   const [reworkQty, setReworkQty] = useState("0");
@@ -44,14 +63,25 @@ function ProductionWork() {
       setError("");
       if (!preserveMessage) setMessage("");
 
-      const response = await api.get(`/production/${id}`);
-      const data = response.data.batch;
+      const [batchResponse, itemResponse, stockResponse] = await Promise.all([
+        api.get(`/production/${id}`),
+        api.get("/items?includeInactive=true"),
+        api.get("/stock"),
+      ]);
+
+      const data = batchResponse.data.batch;
       setBatch(data);
+      setItems(itemResponse.data.items || []);
+      setStock(stockResponse.data.stock || []);
 
       const isExistingCompletion = data.status === "COMPLETED" || data.status === "CLOSED";
+      const plannedRows = (data.consumption || []).filter(
+        (item) => !isActualExtraRow(item),
+      );
+      const actualExtraRows = (data.consumption || []).filter(isActualExtraRow);
 
       setConsumption(
-        (data.consumption || []).map((item) => ({
+        plannedRows.map((item) => ({
           itemId: Number(item.item_id),
           actualQuantity: isExistingCompletion
             ? String(Number(item.actual_quantity || 0))
@@ -60,6 +90,17 @@ function ProductionWork() {
             ? String(Number(item.waste_quantity || 0))
             : "0",
           lotNo: item.lot_no || "",
+        })),
+      );
+
+      setAdditionalMaterials(
+        actualExtraRows.map((item) => ({
+          itemId: String(item.item_id),
+          actualQuantity: String(Number(item.actual_quantity || 0)),
+          wasteQuantity: String(Number(item.waste_quantity || 0)),
+          lotNo: item.lot_no || "",
+          reason: item.extra_reason || "",
+          originalActualQuantity: Number(item.actual_quantity || 0),
         })),
       );
 
@@ -99,6 +140,24 @@ function ProductionWork() {
     );
   };
 
+  const updateAdditionalMaterial = (index, field, value) => {
+    setAdditionalMaterials((current) =>
+      current.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item,
+      ),
+    );
+  };
+
+  const addAdditionalMaterial = () => {
+    setAdditionalMaterials((current) => [...current, emptyActualMaterial()]);
+  };
+
+  const removeAdditionalMaterial = (index) => {
+    setAdditionalMaterials((current) =>
+      current.filter((_, itemIndex) => itemIndex !== index),
+    );
+  };
+
   const outcome = useMemo(() => {
     const planned = Number(batch?.planned_batch_size || 0);
     const good = Number(goodOutputQty || 0);
@@ -112,6 +171,42 @@ function ProductionWork() {
 
     return { planned, good, rejected, rework, scrap, total, variance, variancePercent, yieldPercent };
   }, [batch, goodOutputQty, rejectedQty, reworkQty, scrapQty]);
+
+  const plannedConsumption = useMemo(
+    () => (batch?.consumption || []).filter((item) => !isActualExtraRow(item)),
+    [batch],
+  );
+
+  const stockByItemId = useMemo(
+    () => new Map(stock.map((item) => [Number(item.id), item])),
+    [stock],
+  );
+
+  const getItem = (itemId) =>
+    items.find((item) => Number(item.id) === Number(itemId)) || null;
+
+  const actualMaterialOptions = (rowIndex) => {
+    const plannedIds = new Set(plannedConsumption.map((item) => Number(item.item_id)));
+    const currentId = Number(additionalMaterials[rowIndex]?.itemId || 0);
+    const selectedElsewhere = new Set(
+      additionalMaterials
+        .filter((_, index) => index !== rowIndex)
+        .map((item) => Number(item.itemId || 0))
+        .filter(Boolean),
+    );
+
+    return items.filter((item) => {
+      const itemId = Number(item.id);
+      const role = String(item.category_role || item.category_code || "").toUpperCase();
+      return (
+        (Number(item.is_active) === 1 || itemId === currentId) &&
+        role !== "FG" &&
+        itemId !== Number(batch?.finished_item_id || 0) &&
+        !plannedIds.has(itemId) &&
+        (!selectedElsewhere.has(itemId) || itemId === currentId)
+      );
+    });
+  };
 
   const handleStart = async () => {
     try {
@@ -175,8 +270,8 @@ function ProductionWork() {
       return "Finished product expiry date is required.";
     }
 
-    for (let index = 0; index < (batch.consumption || []).length; index++) {
-      const source = batch.consumption[index];
+    for (let index = 0; index < plannedConsumption.length; index++) {
+      const source = plannedConsumption[index];
       const line = consumption[index];
 
       if (Number(source.track_lot || 0) === 1 && !String(line?.lotNo || "").trim()) {
@@ -203,6 +298,46 @@ function ProductionWork() {
 
       if (actual > availableForCompletion + 0.0000001) {
         return `${source.item_name}: actual consumption exceeds stock available for this batch.`;
+      }
+    }
+
+    const seenAdditionalIds = new Set();
+    for (let index = 0; index < additionalMaterials.length; index++) {
+      const line = additionalMaterials[index];
+      const item = getItem(line.itemId);
+
+      if (!line.itemId || !item) {
+        return `Select an item for additional material row ${index + 1}.`;
+      }
+
+      const itemId = Number(line.itemId);
+      if (seenAdditionalIds.has(itemId)) {
+        return `${item.name}: the same additional material cannot be entered twice.`;
+      }
+      seenAdditionalIds.add(itemId);
+
+      const actual = Number(line.actualQuantity);
+      const waste = Number(line.wasteQuantity || 0);
+      if (!Number.isFinite(actual) || actual <= 0) {
+        return `${item.name}: actual consumption must be greater than zero.`;
+      }
+      if (!Number.isFinite(waste) || waste < 0) {
+        return `${item.name}: waste cannot be negative.`;
+      }
+      if (waste > actual) {
+        return `${item.name}: waste cannot exceed actual consumption.`;
+      }
+      if (!String(line.reason || "").trim()) {
+        return `${item.name}: reason is required because this material was not in the production plan.`;
+      }
+      if (Number(item.track_lot || 0) === 1 && !String(line.lotNo || "").trim()) {
+        return `${item.name}: lot number is required.`;
+      }
+
+      const currentStock = Number(stockByItemId.get(itemId)?.current_stock || 0);
+      const restorable = correctionMode ? Number(line.originalActualQuantity || 0) : 0;
+      if (actual > currentStock + restorable + 0.0000001) {
+        return `${item.name}: actual consumption exceeds available stock.`;
       }
     }
 
@@ -245,6 +380,13 @@ function ProductionWork() {
         actualQuantity: Number(item.actualQuantity || 0),
         wasteQuantity: Number(item.wasteQuantity || 0),
         lotNo: item.lotNo.trim(),
+      })),
+      additionalMaterials: additionalMaterials.map((item) => ({
+        itemId: Number(item.itemId),
+        actualQuantity: Number(item.actualQuantity || 0),
+        wasteQuantity: Number(item.wasteQuantity || 0),
+        lotNo: String(item.lotNo || "").trim(),
+        reason: String(item.reason || "").trim(),
       })),
     };
 
@@ -429,7 +571,7 @@ function ProductionWork() {
                 </tr>
               </thead>
               <tbody>
-                {(batch.consumption || []).map((item, index) => {
+                {plannedConsumption.map((item, index) => {
                   const actual = Number(consumption[index]?.actualQuantity || 0);
                   const planned = Number(item.planned_quantity || 0);
                   const variance = actual - planned;
@@ -540,6 +682,188 @@ function ProductionWork() {
                 })}
               </tbody>
             </table>
+          </div>
+
+          <div className="border-top pt-4 mt-4">
+            <div className="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+              <div>
+                <h6 className="mb-1">One-Off / Unplanned Materials</h6>
+                <div className="text-muted small">
+                  Add material actually consumed in this batch that was not part of the
+                  formula or planned packaging. This does not change the Formula Master.
+                </div>
+              </div>
+
+              {canEditActuals && (
+                <button
+                  type="button"
+                  className="btn btn-outline-primary btn-sm"
+                  onClick={addAdditionalMaterial}
+                >
+                  + Add Actual Material
+                </button>
+              )}
+            </div>
+
+            {additionalMaterials.length === 0 ? (
+              <div className="border rounded p-3 text-muted small">
+                No one-off material recorded for this batch. If an existing planned
+                component changed, edit its Actual Consumed quantity in the table above.
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="table table-bordered align-middle entry-table mb-0">
+                  <thead className="table-light">
+                    <tr>
+                      <th style={{ minWidth: 260 }}>Item</th>
+                      <th>Type</th>
+                      <th style={{ minWidth: 135 }}>Actual Consumed</th>
+                      <th style={{ minWidth: 120 }}>Waste</th>
+                      <th>Unit</th>
+                      <th>Available</th>
+                      <th style={{ minWidth: 130 }}>Lot</th>
+                      <th style={{ minWidth: 220 }}>Reason</th>
+                      {canEditActuals && <th style={{ width: 90 }}>Action</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {additionalMaterials.map((line, index) => {
+                      const item = getItem(line.itemId);
+                      const itemId = Number(line.itemId || 0);
+                      const currentStock = Number(
+                        stockByItemId.get(itemId)?.current_stock || 0,
+                      );
+                      const restorable = correctionMode
+                        ? Number(line.originalActualQuantity || 0)
+                        : 0;
+                      const available = currentStock + restorable;
+
+                      return (
+                        <tr key={`actual-extra-${index}-${line.itemId}`}>
+                          <td>
+                            <SearchableSelect
+                              value={line.itemId}
+                              onChange={(value) =>
+                                updateAdditionalMaterial(index, "itemId", value)
+                              }
+                              options={actualMaterialOptions(index)}
+                              disabled={!canEditActuals}
+                              placeholder="Search material by code or name..."
+                              getOptionLabel={(option) =>
+                                `${option.code} - ${option.name}`
+                              }
+                              getOptionMeta={(option) =>
+                                `${option.category_name || option.category_code || "Material"} • ${
+                                  option.unit_code || ""
+                                }`
+                              }
+                              getOptionSearchText={(option) =>
+                                `${option.code || ""} ${option.name || ""} ${
+                                  option.category_name || ""
+                                } ${option.category_code || ""}`
+                              }
+                              emptyMessage="No eligible material found."
+                            />
+                          </td>
+                          <td>
+                            {item ? (
+                              <>
+                                <span className="badge text-bg-info">Actual Extra</span>
+                                <div className="text-muted small mt-1">
+                                  {item.category_name || item.category_code}
+                                </div>
+                              </>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.001"
+                              className="form-control"
+                              value={line.actualQuantity}
+                              disabled={!canEditActuals}
+                              onChange={(event) =>
+                                updateAdditionalMaterial(
+                                  index,
+                                  "actualQuantity",
+                                  event.target.value,
+                                )
+                              }
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.001"
+                              className="form-control"
+                              value={line.wasteQuantity}
+                              disabled={!canEditActuals}
+                              onChange={(event) =>
+                                updateAdditionalMaterial(
+                                  index,
+                                  "wasteQuantity",
+                                  event.target.value,
+                                )
+                              }
+                            />
+                          </td>
+                          <td>{item?.unit_code || "-"}</td>
+                          <td>
+                            {item ? `${available.toFixed(3)} ${item.unit_code || ""}` : "-"}
+                            {correctionMode && restorable > 0 && (
+                              <div className="text-muted small">
+                                includes {restorable.toFixed(3)} reversible from this batch
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={line.lotNo}
+                              disabled={!canEditActuals}
+                              placeholder={
+                                Number(item?.track_lot || 0) === 1 ? "Required" : "Optional"
+                              }
+                              onChange={(event) =>
+                                updateAdditionalMaterial(index, "lotNo", event.target.value)
+                              }
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={line.reason}
+                              disabled={!canEditActuals}
+                              placeholder="Why was this extra material used?"
+                              onChange={(event) =>
+                                updateAdditionalMaterial(index, "reason", event.target.value)
+                              }
+                            />
+                          </td>
+                          {canEditActuals && (
+                            <td>
+                              <button
+                                type="button"
+                                className="btn btn-outline-danger btn-sm"
+                                onClick={() => removeAdditionalMaterial(index)}
+                              >
+                                Remove
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </div>

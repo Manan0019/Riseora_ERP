@@ -689,23 +689,40 @@ function ProductionRegister() {
                             </td>
                             <td>
                               <div>{item.category_name || item.category_code}</div>
-                              {Number(item.process_extra_planned_quantity || 0) > 0 && (
-                                <span className="badge formula-extra-badge mt-1">
-                                  {Number(item.formula_planned_quantity || 0) > 0
-                                    ? "Formula + Allowance"
-                                    : "Process Allowance"}
-                                </span>
+                              {String(item.component_role || "").toUpperCase() === "ACTUAL_EXTRA" ? (
+                                <>
+                                  <span className="badge text-bg-info mt-1">Actual Extra</span>
+                                  {item.extra_reason && (
+                                    <small className="formula-cell-hint d-block mt-1">
+                                      {item.extra_reason}
+                                    </small>
+                                  )}
+                                </>
+                              ) : (
+                                Number(item.process_extra_planned_quantity || 0) > 0 && (
+                                  <span className="badge formula-extra-badge mt-1">
+                                    {Number(item.formula_planned_quantity || 0) > 0
+                                      ? "Formula + Allowance"
+                                      : "Process Allowance"}
+                                  </span>
+                                )
                               )}
                             </td>
                             <td>
-                              <div>{planned.toFixed(3)}</div>
-                              {Number(item.process_extra_planned_quantity || 0) > 0 && (
+                              {String(item.component_role || "").toUpperCase() === "ACTUAL_EXTRA" ? (
+                                <span className="text-muted">Not planned</span>
+                              ) : (
                                 <>
-                                  <small className="text-muted d-block">
-                                    Formula {Number(item.formula_planned_quantity || 0).toFixed(3)} + allowance {Number(item.process_extra_planned_quantity || 0).toFixed(3)}
-                                  </small>
-                                  {item.extra_reason && (
-                                    <small className="formula-cell-hint d-block">{item.extra_reason}</small>
+                                  <div>{planned.toFixed(3)}</div>
+                                  {Number(item.process_extra_planned_quantity || 0) > 0 && (
+                                    <>
+                                      <small className="text-muted d-block">
+                                        Formula {Number(item.formula_planned_quantity || 0).toFixed(3)} + allowance {Number(item.process_extra_planned_quantity || 0).toFixed(3)}
+                                      </small>
+                                      {item.extra_reason && (
+                                        <small className="formula-cell-hint d-block">{item.extra_reason}</small>
+                                      )}
+                                    </>
                                   )}
                                 </>
                               )}
@@ -718,7 +735,11 @@ function ProductionRegister() {
                             <td className={variance > 0 ? "text-danger" : variance < 0 ? "text-success" : ""}>
                               {variance > 0 ? "+" : ""}{variance.toFixed(3)}
                             </td>
-                            <td>{variancePercent.toFixed(2)}%</td>
+                            <td>
+                              {String(item.component_role || "").toUpperCase() === "ACTUAL_EXTRA"
+                                ? "-"
+                                : `${variancePercent.toFixed(2)}%`}
+                            </td>
                             <td>{item.unit_code}</td>
                             <td>{item.lot_no || "-"}</td>
                             <td>₹{Number(item.unit_cost || 0).toFixed(4)}</td>

@@ -22,6 +22,7 @@ import {
 
 const EPSILON = 0.0000001;
 const QC_STATUSES = new Set(["NOT_CHECKED", "PASSED", "FAILED"]);
+const ACTUAL_EXTRA_ROLE = "ACTUAL_EXTRA";
 
 function generateBatchNumber() {
   const year = new Date().getFullYear();
@@ -257,6 +258,192 @@ function getPlanRows(batchId) {
     WHERE pc.production_batch_id = ?
     ORDER BY pc.id
   `).all(Number(batchId));
+}
+
+function getActualMaterialItem(itemId) {
+  return db.prepare(`
+    SELECT
+      i.id,
+      i.code,
+      i.name,
+      i.is_active,
+      i.track_lot,
+      i.track_expiry,
+      i.base_unit_id,
+      c.code AS category_code,
+      c.name AS category_name,
+      c.inventory_role AS category_role,
+      u.code AS base_unit_code,
+      u.name AS base_unit_name
+    FROM items i
+    INNER JOIN item_categories c ON c.id = i.category_id
+    INNER JOIN units u ON u.id = i.base_unit_id
+    WHERE i.id = ?
+  `).get(Number(itemId));
+}
+
+function syncActualOnlyMaterials(batch, data) {
+  const requested = Array.isArray(data.additionalMaterials)
+    ? data.additionalMaterials
+    : [];
+
+  const currentRows = getPlanRows(batch.id);
+  const plannedItemIds = new Set(
+    currentRows
+      .filter(
+        (row) =>
+          String(row.component_role || "").toUpperCase() !== ACTUAL_EXTRA_ROLE,
+      )
+      .map((row) => Number(row.item_id)),
+  );
+
+  const seen = new Set();
+  const normalized = [];
+
+  for (let index = 0; index < requested.length; index++) {
+    const line = requested[index] || {};
+    const itemId = Number(line.itemId);
+
+    if (!Number.isInteger(itemId) || itemId <= 0) {
+      throw new Error(`Select an item for additional material row ${index + 1}.`);
+    }
+    if (itemId === Number(batch.finished_item_id)) {
+      throw new Error(
+        "The finished product cannot be consumed as an additional material in its own batch.",
+      );
+    }
+    if (plannedItemIds.has(itemId)) {
+      const planned = currentRows.find((row) => Number(row.item_id) === itemId);
+      throw new Error(
+        `${planned?.item_name || "This item"} is already part of the production plan. Change its Actual Consumed quantity instead of adding it again.`,
+      );
+    }
+    if (seen.has(itemId)) {
+      throw new Error("The same additional material cannot be entered more than once.");
+    }
+    seen.add(itemId);
+
+    const item = getActualMaterialItem(itemId);
+    if (!item) {
+      throw new Error(`Additional material in row ${index + 1} was not found.`);
+    }
+    if (Number(item.is_active) !== 1) {
+      throw new Error(`${item.name}: inactive items cannot be consumed in production.`);
+    }
+    if (String(item.category_role || item.category_code).toUpperCase() === "FG") {
+      throw new Error(
+        `${item.name}: finished goods cannot be added as one-off production material.`,
+      );
+    }
+
+    const actualQuantity = requirePositive(
+      line.actualQuantity,
+      `${item.name} actual consumption`,
+    );
+    const wasteQuantity = requireNonNegative(
+      line.wasteQuantity,
+      `${item.name} waste quantity`,
+    );
+    if (wasteQuantity > actualQuantity + EPSILON) {
+      throw new Error(`${item.name}: waste cannot exceed actual consumption.`);
+    }
+
+    const reason = String(line.reason || line.extraReason || "").trim();
+    if (!reason) {
+      throw new Error(`${item.name}: reason is required for an unplanned material.`);
+    }
+
+    const lotNo = String(line.lotNo || "").trim();
+    if (Number(item.track_lot || 0) === 1 && !lotNo) {
+      throw new Error(`${item.name}: lot number is required.`);
+    }
+
+    normalized.push({
+      itemId,
+      actualQuantity,
+      wasteQuantity,
+      lotNo,
+      reason,
+      unitId: Number(item.base_unit_id),
+      unitCode: item.base_unit_code,
+    });
+  }
+
+  /*
+   * Actual-only rows describe the current truth of this batch, not the formula.
+   * During correction, the old completed movements are reversed first, then these
+   * rows are replaced with the corrected set. Stock-transaction history remains
+   * as the audit trail.
+   */
+  db.prepare(`
+    DELETE FROM production_consumption
+    WHERE production_batch_id = ?
+      AND UPPER(COALESCE(component_role, '')) = ?
+  `).run(Number(batch.id), ACTUAL_EXTRA_ROLE);
+
+  const insert = db.prepare(`
+    INSERT INTO production_consumption (
+      production_batch_id,
+      item_id,
+      planned_quantity,
+      formula_planned_quantity,
+      process_extra_planned_quantity,
+      component_role,
+      extra_reason,
+      actual_quantity,
+      unit_id,
+      lot_no,
+      unit_cost,
+      planned_base_quantity,
+      actual_base_quantity,
+      base_unit_id,
+      base_unit_cost,
+      total_cost,
+      variance_quantity,
+      variance_percent,
+      waste_quantity,
+      waste_base_quantity,
+      issued_quantity,
+      issued_base_quantity,
+      issued_base_unit_cost,
+      issued_total_cost,
+      returned_quantity,
+      returned_base_quantity,
+      extra_quantity,
+      extra_base_quantity,
+      extra_cost
+    )
+    VALUES (?, ?, 0, 0, 0, ?, ?, 0, ?, ?, 0, 0, 0, ?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+  `);
+
+  for (const line of normalized) {
+    insert.run(
+      Number(batch.id),
+      line.itemId,
+      ACTUAL_EXTRA_ROLE,
+      line.reason,
+      line.unitId,
+      line.lotNo || null,
+      line.unitId,
+    );
+  }
+
+  return normalized;
+}
+
+function withActualOnlyIngredients(data, actualOnlyMaterials) {
+  return {
+    ...data,
+    ingredients: [
+      ...(Array.isArray(data.ingredients) ? data.ingredients : []),
+      ...actualOnlyMaterials.map((line) => ({
+        itemId: line.itemId,
+        actualQuantity: line.actualQuantity,
+        wasteQuantity: line.wasteQuantity,
+        lotNo: line.lotNo,
+      })),
+    ],
+  };
 }
 
 export function createProductionPlan(data) {
@@ -954,6 +1141,22 @@ function applyCompletion(batch, data, { correction = false } = {}) {
     batch.id,
   );
 
+  const actualOnlyMaterials = getPlanRows(batch.id)
+    .filter(
+      (row) =>
+        String(row.component_role || "").toUpperCase() === ACTUAL_EXTRA_ROLE,
+    )
+    .map((row) => ({
+      itemId: Number(row.item_id),
+      itemCode: row.item_code,
+      itemName: row.item_name,
+      actualQuantity: Number(row.actual_quantity || 0),
+      wasteQuantity: Number(row.waste_quantity || 0),
+      unitCode: row.unit_code,
+      reason: row.extra_reason || null,
+      totalCost: Number(row.total_cost || 0),
+    }));
+
   return {
     productionBatchId: batch.id,
     batchNo: batch.batch_no,
@@ -970,6 +1173,7 @@ function applyCompletion(batch, data, { correction = false } = {}) {
     sellingPriceSnapshot,
     targetMarginPercentSnapshot,
     suggestedSellingPrice,
+    actualOnlyMaterials,
     actualOutputQty: outcome.goodOutputQty,
     actualOutputUnit: getUnitById(batch.batch_unit_id).code,
     actualOutputBaseQty: goodOutputBaseQty,
@@ -985,7 +1189,11 @@ export function completeProductionBatch(id, data) {
       throw new Error("Start the production batch before completing it.");
     }
 
-    const result = applyCompletion(batch, data);
+    const actualOnlyMaterials = syncActualOnlyMaterials(batch, data);
+    const result = applyCompletion(
+      batch,
+      withActualOnlyIngredients(data, actualOnlyMaterials),
+    );
 
     insertEvent(batch.id, "COMPLETED", null, {
       goodOutputQty: result.goodOutputQty,
@@ -995,6 +1203,7 @@ export function completeProductionBatch(id, data) {
       yieldPercent: result.yieldPercent,
       totalProductionCost: result.totalProductionCost,
       finishedUnitCost: result.finishedUnitCost,
+      actualOnlyMaterials: result.actualOnlyMaterials,
     });
 
     return result;
@@ -1027,6 +1236,23 @@ function getLatestIssueTransaction(batchId, itemId) {
       AND transaction_type IN (
         'PRODUCTION_MATERIAL_ISSUE',
         'PRODUCTION_CORRECTION_MATERIAL_ISSUE'
+      )
+      AND quantity_out > 0
+    ORDER BY id DESC
+    LIMIT 1
+  `).get(Number(batchId), Number(itemId));
+}
+
+function getLatestActualOnlyConsumptionTransaction(batchId, itemId) {
+  return db.prepare(`
+    SELECT *
+    FROM stock_transactions
+    WHERE reference_type = 'PRODUCTION'
+      AND reference_id = ?
+      AND item_id = ?
+      AND transaction_type IN (
+        'PRODUCTION_EXTRA_CONSUMPTION',
+        'PRODUCTION_CORRECTION_EXTRA_CONSUMPTION'
       )
       AND quantity_out > 0
     ORDER BY id DESC
@@ -1158,16 +1384,25 @@ function reverseCompletedMovements(batch, { strictCorrection = false } = {}) {
 
   if (strictCorrection) {
     for (const row of rows) {
-      const issueTransaction = getLatestIssueTransaction(batch.id, row.item_id);
-      if (!issueTransaction && Number(row.actual_base_quantity || 0) > EPSILON) {
-        throw new Error(`${row.item_name}: material issue history was not found.`);
+      const isActualOnly =
+        String(row.component_role || "").toUpperCase() === ACTUAL_EXTRA_ROLE;
+      const anchorTransaction = isActualOnly
+        ? getLatestActualOnlyConsumptionTransaction(batch.id, row.item_id)
+        : getLatestIssueTransaction(batch.id, row.item_id);
+
+      if (!anchorTransaction && Number(row.actual_base_quantity || 0) > EPSILON) {
+        throw new Error(
+          isActualOnly
+            ? `${row.item_name}: actual-only consumption history was not found.`
+            : `${row.item_name}: material issue history was not found.`,
+        );
       }
-      if (issueTransaction) {
+      if (anchorTransaction) {
         assertNoExternalMovementAfterIssue(
           batch.id,
           row.item_id,
-          issueTransaction.id,
-          `${row.item_name}: this batch cannot be corrected because this component has external stock movements after it was issued. Use a stock adjustment instead.`,
+          anchorTransaction.id,
+          `${row.item_name}: this batch cannot be corrected because this component has external stock movements after it was consumed. Use a stock adjustment instead.`,
         );
       }
     }
@@ -1249,6 +1484,8 @@ export function correctProductionBatch(id, data) {
 
     reverseCompletedMovements(batch, { strictCorrection: true });
 
+    const actualOnlyMaterials = syncActualOnlyMaterials(batch, data);
+
     const correctedLots = new Map(
       (data.ingredients || []).map((line) => [
         Number(line.itemId),
@@ -1256,7 +1493,12 @@ export function correctProductionBatch(id, data) {
       ]),
     );
     for (const row of getPlanRows(batch.id)) {
-      if (!correctedLots.has(Number(row.item_id))) continue;
+      if (
+        String(row.component_role || "").toUpperCase() === ACTUAL_EXTRA_ROLE ||
+        !correctedLots.has(Number(row.item_id))
+      ) {
+        continue;
+      }
       const lotNo = correctedLots.get(Number(row.item_id));
       if (Number(row.track_lot || 0) === 1 && !lotNo) {
         throw new Error(`${row.item_name}: lot number is required for correction.`);
@@ -1278,7 +1520,11 @@ export function correctProductionBatch(id, data) {
     const resetBatch = getBatchOrThrow(batch.id);
     issuePlannedMaterials(resetBatch, { correction: true });
     const inProductionBatch = getBatchOrThrow(batch.id);
-    const result = applyCompletion(inProductionBatch, data, { correction: true });
+    const result = applyCompletion(
+      inProductionBatch,
+      withActualOnlyIngredients(data, actualOnlyMaterials),
+      { correction: true },
+    );
 
     db.prepare(`
       UPDATE production_batches
@@ -1296,6 +1542,7 @@ export function correctProductionBatch(id, data) {
       scrapQty: result.scrapQty,
       totalProductionCost: result.totalProductionCost,
       finishedUnitCost: result.finishedUnitCost,
+      actualOnlyMaterials: result.actualOnlyMaterials,
     });
 
     return {
