@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../api/api";
+import IndiaLocationFields from "../components/IndiaLocationFields";
 
 const emptyForm = {
   name: "",
@@ -175,44 +176,10 @@ function Company() {
                 />
               </div>
 
-              <div className="col-md-4 mb-3">
-                <label className="form-label">
-                  City
-                </label>
-
-                <input
-                  className="form-control"
-                  name="city"
-                  value={form.city}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div className="col-md-4 mb-3">
-                <label className="form-label">
-                  State
-                </label>
-
-                <input
-                  className="form-control"
-                  name="state"
-                  value={form.state}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div className="col-md-4 mb-3">
-                <label className="form-label">
-                  PIN Code
-                </label>
-
-                <input
-                  className="form-control"
-                  name="pincode"
-                  value={form.pincode}
-                  onChange={handleChange}
-                />
-              </div>
+              <IndiaLocationFields
+                form={form}
+                setForm={setForm}
+              />
 
               <div className="col-md-4 mb-3">
                 <label className="form-label">

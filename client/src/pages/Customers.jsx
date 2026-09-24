@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/api";
 import { useUi } from "../context/UiContext";
+import IndiaLocationFields from "../components/IndiaLocationFields";
 
 const emptyForm = {
   code: "",
@@ -588,41 +589,11 @@ function Customers() {
                 />
               </div>
 
-              <div className="col-md-4 mb-3">
-                <label className="form-label">City</label>
-
-                <input
-                  className="form-control"
-                  name="city"
-                  value={form.city}
-                  onChange={handleChange}
-                  disabled={!editing}
-                />
-              </div>
-
-              <div className="col-md-4 mb-3">
-                <label className="form-label">State</label>
-
-                <input
-                  className="form-control"
-                  name="state"
-                  value={form.state}
-                  onChange={handleChange}
-                  disabled={!editing}
-                />
-              </div>
-
-              <div className="col-md-4 mb-3">
-                <label className="form-label">PIN Code</label>
-
-                <input
-                  className="form-control"
-                  name="pincode"
-                  value={form.pincode}
-                  onChange={handleChange}
-                  disabled={!editing}
-                />
-              </div>
+              <IndiaLocationFields
+                form={form}
+                setForm={setForm}
+                disabled={!editing}
+              />
 
               <div className="col-md-3 mb-3">
                 <label className="form-label">Credit Days</label>

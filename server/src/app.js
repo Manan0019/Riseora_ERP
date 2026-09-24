@@ -24,6 +24,7 @@ import supplierLedgerRoutes from "./routes/supplierLedgerRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import openingBalanceRoutes from "./routes/openingBalanceRoutes.js";
+import indiaLocationRoutes from "./routes/indiaLocationRoutes.js";
 
 import {
   requireAuth,
@@ -222,6 +223,12 @@ app.use(
   "/api/reports",
   ...adminOnly,
   reportRoutes,
+);
+
+app.use(
+  "/api/locations",
+  ...adminOnly,
+  indiaLocationRoutes,
 );
 
 app.use(
