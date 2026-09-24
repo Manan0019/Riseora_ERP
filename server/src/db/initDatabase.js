@@ -25,8 +25,8 @@ import { runDefaultAdminCredentialsMigration } from "./migrations/021_default_ad
 import { runFormulaEntryModeMigration } from "./migrations/022_formula_entry_modes.js";
 import { runCategoryInventoryRoleMigration } from "./migrations/023_category_inventory_roles.js";
 import { runFormulaProcessExtrasMigration } from "./migrations/024_formula_process_extras.js";
+import { runPasswordResetOtpMigration } from "./migrations/025_password_reset_otps.js";
 import { seedRiseoraCatalog } from "./seeds/seedRiseoraCatalog.js";
-
 
 export async function initDatabase() {
   runInitialMigration();
@@ -53,6 +53,7 @@ export async function initDatabase() {
   runFormulaEntryModeMigration();
   runCategoryInventoryRoleMigration();
   runFormulaProcessExtrasMigration();
+  runPasswordResetOtpMigration();
 
   seedUnits();
   seedItemCategories();

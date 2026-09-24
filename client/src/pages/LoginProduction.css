@@ -1,0 +1,98 @@
+/*
+ * Login-only production polish.
+ * This file intentionally overrides only the login screen
+ * so the global Riseora UI remains untouched.
+ */
+
+.login-card .login-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: 28px;
+}
+
+.login-card .login-logo {
+  display: block;
+  width: 178px;
+  max-width: 78%;
+  max-height: 160px;
+  margin: 0 auto;
+  object-fit: contain;
+  object-position: center;
+}
+
+.login-password-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.login-forgot-link,
+.login-back-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--riseora-primary-800, #925d4b);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.login-forgot-link:hover,
+.login-back-link:hover {
+  text-decoration: underline;
+}
+
+.login-reset-note {
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  border: 1px solid rgba(146, 93, 75, 0.18);
+  border-radius: 12px;
+  background: rgba(243, 236, 229, 0.62);
+  color: #594a44;
+  font-size: 0.91rem;
+  line-height: 1.45;
+}
+
+.login-reset-email {
+  margin-top: 4px;
+  font-weight: 700;
+}
+
+.login-reset-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.login-secondary-action {
+  border: 0;
+  background: transparent;
+  color: var(--riseora-primary-800, #925d4b);
+  font-weight: 700;
+  padding: 0;
+}
+
+.login-secondary-action:disabled,
+.login-forgot-link:disabled,
+.login-back-link:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 767.98px) {
+  .login-card .login-logo {
+    width: 160px;
+    max-height: 145px;
+  }
+
+  .login-reset-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
