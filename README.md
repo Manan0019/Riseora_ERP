@@ -2,204 +2,362 @@
 
 > **Offline-first ERP for herbal and cosmetic manufacturing, inventory, production, sales, costing, and reporting.**
 
-Riseora ERP is a Windows-focused business management system built for **Riseora Herbals**. It brings purchasing, stock control, formulation, production, costing, sales, invoicing, ledgers, and reporting into one local application designed for day-to-day use on a single business computer.
+Riseora ERP is a Windows-focused business management system built for **Riseora Herbals**. It brings purchasing, inventory control, formulation, production, costing, sales, invoicing, ledgers, reporting, and backups into one local desktop application designed for day-to-day business use.
 
-The application is designed to remain lightweight and practical for a small manufacturing business while preserving accurate inventory movements, production history, costing, and transaction records.
+The project is built around a simple goal: keep the workflow practical for a small manufacturing business while preserving accurate stock movements, production history, costing, and financial records.
 
 ---
 
-## ✨ Highlights
+## 🎥 Product Demo
 
-- Offline-first Windows desktop application
-- Purchase and supplier management
-- Customer and sales management
-- Formula / recipe management
-- Batch production planning and execution
+### Quick Demo
+
+A short walkthrough covering the main Riseora ERP workflow.
+
+[▶ **Watch the short Riseora ERP demo**](docs/media/riseora-erp-demo.mp4)
+
+The demo includes:
+
+- Login and dashboard
+- Item and inventory management
+- Formula management
+- Production planning and execution
 - Planned vs actual material consumption
-- One-off / unplanned production materials
-- Production wastage, yield, rejection, rework, and scrap tracking
-- Moving-average inventory costing
-- Finished-goods costing
-- Stock ledger and adjustments
-- Customer and supplier outstanding ledgers
-- GST-ready sales invoicing
-- Professional A4 invoice printing / PDF
-- Business reports and Excel exports
-- Searchable ERP selectors
-- PIN / City / State assistance for Indian addresses
-- Email OTP password reset
-- Manual and automatic SQLite backups
-- Windows installer for non-technical users
+- Production costing and yield
+- Sales and profitability
+- Business reports
+- Database backup
+
+### Full Product Walkthrough
+
+For a detailed walkthrough of the complete Riseora ERP V1.0 workflow:
+
+[▶ **Watch the Full Riseora ERP V1.0 Walkthrough**](https://github.com/Manan0019/Riseora_ERP/releases/tag/v1.0-demo)
+
+> The full walkthrough is available as a downloadable video under the **Assets** section of the `v1.0-demo` release.
 
 ---
 
-## 🏭 Core Modules
+## 📸 Screenshots
 
-### Masters
+### Dashboard
 
-- Company Master
-- Units
-- Item Categories
-- Items
-- Suppliers
-- Customers
-- Opening Balances
+Live business overview covering sales, purchases, customer/supplier outstanding, inventory alerts, and recent production.
 
-### Purchase & Inventory
+![Riseora ERP Dashboard](docs/screenshots/dashboard.png)
 
-- Purchase Entry
-- Supplier Payments
-- Opening Stock
-- Stock Adjustments
-- Current Stock
-- Stock Ledger
-- Stock Valuation
-- Reorder / Low Stock
-- Lot and expiry tracking
+### Inventory & Item Master
+
+Centralized management of raw materials, extracts, oils, packaging components, consumables, and finished goods.
+
+![Riseora ERP Item Master](docs/screenshots/items.png)
 
 ### Formula Management
 
-Riseora ERP supports reusable product formulas with:
+Version-controlled manufacturing formulas with percentage-based or direct-quantity composition.
 
-- fixed-quantity formulas
-- percentage-based formulas
-- formula scaling
-- ingredient quantities
-- packaging components
-- process allowance / extra ingredients
-- formula history protection after production use
+![Riseora ERP Formula Master](docs/screenshots/formula-master.png)
 
-A standard formula represents the normal manufacturing recipe. Batch-specific differences are recorded in Production rather than silently changing the master formula.
+### Production, Yield & Costing
 
-### Production
+Production batches preserve planned output, actual good output, rejected/rework/scrap quantities, QC status, yield, and manufacturing cost.
 
-Production supports the full planned-vs-actual workflow:
+![Riseora ERP Production Register](docs/screenshots/production-register.png)
 
-- production plan
-- material requirements
-- material issue
-- actual material consumption
-- unused quantity return
-- extra consumption
-- one-off / unplanned material consumption
-- wastage
-- good output
-- rejected output
-- rework
-- scrap
-- yield percentage
-- labour cost
-- utilities / electricity cost
-- other manufacturing cost
-- finished-goods unit cost
-- QC
-- completed-batch correction with audit history
+### Planned vs Actual Material Consumption
 
-#### Example
+Track planned, issued, actual, returned, extra, and wasted material quantities together with cost and batch audit history.
+
+![Riseora ERP Production Actuals](docs/screenshots/production-actuals.png)
+
+### Sales & Profitability
+
+Sales register with payment status, COGS, gross profit, margin analysis, returns, refunds, and invoice actions.
+
+![Riseora ERP Sales Register](docs/screenshots/sales-register.png)
+
+### Business Reports
+
+Operational and financial reporting with filters, Excel export, and printable PDF views.
+
+![Riseora ERP Business Reports](docs/screenshots/business-reports.png)
+
+### Printable Expiry / Near-Expiry Report
+
+Track recorded stock lots approaching expiry with days remaining, lot quantity, unit and urgency status.
+
+![Riseora ERP Expiry Near-Expiry Report](docs/screenshots/expiry-near-expiry-report.png)
+
+### Professional A4 Tax Invoice
+
+Printable GST-ready invoice with company/customer information, tax calculation, payment status, amount in words, and authorised signatory section.
+
+![Riseora ERP Tax Invoice](docs/screenshots/tax-invoice.png)
+
+### Secure Local Login
+
+![Riseora ERP Login](docs/screenshots/login.png)
+
+---
+
+## ✨ Key Features
+
+### Manufacturing
+
+- Formula / recipe management
+- Formula versioning
+- Percentage-based and quantity-based formulations
+- Formula scaling
+- Production planning
+- Material issue
+- Planned vs actual consumption
+- Returned material tracking
+- Extra material consumption
+- One-off / unplanned actual materials
+- Process allowance
+- Wastage
+- Good output
+- Rejected output
+- Rework
+- Scrap
+- Yield calculation
+- QC status and notes
+- Production costing
+- Batch corrections with audit history
+
+### Purchase & Inventory
+
+- Supplier master
+- Purchase entry
+- Supplier payments
+- Opening stock
+- Stock adjustments
+- Current stock
+- Stock ledger
+- Stock valuation
+- Reorder / low-stock monitoring
+- Lot tracking
+- Expiry tracking
+- Weighted moving-average inventory costing
+
+### Sales & Receivables
+
+- Customer master
+- Sales invoice
+- Customer payments
+- Partial payments
+- Customer outstanding
+- Customer ledger
+- Sales returns / credit notes
+- Refunds
+- COGS calculation
+- Sales profitability
+- Gross margin analysis
+- GST calculation
+- A4 invoice print / Save as PDF
+
+### Reports
+
+- Sales Register
+- Sales Profitability
+- Sales Return / Credit Notes
+- Customer Refunds
+- Purchase Register
+- Current Stock
+- Stock Valuation
+- Stock Ledger
+- Low Stock
+- Expiry / Near Expiry
+- Production Register
+- Production Costing
+- Customer Outstanding
+- Customer Ledger
+- Supplier Outstanding
+- Supplier Ledger
+
+### Security & Reliability
+
+- Administrator login
+- Session-based authentication
+- Forgot Password
+- 6-digit email OTP
+- OTP expiry and resend cooldown
+- Password change
+- Local SQLite database
+- Manual database backup
+- Automatic startup backups
+- Backup history
+- SQLite backup verification
+- Business data stored separately from the installed program
+
+---
+
+## 🏭 Production Workflow
+
+A standard formula represents the expected manufacturing recipe.
+
+The production batch records what actually happened.
+
+```text
+Formula Master
+      │
+      ▼
+Production Plan
+      │
+      ▼
+Material Issue
+      │
+      ▼
+Actual Consumption
+      │
+      ├── Returned Material
+      ├── Extra Consumption
+      ├── Waste
+      └── One-Off / Unplanned Material
+      │
+      ▼
+Production Output
+      │
+      ├── Good
+      ├── Rejected
+      ├── Rework
+      └── Scrap
+      │
+      ▼
+QC + Yield + Costing
+      │
+      ▼
+Finished Goods Stock
+```
+
+For example:
 
 ```text
 Planned Output : 20 PCS
 Actual Output  : 19 PCS
 ```
 
-The ERP posts **19 PCS** to finished stock and records the production variance.
+The ERP records **19 PCS** as finished output and preserves the production variance.
 
-If a batch uses an item that is not part of the standard formula, the operator can use:
-
-```text
-+ Add Actual Material
-```
-
-That material is consumed only for the current production batch and does not modify Formula Master.
-
-### Sales & Receivables
-
-- Sales Invoice
-- Customer Payments
-- Partial payments
-- Customer outstanding
-- Customer ledger
-- Credit notes / returns
-- Refunds
-- COGS and profitability
-- GST calculations
-- Printable A4 invoice
+If a material is used during a batch but is not part of the standard formula, the operator can add it as an **Actual / Unplanned Material** without changing Formula Master.
 
 ---
 
-## 📊 Reports
+## 🔄 End-to-End Business Flow
 
-Current reporting includes:
-
-- Sales Register
-- Purchase Register
-- Production Register
-- Current Stock
-- Stock Valuation
-- Stock Ledger
-- Low Stock
-- Expiry / Near Expiry
-- Sales Profitability
-- Customer Outstanding
-- Customer Ledger
-- Supplier Outstanding
-- Supplier Ledger
-
-Reports can be filtered and exported where applicable.
+```text
+Supplier
+   │
+   ▼
+Purchase
+   │
+   ▼
+Raw Material / Packaging Stock
+   │
+   ├─────────────────────┐
+   │                     │
+   ▼                     ▼
+Formula Master      Inventory Cost
+   │
+   ▼
+Production Plan
+   │
+   ▼
+Production Execution
+   │
+   ▼
+Actual Consumption
+   │
+   ▼
+Finished Goods Stock
+   │
+   ▼
+Sales Invoice
+   │
+   ├──────────────► COGS / Profitability
+   │
+   ▼
+Customer Ledger / Receivable
+```
 
 ---
 
 ## 🧾 Invoice
 
-Riseora ERP includes a professional A4 sales invoice layout with:
+Riseora ERP includes an A4 tax invoice designed for printing and PDF export.
 
-- company details
-- customer details
-- GST information
-- invoice items
-- taxable values
-- GST totals
-- amount paid
-- balance due
-- payment status
-- bank / payment information
-- amount in words
-- terms
-- company stamp / authorised signatory area
-- Print / Save as PDF
+It includes:
 
----
-
-## 🔐 Authentication & Password Reset
-
-Riseora ERP includes:
-
-- administrator login
-- session-based authentication
-- Forgot Password
-- 6-digit email OTP
-- OTP expiry
-- resend cooldown
-- attempt limit
-- password replacement
-
-SMTP credentials are configured locally and are **not committed to the repository or embedded in the installer**.
+- Company details
+- Customer details
+- Invoice number and date
+- Place of supply
+- Tax type
+- Item details
+- HSN
+- Quantity and unit
+- Rate
+- Discount
+- Taxable value
+- GST
+- Grand total
+- Paid amount
+- Balance
+- Amount in words
+- Terms
+- Company stamp / authorised signatory area
 
 ---
 
-## 💾 Data Safety
+## 📊 Reporting
 
-Riseora ERP uses SQLite with WAL mode and keeps business data separate from the installed application.
+Reports are designed for operational use rather than static presentation only.
 
-### Installed Windows application
+Depending on the report, the user can:
 
-Business data is stored under the current Windows user's application-data folder:
+- apply filters
+- review totals
+- view detailed rows
+- export to Excel
+- print / save as PDF
+
+The **Expiry / Near-Expiry** report helps identify recorded stock lots approaching expiry.
+
+---
+
+## 🖥️ Windows Desktop Application
+
+Riseora ERP is packaged as an Electron desktop application.
+
+The business owner does **not** need to install or run:
+
+- Node.js
+- npm
+- Vite
+- a browser
+- separate frontend/backend terminals
+
+A Windows installer can be generated as:
+
+```text
+Riseora-ERP-Setup-1.0.0.exe
+```
+
+The current unsigned trial installer may display a Windows **Unknown Publisher / SmartScreen** warning.
+
+---
+
+## 💾 Data Storage & Backups
+
+The installed application keeps business data outside the installed program files.
+
+Main application-data location:
 
 ```text
 %APPDATA%\Riseora ERP\business-data\
 ```
 
-Important locations:
+Structure:
 
 ```text
 business-data\
@@ -214,35 +372,11 @@ The application supports:
 
 - **Settings → Backup Now**
 - automatic startup backups
+- backup history
 - SQLite online backup
-- integrity verification of manual backups
-- persistent business data across normal application upgrades
+- integrity verification for generated backups
 
-> Never delete the `business-data` folder unless an intentional full data reset is required.
-
----
-
-## 🖥️ Windows Desktop Application
-
-Riseora ERP is packaged as an Electron desktop application.
-
-The owner/user does **not** need:
-
-- Node.js
-- npm
-- Vite
-- a browser
-- separate backend/frontend terminals
-
-The Windows installer launches the frontend and backend internally.
-
-Example release artifact:
-
-```text
-Riseora-ERP-Setup-1.0.0.exe
-```
-
-> The current trial installer may display an **Unknown Publisher / Windows SmartScreen** warning because it is not yet code-signed.
+> Do not manually delete the `business-data` folder unless a full intentional reset is required.
 
 ---
 
@@ -259,82 +393,41 @@ Riseora-ERP-Setup-1.0.0.exe
 | Validation | Zod |
 | Authentication | Express Session + bcrypt |
 | Email / OTP | Nodemailer |
-| India Location Data | `country-state-city-js` + postal lookup |
-| Spreadsheet Export | ExcelJS |
-| Packaging | electron-builder + NSIS |
+| India Location Support | `country-state-city-js` + postal lookup |
+| Windows Packaging | electron-builder + NSIS |
 
 ---
 
-## 🧱 Application Architecture
+## 🧱 Architecture
 
 ```text
 ┌──────────────────────────────┐
-│        Riseora ERP           │
-│      Electron Desktop        │
+│         Riseora ERP          │
+│       Electron Desktop       │
 └──────────────┬───────────────┘
                │
                ▼
 ┌──────────────────────────────┐
 │       React + Vite UI        │
 └──────────────┬───────────────┘
-               │ Local API
+               │ Local HTTP API
                ▼
 ┌──────────────────────────────┐
 │     Node.js + Express API    │
 │                              │
-│  Business Rules / Services   │
+│   Business Rules / Services  │
 └──────────────┬───────────────┘
                │
                ▼
 ┌──────────────────────────────┐
-│ SQLite / better-sqlite3      │
+│   SQLite / better-sqlite3    │
 │                              │
 │ Stock • Cost • Production    │
 │ Sales • Purchase • Ledgers   │
 └──────────────────────────────┘
 ```
 
----
-
-## 🔄 Business Flow
-
-```text
-Supplier
-   │
-   ▼
-Purchase
-   │
-   ▼
-Raw Material / Packaging Stock
-   │
-   ├───────────────┐
-   │               │
-   ▼               ▼
-Formula       Inventory Cost
-   │
-   ▼
-Production Plan
-   │
-   ▼
-Material Issue
-   │
-   ▼
-Actual Consumption
-   │
-   ▼
-Production Output
-   │
-   ▼
-Finished Goods Stock
-   │
-   ▼
-Sales Invoice
-   │
-   ├──────────────► COGS / Profitability
-   │
-   ▼
-Customer Ledger / Receivable
-```
+The packaged backend is bound to the local machine only.
 
 ---
 
@@ -344,7 +437,7 @@ Customer Ledger / Receivable
 
 For source-code development:
 
-- Windows 10/11 recommended
+- Windows 10 / 11 recommended
 - Node.js
 - npm
 - Git
@@ -364,7 +457,7 @@ npm install
 npm run dev
 ```
 
-Backend development URL:
+Development API:
 
 ```text
 http://localhost:5000
@@ -380,7 +473,7 @@ npm install
 npm run dev
 ```
 
-Frontend development URL:
+Development frontend:
 
 ```text
 http://localhost:5173
@@ -390,30 +483,30 @@ http://localhost:5173
 
 ## 🖥️ Desktop Development
 
-Install the desktop dependencies:
+Install desktop dependencies:
 
 ```bash
 cd desktop
 npm install
 ```
 
-Run the desktop application using isolated development data:
+Run the Electron desktop build with isolated development data:
 
 ```bash
 npm start
 ```
 
-Development desktop data is stored under:
+Desktop development data is stored under:
 
 ```text
 desktop\.dev-user-data\
 ```
 
-This keeps desktop testing separate from the normal source-development database.
+This keeps Electron testing separate from the normal project database.
 
 ---
 
-## 📦 Building the Windows Installer
+## 📦 Build the Windows Installer
 
 From the project root:
 
@@ -421,7 +514,7 @@ From the project root:
 .\BUILD_RISEORA_INSTALLER.ps1
 ```
 
-Expected output:
+Expected installer output:
 
 ```text
 desktop\release\Riseora-ERP-Setup-1.0.0.exe
@@ -429,16 +522,17 @@ desktop\release\Riseora-ERP-Setup-1.0.0.exe
 
 The installer build intentionally excludes:
 
-- development `.env`
-- development SQLite database
-- development desktop user data
-- local secrets
+- `server/.env`
+- development SQLite databases
+- `.dev-user-data`
+- local session secrets
+- SMTP credentials
 
 ---
 
 ## ⚙️ Environment Configuration
 
-Create:
+For local source development, create:
 
 ```text
 server\.env
@@ -469,112 +563,69 @@ PASSWORD_RESET_RESEND_SECONDS=60
 PASSWORD_RESET_MAX_ATTEMPTS=5
 ```
 
-### Important
+Never commit real secrets.
 
-Never commit:
+---
+
+## 🔐 Repository Safety
+
+The following should remain excluded from Git:
 
 ```text
 .env
 *.db
 *.sqlite
 *.sqlite3
+node_modules/
 desktop/.dev-user-data/
+desktop/release/
 ```
 
-Never commit SMTP passwords, Gmail App Passwords, session secrets, or real production business data.
+Do not commit:
+
+- Gmail App Passwords
+- SMTP passwords
+- session secrets
+- real customer/supplier private information
+- live production databases
+- database backups containing real business data
 
 ---
 
 ## ✅ Testing
 
-The project includes regression coverage for major business workflows.
+Before producing a new owner release:
 
-Example:
+```text
+1. Back up current business data
+2. Run server regression tests
+3. Test desktop startup
+4. Test login
+5. Test purchase
+6. Test stock
+7. Test formula management
+8. Test production
+9. Test production correction
+10. Test sales
+11. Test invoice Print / Save PDF
+12. Test reports
+13. Test Backup Now
+14. Close and reopen the desktop app
+15. Confirm business data persists
+16. Build and test the Windows installer
+```
+
+Main regression command:
 
 ```bash
 cd server
 npm run test:regression
 ```
 
-Additional production-specific test scripts may also exist under:
+Additional workflow-specific verification scripts may be available under:
 
 ```text
 server/scripts/
-```
-
-Before producing a new owner release:
-
-```text
-1. Back up existing business data
-2. Run regression tests
-3. Test desktop startup
-4. Test manual backup
-5. Test purchase
-6. Test production
-7. Test sales
-8. Test invoice printing
-9. Test reports
-10. Build and test the installer
-```
-
----
-
-## 🔒 Production Rules
-
-A few important design rules:
-
-- Posted business transactions should not be silently rewritten.
-- Corrections should use correction / cancellation / credit-note / adjustment flows.
-- Formula Master represents the standard recipe.
-- Production actuals represent what really happened during a batch.
-- Stock movements remain ledger-backed.
-- Business data is stored outside the installed application.
-- Back up before upgrades or structural database changes.
-
----
-
-## 🗺️ Roadmap
-
-Future improvements will be driven by real owner usage rather than adding unnecessary complexity.
-
-Possible future work:
-
-- enhanced backup/restore workflow
-- scheduled external-drive/cloud-copy backup
-- additional user roles and permissions
-- FEFO/FIFO lot allocation improvements
-- enhanced customer/supplier statements
-- dashboard analytics
-- invoice sharing
-- digital code signing
-- LAN / multi-PC deployment
-- optional cloud deployment when required
-
----
-
-## 📸 Screenshots
-
-Screenshots can be added under:
-
-```text
-docs/screenshots/
-```
-
-Recommended screenshots:
-
-- Login
-- Dashboard
-- Item Master
-- Formula
-- Production Work
-- Sales Invoice
-- A4 Invoice
-- Reports
-
-Example:
-
-```markdown
-![Dashboard](docs/screenshots/dashboard.png)
 ```
 
 ---
@@ -583,37 +634,74 @@ Example:
 
 ```text
 Riseora_ERP/
-├── client/                 # React + Vite frontend
-├── server/                 # Express API and SQLite business logic
-├── desktop/                # Electron desktop wrapper / installer
-├── data/                   # Local development database (ignored in Git)
-├── docs/                   # Documentation / screenshots
+├── client/                         # React + Vite frontend
+├── server/                         # Express API + business logic
+├── desktop/                        # Electron desktop wrapper / installer
+├── docs/
+│   ├── screenshots/
+│   │   ├── login.png
+│   │   ├── dashboard.png
+│   │   ├── items.png
+│   │   ├── formula-master.png
+│   │   ├── production-register.png
+│   │   ├── production-actuals.png
+│   │   ├── sales-register.png
+│   │   ├── business-reports.png
+│   │   └── tax-invoice.png
+│   └── media/
+│       └── riseora-erp-demo.mp4
 ├── BUILD_RISEORA_INSTALLER.ps1
+├── .gitignore
 └── README.md
 ```
 
 ---
 
-## ⚠️ Disclaimer
+## 🗺️ Roadmap
 
-This repository represents software built specifically around Riseora Herbals' internal business workflow.
+Future development will be guided primarily by real owner usage.
 
-Before using the system for another organisation, review and adapt:
+Potential improvements include:
 
-- taxation rules
-- invoice requirements
-- inventory rules
-- manufacturing workflow
+- Backup restore workflow
+- Scheduled external-drive backup
+- Optional cloud-synced backup
+- Additional users and permissions
+- Enhanced lot allocation
+- FEFO / FIFO improvements
+- Advanced customer/supplier statements
+- Dashboard analytics
+- Invoice sharing
+- Windows code signing
+- LAN / multi-PC deployment
+- Optional cloud deployment
+
+---
+
+## ⚠️ Project Scope
+
+Riseora ERP was designed specifically around **Riseora Herbals' internal business workflow**.
+
+Before adapting it for another organisation, review:
+
+- tax requirements
+- invoicing rules
+- manufacturing flow
+- costing rules
+- stock policies
 - accounting treatment
 - backup policy
+- user-access requirements
 
 ---
 
 ## 📄 License
 
-**Proprietary software — All Rights Reserved.**
+**Proprietary software. All rights reserved.**
 
-The source code may be publicly visible for portfolio and development-reference purposes, but public repository visibility does not grant permission to copy, redistribute, sell, sublicense, or use this software commercially unless a separate license explicitly allows it.
+This repository may be publicly visible for portfolio and development-reference purposes.
+
+Public visibility does **not** grant permission to copy, redistribute, sell, sublicense, or commercially use the software unless a separate written license explicitly grants those rights.
 
 ---
 
@@ -621,11 +709,13 @@ The source code may be publicly visible for portfolio and development-reference 
 
 **Manan Bhayani**
 
-Full-Stack / MERN Developer  
+Full-Stack / MERN Developer
+
 GitHub: [@Manan0019](https://github.com/Manan0019)
 
 ---
 
-### Riseora ERP
-
-**Simple local software for real manufacturing operations.**
+<p align="center">
+  <strong>Riseora ERP</strong><br>
+  From raw material to finished product — one connected workflow.
+</p>
