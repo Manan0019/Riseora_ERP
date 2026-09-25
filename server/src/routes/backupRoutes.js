@@ -8,11 +8,14 @@ import {
 const router =
   express.Router();
 
-router.get("/", listBackups);
+router.get(
+  "/",
+  listBackups,
+);
 
 router.post(
   "/",
-  createBackup
+  createBackup,
 );
 
 export default router;

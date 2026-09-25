@@ -1,0 +1,73 @@
+{
+  "name": "riseora-erp-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "main.js",
+  "description": "Windows desktop packaging layer for Riseora ERP",
+  "author": "Riseora Herbals",
+  "scripts": {
+    "prepare:app": "node scripts/prepare-app.mjs",
+    "start": "npm run prepare:app && electron . --dev-data",
+    "build:dir": "npm run prepare:app && electron-builder --dir --win --x64",
+    "build:win": "npm run prepare:app && electron-builder --win nsis --x64",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "better-sqlite3": "^13.0.3",
+    "cors": "^2.8.6",
+    "country-state-city-js": "^2.5.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "nodemailer": "^10.0.10",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "electron": "44.4.5",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "in.riseora.erp",
+    "productName": "Riseora ERP",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/**/*.node"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.cjs",
+      "setup.html",
+      "setup-renderer.js",
+      "app/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "Riseora-ERP-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Riseora ERP",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
+    }
+  }
+}

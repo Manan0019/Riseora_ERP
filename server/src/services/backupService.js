@@ -1,138 +1,341 @@
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import Database from "better-sqlite3";
 
 import db from "../db/database.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const backupDir = path.resolve(
-  __dirname,
-  "../../../backups"
-);
+function safeTimestamp() {
+  return new Date()
+    .toISOString()
+    .replace(/[:.]/g, "-");
+}
 
-function ensureBackupDirectory() {
-  if (!fs.existsSync(backupDir)) {
-    fs.mkdirSync(backupDir, {
-      recursive: true,
-    });
+function getDatabasePath() {
+  const configured = String(
+    process.env.RISEORA_DB_PATH || "",
+  ).trim();
+
+  if (configured) {
+    return path.resolve(configured);
   }
+
+  if (db?.name) {
+    return path.resolve(db.name);
+  }
+
+  return path.resolve(
+    __dirname,
+    "../../../data/riseora_erp.db",
+  );
 }
 
-function createBackupFileName() {
-  const now = new Date();
+export function getBackupDirectory() {
+  const configured = String(
+    process.env.RISEORA_BACKUP_DIR || "",
+  ).trim();
 
-  const year = now.getFullYear();
+  const backupDir = configured
+    ? path.resolve(configured)
+    : path.join(
+        path.dirname(getDatabasePath()),
+        "backups",
+      );
 
-  const month = String(
-    now.getMonth() + 1
-  ).padStart(2, "0");
+  fs.mkdirSync(
+    backupDir,
+    { recursive: true },
+  );
 
-  const day = String(
-    now.getDate()
-  ).padStart(2, "0");
-
-  const hours = String(
-    now.getHours()
-  ).padStart(2, "0");
-
-  const minutes = String(
-    now.getMinutes()
-  ).padStart(2, "0");
-
-  const seconds = String(
-    now.getSeconds()
-  ).padStart(2, "0");
-
-  return `riseora_backup_${year}-${month}-${day}_${hours}-${minutes}-${seconds}.db`;
+  return backupDir;
 }
 
-export async function createDatabaseBackup() {
-  ensureBackupDirectory();
+function verifyBackupFile(filePath) {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(
+      "The backup file was not created.",
+    );
+  }
 
-  const fileName =
-    createBackupFileName();
+  const stat = fs.statSync(filePath);
 
-  const backupPath =
-    path.join(
-      backupDir,
-      fileName
+  if (!stat.isFile() || stat.size <= 0) {
+    throw new Error(
+      "The backup file is empty.",
+    );
+  }
+
+  let backupDb;
+
+  try {
+    backupDb = new Database(
+      filePath,
+      {
+        readonly: true,
+        fileMustExist: true,
+        timeout: 5000,
+      },
     );
 
-  await db.backup(backupPath);
+    const quickCheck = String(
+      backupDb.pragma(
+        "quick_check",
+        { simple: true },
+      ),
+    ).toLowerCase();
 
-  const stats =
-    fs.statSync(backupPath);
+    if (quickCheck !== "ok") {
+      throw new Error(
+        `SQLite quick_check returned "${quickCheck}".`,
+      );
+    }
+
+    const foreignKeyIssues =
+      backupDb.pragma("foreign_key_check");
+
+    if (
+      Array.isArray(foreignKeyIssues) &&
+      foreignKeyIssues.length > 0
+    ) {
+      throw new Error(
+        `Backup contains ${foreignKeyIssues.length} foreign-key issue(s).`,
+      );
+    }
+  } finally {
+    try {
+      backupDb?.close();
+    } catch {
+      // Ignore close-only errors.
+    }
+  }
+
+  return stat;
+}
+
+function toBackupInfo(fileName, fullPath) {
+  const stat = fs.statSync(fullPath);
 
   return {
     fileName,
-    backupPath,
-    sizeBytes: stats.size,
-    createdAt:
-      new Date().toISOString(),
+    modifiedAt: stat.mtime.toISOString(),
+    sizeBytes: Number(stat.size || 0),
+    kind: fileName.startsWith("startup_")
+      ? "STARTUP"
+      : "MANUAL",
   };
 }
 
-export function getBackups() {
-  ensureBackupDirectory();
+export function listDatabaseBackups() {
+  const backupDir =
+    getBackupDirectory();
 
   return fs
-    .readdirSync(backupDir)
-    .filter((file) =>
-      file.endsWith(".db")
+    .readdirSync(
+      backupDir,
+      { withFileTypes: true },
     )
-    .map((file) => {
+    .filter(
+      (entry) =>
+        entry.isFile() &&
+        entry.name.toLowerCase().endsWith(".db"),
+    )
+    .map((entry) => {
       const fullPath =
         path.join(
           backupDir,
-          file
+          entry.name,
         );
 
-      const stats =
-        fs.statSync(fullPath);
-
-      return {
-        fileName: file,
-        sizeBytes: stats.size,
-        createdAt:
-          stats.birthtime.toISOString(),
-        modifiedAt:
-          stats.mtime.toISOString(),
-      };
+      return toBackupInfo(
+        entry.name,
+        fullPath,
+      );
     })
     .sort(
       (a, b) =>
         new Date(b.modifiedAt) -
-        new Date(a.modifiedAt)
+        new Date(a.modifiedAt),
     );
 }
 
-export function cleanupOldBackups(maxBackups = 30) {
-  ensureBackupDirectory();
+/*
+ * Backward-compatible alias for older callers.
+ */
+export function listBackups() {
+  return listDatabaseBackups();
+}
 
-  const files = fs
-    .readdirSync(backupDir)
-    .filter((file) => file.endsWith(".db"))
-    .map((file) => {
-      const fullPath = path.join(backupDir, file);
-      const stats = fs.statSync(fullPath);
+async function createNamedBackup(prefix) {
+  const backupDir =
+    getBackupDirectory();
+
+  const safePrefix =
+    String(prefix || "riseora_erp_backup")
+      .trim()
+      .replace(/[^A-Za-z0-9_-]+/g, "_") ||
+    "riseora_erp_backup";
+
+  const fileName =
+    `${safePrefix}_${safeTimestamp()}.db`;
+
+  const destination =
+    path.join(
+      backupDir,
+      fileName,
+    );
+
+  try {
+    await db.backup(destination);
+
+    verifyBackupFile(destination);
+
+    return toBackupInfo(
+      fileName,
+      destination,
+    );
+  } catch (error) {
+    try {
+      fs.rmSync(
+        destination,
+        { force: true },
+      );
+    } catch {
+      // Preserve original error.
+    }
+
+    throw new Error(
+      `Unable to create database backup: ${
+        error?.message || error
+      }`,
+    );
+  }
+}
+
+export async function createDatabaseBackup() {
+  return createNamedBackup(
+    "riseora_erp_backup",
+  );
+}
+
+/*
+ * Backward-compatible export used by startupBackupService.
+ * Examples:
+ *   createBackup()
+ *   createBackup("startup")
+ */
+export async function createBackup(
+  prefix = "riseora_erp_backup",
+) {
+  return createNamedBackup(prefix);
+}
+
+/*
+ * Backward-compatible retention helper used by startupBackupService.
+ *
+ * Supports:
+ *   cleanupOldBackups()
+ *   cleanupOldBackups(30)
+ *   cleanupOldBackups(30, "startup_")
+ *   cleanupOldBackups({ keep: 30, prefix: "startup_" })
+ */
+export function cleanupOldBackups(
+  keepOrOptions = 30,
+  prefixArg = null,
+) {
+  const backupDir =
+    getBackupDirectory();
+
+  let keep = 30;
+  let prefix = prefixArg;
+
+  if (
+    keepOrOptions &&
+    typeof keepOrOptions === "object"
+  ) {
+    keep = Number(
+      keepOrOptions.keep ??
+      keepOrOptions.maxBackups ??
+      keepOrOptions.limit ??
+      30,
+    );
+
+    prefix =
+      keepOrOptions.prefix ??
+      prefixArg;
+  } else {
+    keep = Number(
+      keepOrOptions ?? 30,
+    );
+  }
+
+  if (
+    !Number.isFinite(keep) ||
+    keep < 0
+  ) {
+    keep = 30;
+  }
+
+  const normalizedPrefix =
+    prefix == null
+      ? null
+      : String(prefix);
+
+  const candidates = fs
+    .readdirSync(
+      backupDir,
+      { withFileTypes: true },
+    )
+    .filter(
+      (entry) =>
+        entry.isFile() &&
+        entry.name.toLowerCase().endsWith(".db") &&
+        (
+          !normalizedPrefix ||
+          entry.name.startsWith(
+            normalizedPrefix,
+          )
+        ),
+    )
+    .map((entry) => {
+      const fullPath =
+        path.join(
+          backupDir,
+          entry.name,
+        );
 
       return {
-        file,
+        name: entry.name,
         fullPath,
-        modifiedAt: stats.mtime,
+        modifiedMs:
+          fs.statSync(fullPath).mtimeMs,
       };
     })
     .sort(
       (a, b) =>
-        b.modifiedAt.getTime() -
-        a.modifiedAt.getTime()
+        b.modifiedMs - a.modifiedMs,
     );
 
-  const oldFiles = files.slice(maxBackups);
+  const removed = [];
 
-  for (const backup of oldFiles) {
-    fs.unlinkSync(backup.fullPath);
+  for (
+    const oldBackup
+    of candidates.slice(
+      Math.floor(keep),
+    )
+  ) {
+    fs.rmSync(
+      oldBackup.fullPath,
+      { force: true },
+    );
+
+    removed.push(
+      oldBackup.name,
+    );
   }
+
+  return removed;
 }

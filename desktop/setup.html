@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;"
+    />
+    <title>Set up Riseora ERP</title>
+    <style>
+      :root {
+        font-family: "Segoe UI", system-ui, sans-serif;
+        color: #332b27;
+        background: #f6f0e8;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at top right, rgba(231,162,125,.22), transparent 34%),
+          #f6f0e8;
+      }
+
+      main {
+        width: min(680px, calc(100% - 32px));
+        margin: 28px auto;
+      }
+
+      .card {
+        background: #fff;
+        border: 1px solid #e7dcd2;
+        border-radius: 20px;
+        box-shadow: 0 18px 48px rgba(84,59,49,.10);
+        overflow: hidden;
+      }
+
+      header {
+        padding: 26px 28px 20px;
+        border-bottom: 1px solid #eee3da;
+        background: #fcf5f0;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 25px;
+      }
+
+      header p, .hint {
+        color: #786f69;
+        line-height: 1.5;
+      }
+
+      form { padding: 24px 28px 28px; }
+
+      fieldset {
+        margin: 0 0 24px;
+        padding: 0;
+        border: 0;
+      }
+
+      legend {
+        width: 100%;
+        margin-bottom: 14px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #eee3da;
+        font-weight: 700;
+      }
+
+      label {
+        display: block;
+        margin: 0 0 6px;
+        font-weight: 600;
+      }
+
+      .field { margin-bottom: 14px; }
+
+      input {
+        width: 100%;
+        border: 1px solid #d8c8bb;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font: inherit;
+        outline: none;
+      }
+
+      input:focus {
+        border-color: #b77b62;
+        box-shadow: 0 0 0 3px rgba(183,123,98,.13);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 140px;
+        gap: 12px;
+      }
+
+      .check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .check input {
+        width: auto;
+      }
+
+      .notice {
+        margin-bottom: 18px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: #fff7e8;
+        border: 1px solid #efd9a8;
+        color: #6d5425;
+        line-height: 1.45;
+      }
+
+      .error {
+        display: none;
+        margin-bottom: 16px;
+        padding: 11px 13px;
+        border-radius: 10px;
+        background: #fff0f0;
+        border: 1px solid #e7baba;
+        color: #943939;
+      }
+
+      .error.show { display: block; }
+
+      button {
+        width: 100%;
+        border: 0;
+        border-radius: 11px;
+        padding: 12px 18px;
+        background: #966450;
+        color: white;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        cursor: wait;
+        opacity: .65;
+      }
+
+      small {
+        display: block;
+        margin-top: 5px;
+        color: #8b817a;
+        line-height: 1.4;
+      }
+
+      @media (max-width: 600px) {
+        .grid { grid-template-columns: 1fr; }
+        header, form { padding-left: 20px; padding-right: 20px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="card">
+        <header>
+          <h1>Welcome to Riseora ERP</h1>
+          <p>
+            Complete this one-time setup. Your business database will be
+            created in your Windows user-data folder, separate from the
+            installed application.
+          </p>
+        </header>
+
+        <form id="setup-form">
+          <div class="notice">
+            Set a strong administrator password and keep it safely.
+            SMTP is optional now, but Forgot Password email requires it.
+          </div>
+
+          <div id="error" class="error" role="alert"></div>
+
+          <fieldset>
+            <legend>Administrator</legend>
+
+            <div class="field">
+              <label>Username</label>
+              <input value="ram" disabled />
+            </div>
+
+            <div class="field">
+              <label for="admin-password">Password *</label>
+              <input
+                id="admin-password"
+                type="password"
+                autocomplete="new-password"
+                minlength="8"
+                required
+              />
+              <small>
+                Minimum 8 characters with at least one letter and one number.
+              </small>
+            </div>
+
+            <div class="field">
+              <label for="confirm-password">Confirm Password *</label>
+              <input
+                id="confirm-password"
+                type="password"
+                autocomplete="new-password"
+                minlength="8"
+                required
+              />
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Forgot Password Email (optional)</legend>
+
+            <p class="hint">
+              For Gmail, use the Gmail address and a Google App Password.
+              Leave both user and App Password blank if you want to configure
+              email later.
+            </p>
+
+            <div class="field">
+              <label for="smtp-user">SMTP Email / User</label>
+              <input
+                id="smtp-user"
+                type="email"
+                autocomplete="username"
+                placeholder="name@example.com"
+              />
+            </div>
+
+            <div class="field">
+              <label for="smtp-pass">SMTP App Password</label>
+              <input
+                id="smtp-pass"
+                type="password"
+                autocomplete="new-password"
+                placeholder="App-specific password"
+              />
+            </div>
+
+            <div class="field">
+              <label for="smtp-from">Sender Name / Address</label>
+              <input
+                id="smtp-from"
+                type="text"
+                placeholder="Riseora Herbals <name@example.com>"
+              />
+            </div>
+
+            <div class="grid">
+              <div class="field">
+                <label for="smtp-host">SMTP Host</label>
+                <input
+                  id="smtp-host"
+                  value="smtp.gmail.com"
+                />
+              </div>
+
+              <div class="field">
+                <label for="smtp-port">Port</label>
+                <input
+                  id="smtp-port"
+                  type="number"
+                  min="1"
+                  max="65535"
+                  value="587"
+                />
+              </div>
+            </div>
+
+            <label class="check">
+              <input id="smtp-secure" type="checkbox" />
+              Use implicit TLS / SSL (normally only for port 465)
+            </label>
+          </fieldset>
+
+          <button id="save-button" type="submit">
+            Create Riseora Workspace
+          </button>
+        </form>
+      </section>
+    </main>
+
+    <script src="./setup-renderer.js"></script>
+  </body>
+</html>
