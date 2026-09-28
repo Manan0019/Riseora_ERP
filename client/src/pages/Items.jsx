@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import api from "../api/api";
 import { useUi } from "../context/UiContext";
 import MasterEditorModal from "../components/MasterEditorModal";
@@ -40,6 +41,7 @@ function mapItem(item) {
 
 function Items() {
   const { confirm: confirmAction, success: toastSuccess, error: toastError } = useUi();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [units, setUnits] = useState([]);
@@ -55,6 +57,25 @@ function Items() {
 
   useEffect(() => { loadItems(); }, [showInactive]);
   useEffect(() => { loadLookups(); }, []);
+
+  useEffect(() => {
+    const recordId = Number(searchParams.get("record"));
+    if (!recordId || items.length === 0 || selectedId === recordId) return;
+
+    const item = items.find((entry) => Number(entry.id) === recordId);
+    if (!item) {
+      if (!showInactive) setShowInactive(true);
+      return;
+    }
+
+    const mapped = mapItem(item);
+    setSelectedId(item.id);
+    setForm(mapped);
+    setOriginalForm(mapped);
+    setEditing(false);
+    setModalOpen(true);
+    setError("");
+  }, [items, searchParams, selectedId, showInactive]);
 
   async function loadItems() {
     try {
@@ -90,7 +111,15 @@ function Items() {
     );
   }, [items, search]);
 
+  function clearRecordQuery() {
+    if (!searchParams.has("record")) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete("record");
+    setSearchParams(next, { replace: true });
+  }
+
   function openNew() {
+    clearRecordQuery();
     setSelectedId(null);
     setForm(emptyForm);
     setOriginalForm(emptyForm);
@@ -100,6 +129,7 @@ function Items() {
   }
 
   function openItem(item) {
+    clearRecordQuery();
     const mapped = mapItem(item);
     setSelectedId(item.id);
     setForm(mapped);
@@ -124,6 +154,7 @@ function Items() {
     setModalOpen(false);
     setEditing(false);
     setError("");
+    clearRecordQuery();
   }
 
   function handleChange(event) {
@@ -170,7 +201,10 @@ function Items() {
       setEditing(!closeAfter);
       await loadItems();
       toastSuccess(selectedId ? "Item updated successfully." : "Item created successfully.", "Item saved");
-      if (closeAfter) setModalOpen(false);
+      if (closeAfter) {
+        setModalOpen(false);
+        clearRecordQuery();
+      }
     } catch (err) {
       const message = err.response?.data?.message || "Unable to save item.";
       setError(message);
@@ -198,6 +232,7 @@ function Items() {
       await api.patch(`/items/${item.id}/${activating ? "activate" : "deactivate"}`);
       await loadItems();
       setModalOpen(false);
+      clearRecordQuery();
       toastSuccess(`Item ${activating ? "activated" : "deactivated"} successfully.`);
     } catch (err) {
       const message = err.response?.data?.message || "Unable to update item status.";
@@ -227,7 +262,7 @@ function Items() {
         <div className="table-responsive"><table className="table table-bordered table-hover align-middle">
           <thead className="table-light"><tr><th>Code</th><th>Name</th><th>Category</th><th>Unit</th><th>HSN</th><th>GST %</th><th>Reorder</th><th>Sale Price</th><th>Target Margin</th><th>Lot</th><th>Expiry</th><th>Status</th></tr></thead>
           <tbody>
-            {filteredItems.map((item) => <tr key={item.id} className="row-clickable" onClick={() => openItem(item)}>
+            {filteredItems.map((item) => <tr key={item.id} className="row-clickable" data-workspace-path={`/items?record=${item.id}`} data-workspace-title={item.name} onClick={() => openItem(item)}>
               <td>{item.code}</td><td><strong>{item.name}</strong></td><td>{item.category_name}</td><td>{item.unit_code}</td><td>{item.hsn_code || "-"}</td><td>{Number(item.default_gst_rate || 0).toFixed(2)}%</td><td>{item.reorder_level}</td><td>₹{Number(item.default_selling_price || 0).toFixed(2)}</td><td>{Number(item.target_margin_percent || 0).toFixed(2)}%</td><td>{item.track_lot ? "Yes" : "No"}</td><td>{item.track_expiry ? "Yes" : "No"}</td><td>{item.is_active ? <span className="badge text-bg-success">Active</span> : <span className="badge text-bg-secondary">Inactive</span>}</td>
             </tr>)}
             {filteredItems.length === 0 && <tr><td colSpan={12} className="text-center text-muted">No items found.</td></tr>}

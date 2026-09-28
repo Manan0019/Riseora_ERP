@@ -1,3 +1,4 @@
+import db from "./database.js";
 import { runInitialMigration } from "./migrations/001_initial_schema.js";
 import { seedUnits } from "./seeds/seedUnits.js";
 import { seedItemCategories } from "./seeds/seedItemCategories.js";
@@ -60,8 +61,25 @@ export async function initDatabase() {
   runOwnerFeedbackV11Migration();
 
   seedUnits();
-  seedItemCategories();
-  seedRiseoraCatalog();
+
+  /*
+   * Seed defaults only for a genuinely new database. Once the owner has
+   * business/master data, category codes/names are user-owned and must not be
+   * recreated or overwritten on every startup.
+   */
+  const categoryCount = Number(
+    db.prepare(`SELECT COUNT(*) AS count FROM item_categories`).get()?.count || 0,
+  );
+  if (categoryCount === 0) {
+    seedItemCategories();
+  }
+
+  const itemCount = Number(
+    db.prepare(`SELECT COUNT(*) AS count FROM items`).get()?.count || 0,
+  );
+  if (itemCount === 0) {
+    seedRiseoraCatalog();
+  }
 
   await seedAdmin();
 }

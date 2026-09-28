@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import api from "../api/api";
 import { useUi } from "../context/UiContext";
 import IndiaLocationFields from "../components/IndiaLocationFields";
@@ -41,6 +42,7 @@ function mapCustomer(customer) {
 
 function Customers() {
   const { confirm: confirmAction, success: toastSuccess, error: toastError } = useUi();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [customers, setCustomers] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [originalForm, setOriginalForm] = useState(emptyForm);
@@ -53,6 +55,25 @@ function Customers() {
   const [error, setError] = useState("");
 
   useEffect(() => { loadCustomers(); }, [showInactive]);
+
+  useEffect(() => {
+    const recordId = Number(searchParams.get("record"));
+    if (!recordId || customers.length === 0 || selectedId === recordId) return;
+
+    const customer = customers.find((entry) => Number(entry.id) === recordId);
+    if (!customer) {
+      if (!showInactive) setShowInactive(true);
+      return;
+    }
+
+    const mapped = mapCustomer(customer);
+    setSelectedId(customer.id);
+    setForm(mapped);
+    setOriginalForm(mapped);
+    setEditing(false);
+    setModalOpen(true);
+    setError("");
+  }, [customers, searchParams, selectedId, showInactive]);
 
   async function loadCustomers() {
     try {
@@ -77,7 +98,15 @@ function Customers() {
     );
   }, [customers, search]);
 
+  function clearRecordQuery() {
+    if (!searchParams.has("record")) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete("record");
+    setSearchParams(next, { replace: true });
+  }
+
   function openNew() {
+    clearRecordQuery();
     setSelectedId(null);
     setForm(emptyForm);
     setOriginalForm(emptyForm);
@@ -87,6 +116,7 @@ function Customers() {
   }
 
   function openCustomer(customer) {
+    clearRecordQuery();
     const mapped = mapCustomer(customer);
     setSelectedId(customer.id);
     setForm(mapped);
@@ -110,6 +140,7 @@ function Customers() {
     }
     setModalOpen(false);
     setEditing(false);
+    clearRecordQuery();
   }
 
   function handleChange(event) {
@@ -141,7 +172,10 @@ function Customers() {
       setEditing(!closeAfter);
       await loadCustomers();
       toastSuccess(selectedId ? "Customer updated successfully." : "Customer created successfully.", "Customer saved");
-      if (closeAfter) setModalOpen(false);
+      if (closeAfter) {
+        setModalOpen(false);
+        clearRecordQuery();
+      }
     } catch (err) {
       const message = err.response?.data?.message || "Unable to save customer.";
       setError(message);
@@ -171,6 +205,7 @@ function Customers() {
       await api.patch(`/customers/${customer.id}/${activating ? "activate" : "deactivate"}`);
       await loadCustomers();
       setModalOpen(false);
+      clearRecordQuery();
       toastSuccess(`Customer ${activating ? "activated" : "deactivated"} successfully.`);
     } catch (err) {
       const message = err.response?.data?.message || "Unable to update customer status.";
@@ -196,7 +231,7 @@ function Customers() {
         <div className="table-responsive"><table className="table table-bordered table-hover align-middle">
           <thead className="table-light"><tr><th>Name</th><th>Type</th><th>Phone</th><th>Alternate No.</th><th>GSTIN</th><th>Credit Days</th><th>Credit Limit</th><th>Status</th></tr></thead>
           <tbody>
-            {filteredCustomers.map((customer) => <tr key={customer.id} className="row-clickable" onClick={() => openCustomer(customer)}>
+            {filteredCustomers.map((customer) => <tr key={customer.id} className="row-clickable" data-workspace-path={`/customers?record=${customer.id}`} data-workspace-title={customer.name} onClick={() => openCustomer(customer)}>
               <td><strong>{customer.name}</strong></td><td>{customer.customer_type}</td><td>{customer.phone || "-"}</td><td>{customer.alternate_phone || "-"}</td><td>{customer.gstin || "-"}</td><td>{customer.credit_days}</td><td>₹{Number(customer.credit_limit || 0).toFixed(2)}</td><td>{customer.is_active ? <span className="badge text-bg-success">Active</span> : <span className="badge text-bg-secondary">Inactive</span>}</td>
             </tr>)}
             {filteredCustomers.length === 0 && <tr><td colSpan={8} className="text-center text-muted">No customers found.</td></tr>}

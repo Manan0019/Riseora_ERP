@@ -1,7 +1,6 @@
 import db from "../db/database.js";
 import { toTitleCase } from "../utils/textFormat.js";
 
-const SYSTEM_CATEGORY_CODES = new Set(["RAW", "PACK", "FG", "CONS"]);
 const INVENTORY_ROLES = new Set(["RAW", "PACK", "FG", "CONS"]);
 
 function normalizeCategory(data) {
@@ -16,6 +15,7 @@ function normalizeCategory(data) {
   if (!INVENTORY_ROLES.has(inventoryRole)) {
     throw new Error("Inventory role must be RAW, PACK, FG or CONS.");
   }
+
   return { code, name, inventoryRole };
 }
 
@@ -33,6 +33,7 @@ export function getCategories(includeInactive = false) {
   const query = includeInactive
     ? `${categorySelect()} ORDER BY c.is_active DESC, c.name`
     : `${categorySelect("WHERE c.is_active = 1")} ORDER BY c.name`;
+
   return db.prepare(query).all();
 }
 
@@ -42,8 +43,14 @@ export function getCategoryById(id) {
 
 export function createCategory(data) {
   const normalized = normalizeCategory(data);
-  const existing = db.prepare(`SELECT id FROM item_categories WHERE code = ?`).get(normalized.code);
-  if (existing) throw new Error("A category with this code already exists.");
+
+  const existing = db
+    .prepare(`SELECT id FROM item_categories WHERE code = ?`)
+    .get(normalized.code);
+
+  if (existing) {
+    throw new Error("A category with this code already exists.");
+  }
 
   const result = db.prepare(`
     INSERT INTO item_categories (code, name, inventory_role)
@@ -56,33 +63,54 @@ export function createCategory(data) {
 export function updateCategory(id, data) {
   const categoryId = Number(id);
   const current = getCategoryById(categoryId);
-  if (!current) throw new Error("Category not found.");
+
+  if (!current) {
+    throw new Error("Category not found.");
+  }
 
   const normalized = normalizeCategory(data);
-  const duplicate = db.prepare(`
-    SELECT id FROM item_categories WHERE code = ? AND id <> ?
-  `).get(normalized.code, categoryId);
-  if (duplicate) throw new Error("A category with this code already exists.");
 
+  const duplicate = db.prepare(`
+    SELECT id
+    FROM item_categories
+    WHERE code = ?
+      AND id <> ?
+  `).get(normalized.code, categoryId);
+
+  if (duplicate) {
+    throw new Error("A category with this code already exists.");
+  }
+
+  /*
+   * Category identity is the numeric category id, not the display code/name.
+   * Existing items therefore remain linked safely when the owner corrects a
+   * category code or name. Inventory role is different: production/sales
+   * behaviour depends on it, so keep that protected once items use a category.
+   */
   const itemCount = Number(current.item_count || 0);
-  if (itemCount > 0 && normalized.code !== current.code) {
-    throw new Error("Category code cannot be changed after items have been assigned. The category name can still be changed.");
-  }
-  if (itemCount > 0 && normalized.inventoryRole !== String(current.inventory_role || "CONS").toUpperCase()) {
-    throw new Error("Inventory role cannot be changed after items have been assigned. The category name can still be changed.");
-  }
-  if (SYSTEM_CATEGORY_CODES.has(current.code) && normalized.code !== current.code) {
-    throw new Error(`${current.code} is a system manufacturing category. Its code cannot be changed.`);
-  }
-  if (SYSTEM_CATEGORY_CODES.has(current.code) && normalized.inventoryRole !== current.code) {
-    throw new Error(`${current.code} is a system manufacturing category. Its inventory role must remain ${current.code}.`);
+  if (
+    itemCount > 0 &&
+    normalized.inventoryRole !== String(current.inventory_role || "CONS").toUpperCase()
+  ) {
+    throw new Error(
+      "Inventory role cannot be changed after items have been assigned. Category code and name can still be changed.",
+    );
   }
 
   db.prepare(`
     UPDATE item_categories
-    SET code = ?, name = ?, inventory_role = ?, updated_at = CURRENT_TIMESTAMP
+    SET
+      code = ?,
+      name = ?,
+      inventory_role = ?,
+      updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(normalized.code, normalized.name, normalized.inventoryRole, categoryId);
+  `).run(
+    normalized.code,
+    normalized.name,
+    normalized.inventoryRole,
+    categoryId,
+  );
 
   return getCategoryById(categoryId);
 }
@@ -90,23 +118,44 @@ export function updateCategory(id, data) {
 export function deactivateCategory(id) {
   const categoryId = Number(id);
   const category = getCategoryById(categoryId);
-  if (!category) throw new Error("Category not found.");
+
+  if (!category) {
+    throw new Error("Category not found.");
+  }
 
   const activeItems = Number(db.prepare(`
-    SELECT COUNT(*) AS count FROM items WHERE category_id = ? AND is_active = 1
+    SELECT COUNT(*) AS count
+    FROM items
+    WHERE category_id = ?
+      AND is_active = 1
   `).get(categoryId)?.count || 0);
+
   if (activeItems > 0) {
     throw new Error("This category is used by active items. Deactivate or move those items first.");
   }
 
-  db.prepare(`UPDATE item_categories SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(categoryId);
+  db.prepare(`
+    UPDATE item_categories
+    SET is_active = 0, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(categoryId);
+
   return getCategoryById(categoryId);
 }
 
 export function activateCategory(id) {
   const categoryId = Number(id);
   const category = getCategoryById(categoryId);
-  if (!category) throw new Error("Category not found.");
-  db.prepare(`UPDATE item_categories SET is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(categoryId);
+
+  if (!category) {
+    throw new Error("Category not found.");
+  }
+
+  db.prepare(`
+    UPDATE item_categories
+    SET is_active = 1, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(categoryId);
+
   return getCategoryById(categoryId);
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import api from "../api/api";
 import { useUi } from "../context/UiContext";
 import IndiaLocationFields from "../components/IndiaLocationFields";
@@ -39,6 +40,7 @@ function mapSupplier(supplier) {
 
 function Suppliers() {
   const { confirm: confirmAction, success: toastSuccess, error: toastError } = useUi();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [suppliers, setSuppliers] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [originalForm, setOriginalForm] = useState(emptyForm);
@@ -51,6 +53,25 @@ function Suppliers() {
   const [error, setError] = useState("");
 
   useEffect(() => { loadSuppliers(); }, [showInactive]);
+
+  useEffect(() => {
+    const recordId = Number(searchParams.get("record"));
+    if (!recordId || suppliers.length === 0 || selectedId === recordId) return;
+
+    const supplier = suppliers.find((entry) => Number(entry.id) === recordId);
+    if (!supplier) {
+      if (!showInactive) setShowInactive(true);
+      return;
+    }
+
+    const mapped = mapSupplier(supplier);
+    setSelectedId(supplier.id);
+    setForm(mapped);
+    setOriginalForm(mapped);
+    setEditing(false);
+    setModalOpen(true);
+    setError("");
+  }, [suppliers, searchParams, selectedId, showInactive]);
 
   async function loadSuppliers() {
     try {
@@ -75,7 +96,15 @@ function Suppliers() {
     );
   }, [suppliers, search]);
 
+  function clearRecordQuery() {
+    if (!searchParams.has("record")) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete("record");
+    setSearchParams(next, { replace: true });
+  }
+
   function openNew() {
+    clearRecordQuery();
     setSelectedId(null);
     setForm(emptyForm);
     setOriginalForm(emptyForm);
@@ -85,6 +114,7 @@ function Suppliers() {
   }
 
   function openSupplier(supplier) {
+    clearRecordQuery();
     const mapped = mapSupplier(supplier);
     setSelectedId(supplier.id);
     setForm(mapped);
@@ -108,6 +138,7 @@ function Suppliers() {
     }
     setModalOpen(false);
     setEditing(false);
+    clearRecordQuery();
   }
 
   function handleChange(event) {
@@ -139,7 +170,10 @@ function Suppliers() {
       setEditing(!closeAfter);
       await loadSuppliers();
       toastSuccess(selectedId ? "Supplier updated successfully." : "Supplier created successfully.", "Supplier saved");
-      if (closeAfter) setModalOpen(false);
+      if (closeAfter) {
+        setModalOpen(false);
+        clearRecordQuery();
+      }
     } catch (err) {
       const message = err.response?.data?.message || "Unable to save supplier.";
       setError(message);
@@ -169,6 +203,7 @@ function Suppliers() {
       await api.patch(`/suppliers/${supplier.id}/${activating ? "activate" : "deactivate"}`);
       await loadSuppliers();
       setModalOpen(false);
+      clearRecordQuery();
       toastSuccess(`Supplier ${activating ? "activated" : "deactivated"} successfully.`);
     } catch (err) {
       const message = err.response?.data?.message || "Unable to update supplier status.";
@@ -204,7 +239,7 @@ function Suppliers() {
               <thead className="table-light"><tr><th>Name</th><th>Contact</th><th>Phone</th><th>Alternate No.</th><th>GSTIN</th><th>Terms</th><th>Status</th></tr></thead>
               <tbody>
                 {filteredSuppliers.map((supplier) => (
-                  <tr key={supplier.id} className="row-clickable" onClick={() => openSupplier(supplier)}>
+                  <tr key={supplier.id} className="row-clickable" data-workspace-path={`/suppliers?record=${supplier.id}`} data-workspace-title={supplier.name} onClick={() => openSupplier(supplier)}>
                     <td><strong>{supplier.name}</strong></td>
                     <td>{supplier.contact_person || "-"}</td>
                     <td>{supplier.phone || "-"}</td>
