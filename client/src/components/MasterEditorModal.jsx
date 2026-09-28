@@ -11,7 +11,12 @@ function MasterEditorModal({
   size = "lg",
 }) {
   const dialogRef = useRef(null);
-  const closeRef = useRef(null);
+  const closeHandlerRef = useRef(onRequestClose);
+
+  /* Keep the newest close callback without restarting the focus effect. */
+  useEffect(() => {
+    closeHandlerRef.current = onRequestClose;
+  }, [onRequestClose]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -19,9 +24,14 @@ function MasterEditorModal({
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
+    /*
+     * Focus only once when the popup opens. The old implementation depended on
+     * onRequestClose, which is recreated by many pages on every keystroke. That
+     * caused this effect to rerun and move focus to the X button while typing.
+     */
     const focusTimer = window.setTimeout(() => {
       const firstEditable = dialogRef.current?.querySelector(
-        'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])',
+        '.master-modal-body input:not([disabled]):not([type="hidden"]), .master-modal-body select:not([disabled]), .master-modal-body textarea:not([disabled])',
       );
       firstEditable?.focus?.();
     }, 30);
@@ -29,7 +39,7 @@ function MasterEditorModal({
     const handleKeyDown = (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onRequestClose?.();
+        closeHandlerRef.current?.();
       }
     };
 
@@ -40,7 +50,7 @@ function MasterEditorModal({
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open, onRequestClose]);
+  }, [open]);
 
   if (!open || typeof document === "undefined") return null;
 
@@ -50,7 +60,7 @@ function MasterEditorModal({
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
-          onRequestClose?.();
+          closeHandlerRef.current?.();
         }
       }}
     >
@@ -68,12 +78,11 @@ function MasterEditorModal({
           </div>
 
           <button
-            ref={closeRef}
             type="button"
             className="master-modal-close"
             aria-label="Close"
             title="Close"
-            onClick={onRequestClose}
+            onClick={() => closeHandlerRef.current?.()}
           >
             ×
           </button>

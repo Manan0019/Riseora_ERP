@@ -390,3 +390,120 @@
 [data-workspace-path] {
   -webkit-user-select: none;
 }
+
+/* ---------- V1.1 FIX 3: sticky table headers across long ERP registers ---------- */
+.content-area .table-responsive,
+.master-modal-body .table-responsive {
+  position: relative;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+/* Long lists scroll inside their table area, keeping column headings visible. */
+.content-area .table-responsive {
+  max-height: min(68vh, 760px);
+}
+
+.content-area .table-responsive > table.table > thead > tr > th,
+.master-modal-body .table-responsive > table.table > thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  background: #fbf5f0 !important;
+  box-shadow: inset 0 -1px 0 var(--riseora-border), 0 2px 4px rgba(72, 52, 43, 0.05);
+}
+
+.master-modal-body .table-responsive {
+  max-height: min(42vh, 440px);
+}
+
+/* ---------- V1.1 FIX 4: investment / borrowing details ---------- */
+.finance-summary-emphasis {
+  border-color: #d7b29f;
+  background: #fff5ee;
+}
+
+.finance-summary-emphasis strong {
+  color: var(--riseora-primary-900);
+}
+
+.investment-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  gap: 10px;
+}
+
+.investment-detail-grid > div {
+  min-width: 0;
+  padding: 12px 13px;
+  border: 1px solid var(--riseora-border);
+  border-radius: 11px;
+  background: #fdf9f6;
+}
+
+.investment-detail-grid span,
+.investment-detail-grid strong {
+  display: block;
+}
+
+.investment-detail-grid span {
+  color: var(--riseora-muted);
+  font-size: 11.5px;
+  font-weight: 750;
+}
+
+.investment-detail-grid strong {
+  margin-top: 4px;
+  color: #43362f;
+  font-size: 15px;
+}
+
+.investment-detail-grid .investment-total-due {
+  border-color: #d7b29f;
+  background: #fff3eb;
+}
+
+.investment-detail-grid .investment-total-due strong {
+  color: var(--riseora-primary-900);
+  font-size: 17px;
+}
+
+.investment-payment-panel {
+  padding: 16px;
+  border: 1px solid #dec7b9;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #fffaf6 0%, #fff7f1 100%);
+}
+
+.investment-payment-due {
+  padding: 8px 11px;
+  border: 1px solid var(--riseora-border);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--riseora-muted);
+  font-size: 12.5px;
+}
+
+.investment-payment-due strong {
+  color: #47382f;
+}
+
+.investment-history-table {
+  max-height: min(36vh, 360px) !important;
+}
+
+@media (max-width: 767.98px) {
+  .content-area .table-responsive {
+    max-height: 62vh;
+  }
+
+  .investment-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .investment-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

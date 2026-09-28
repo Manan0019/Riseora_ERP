@@ -122,25 +122,65 @@ appSource = appSource.replace(
 fs.writeFileSync(packagedAppJs, appSource, "utf8");
 
 console.log("[4/5] Preparing Windows icon...");
-const iconCandidates = [
-  path.join(clientDir, "src", "assets", "riseora-Logo-Vertical.png"),
-  path.join(clientDir, "src", "assets", "riseora-logo-Horizontal.png"),
-  path.join(clientDir, "src", "assets", "riseora-logo-vertical.png"),
-];
-
-const iconSource =
-  iconCandidates.find((candidate) => fs.existsSync(candidate));
-
-if (!iconSource) {
-  fail(
-    "Riseora PNG logo was not found in client/src/assets. Add riseora-Logo-Vertical.png or riseora-logo-Horizontal.png.",
-  );
-}
-
-fs.copyFileSync(
-  iconSource,
-  path.join(buildDir, "icon.png"),
+const assetsDir = path.join(clientDir, "src", "assets");
+const whiteBackgroundJpeg = path.join(
+  assetsDir,
+  "riseora-Logo-Vertical-WhiteBG.jpeg",
 );
+const iconOutput = path.join(buildDir, "icon.png");
+
+/*
+ * Owner requested the white-background logo only for the desktop/installer
+ * icon. In-app transparent Riseora logos are intentionally untouched.
+ */
+if (fs.existsSync(whiteBackgroundJpeg) && process.platform === "win32") {
+  const quotePs = (value) => String(value).replace(/'/g, "''");
+  const psScript = [
+    "Add-Type -AssemblyName System.Drawing",
+    `$source = '${quotePs(whiteBackgroundJpeg)}'`,
+    `$target = '${quotePs(iconOutput)}'`,
+    "$image = [System.Drawing.Image]::FromFile($source)",
+    "try {",
+    "  $bitmap = New-Object System.Drawing.Bitmap($image)",
+    "  try { $bitmap.Save($target, [System.Drawing.Imaging.ImageFormat]::Png) } finally { $bitmap.Dispose() }",
+    "} finally { $image.Dispose() }",
+  ].join("; ");
+
+  const convert = spawnSync(
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", psScript],
+    {
+      stdio: "inherit",
+      windowsHide: true,
+    },
+  );
+
+  if (convert.error || convert.status !== 0 || !fs.existsSync(iconOutput)) {
+    fail(
+      "Could not convert riseora-Logo-Vertical-WhiteBG.jpeg into the Windows icon PNG. Confirm that the JPEG opens normally and try again.",
+    );
+  }
+
+  console.log(`Desktop icon source: ${whiteBackgroundJpeg}`);
+} else {
+  const pngCandidates = [
+    path.join(assetsDir, "riseora-Logo-Vertical-WhiteBG.png"),
+    path.join(assetsDir, "riseora-Logo-Vertical.png"),
+    path.join(assetsDir, "riseora-logo-Horizontal.png"),
+    path.join(assetsDir, "riseora-logo-vertical.png"),
+  ];
+
+  const iconSource = pngCandidates.find((candidate) => fs.existsSync(candidate));
+
+  if (!iconSource) {
+    fail(
+      "Riseora desktop icon source was not found in client/src/assets. Expected riseora-Logo-Vertical-WhiteBG.jpeg (Windows) or a Riseora PNG logo.",
+    );
+  }
+
+  fs.copyFileSync(iconSource, iconOutput);
+  console.log(`Desktop icon source: ${iconSource}`);
+}
 
 console.log("[5/5] Safety checks...");
 
