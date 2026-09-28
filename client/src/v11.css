@@ -1,0 +1,242 @@
+/* Riseora ERP V1.1 owner-feedback UI */
+.master-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(48, 35, 29, 0.38);
+  backdrop-filter: blur(3px);
+}
+
+.master-modal {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--riseora-border);
+  border-radius: 18px;
+  background: var(--riseora-surface);
+  box-shadow: 0 26px 80px rgba(62, 43, 35, 0.24);
+  animation: uiDialogIn 170ms ease both;
+}
+
+.master-modal-lg { width: min(980px, 100%); }
+.master-modal-xl { width: min(1180px, 100%); }
+
+.master-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--riseora-border);
+  background: #fffaf6;
+}
+
+.master-modal-header h3 { margin: 0; font-size: 1.18rem; }
+.master-modal-header p { margin: 4px 0 0; color: var(--riseora-muted); font-size: 13px; }
+.master-modal-close {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border: 1px solid var(--riseora-border);
+  border-radius: 10px;
+  background: #fff;
+  color: #705f56;
+  font-size: 25px;
+  line-height: 1;
+}
+.master-modal-close:hover { background: #fff3ec; color: var(--riseora-primary-900); }
+.master-modal-body { overflow: auto; padding: 20px; }
+.master-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+  border-top: 1px solid var(--riseora-border);
+  background: #fffaf6;
+}
+.master-modal-footer-group { display: flex; gap: 8px; flex-wrap: wrap; }
+.master-readonly-note {
+  padding: 10px 12px;
+  border: 1px solid #ead8ca;
+  border-radius: 10px;
+  background: #fff8f2;
+  color: #725f55;
+  font-size: 13px;
+}
+
+.workspace-tabs {
+  position: sticky;
+  top: var(--topbar-height);
+  z-index: 1015;
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  min-height: 42px;
+  padding: 6px 12px 0;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--riseora-border);
+  background: rgba(248, 240, 230, 0.96);
+}
+.workspace-tab {
+  min-width: 130px;
+  max-width: 220px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 8px 8px 11px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 9px 9px 0 0;
+  background: transparent;
+  color: #786b63;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.workspace-tab.active {
+  border-color: var(--riseora-border);
+  background: var(--riseora-surface);
+  color: #4a382f;
+  font-weight: 750;
+}
+.workspace-tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.workspace-tab-close {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #9b8c83;
+  line-height: 1;
+}
+.workspace-tab-close:hover { background: #f2dfd4; color: #7d4e3e; }
+.workspace-new-tab {
+  width: 34px;
+  height: 30px;
+  flex: 0 0 auto;
+  border: 1px solid var(--riseora-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--riseora-primary-800);
+  font-size: 19px;
+  line-height: 1;
+}
+
+.topbar-actions { display: flex; align-items: center; gap: 6px; }
+.topbar-tool-button {
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid var(--riseora-border);
+  border-radius: 8px;
+  background: #fff;
+  color: #74645c;
+  font-size: 12px;
+  font-weight: 700;
+}
+.topbar-tool-button:hover { background: #fff7f2; color: var(--riseora-primary-900); }
+
+.finance-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.finance-summary-card {
+  padding: 14px 16px;
+  border: 1px solid var(--riseora-border);
+  border-radius: 12px;
+  background: var(--riseora-surface);
+  box-shadow: var(--riseora-shadow-sm);
+}
+.finance-summary-card span { display: block; color: var(--riseora-muted); font-size: 12px; font-weight: 700; }
+.finance-summary-card strong { display: block; margin-top: 5px; color: #43362f; font-size: 1.25rem; }
+
+.row-clickable { cursor: pointer; }
+.row-clickable:hover > * { --bs-table-bg-state: #fcf5f0; }
+
+@media (max-width: 900px) {
+  .topbar-tool-button span { display: none; }
+  .workspace-tab { min-width: 112px; }
+  .master-modal-backdrop { padding: 10px; }
+  .master-modal { max-height: calc(100vh - 20px); }
+}
+
+/* V1.1 layout aliases used by the complete replacement files. */
+.master-row-clickable { cursor: pointer; }
+.master-row-clickable:hover > * { --bs-table-bg-state: #fcf5f0; }
+.finance-readonly {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  background: #fcf8f5;
+  color: #5f5149;
+  font-weight: 800;
+}
+
+.topbar-workspace-tools {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 5px;
+}
+.topbar-workspace-tools button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border: 1px solid var(--riseora-border);
+  border-radius: 8px;
+  background: #fff;
+  color: #74645c;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.topbar-workspace-tools button:hover {
+  background: #fff7f2;
+  color: var(--riseora-primary-900);
+}
+
+.workspace-tab > span:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.workspace-tab-close {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  color: #9b8c83;
+  font-size: 17px;
+  line-height: 1;
+}
+.workspace-tab-close:hover { background: #f2dfd4; color: #7d4e3e; }
+.workspace-tab-add {
+  width: 34px;
+  height: 30px;
+  flex: 0 0 auto;
+  margin-top: 1px;
+  border: 1px solid var(--riseora-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--riseora-primary-800);
+  font-size: 19px;
+  line-height: 1;
+}
+
+@media (max-width: 1150px) {
+  .topbar-workspace-tools button span:last-child { display: none; }
+  .topbar-workspace-tools button { width: 34px; justify-content: center; padding: 5px; }
+}

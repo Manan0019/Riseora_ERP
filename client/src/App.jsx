@@ -26,9 +26,10 @@ import CustomerLedger from "./pages/CustomerLedger";
 import SupplierLedger from "./pages/SupplierLedger";
 import Reports from "./pages/Reports";
 import ReportPrint from "./pages/ReportPrint";
+import Investments from "./pages/Investments";
+import Upad from "./pages/Upad";
 
 import MainLayout from "./layouts/MainLayout";
-
 import { useAuth } from "./context/AuthContext";
 
 function App() {
@@ -48,75 +49,38 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route
-          path="/login"
-          element={user ? <Navigate to="/dashboard" replace /> : <Login />}
-        />
+        <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
+        <Route path="/sales/:id/invoice-print" element={user ? <SalesInvoicePrint /> : <Navigate to="/login" replace />} />
+        <Route path="/reports/print" element={user ? <ReportPrint /> : <Navigate to="/login" replace />} />
 
-        <Route
-          path="/sales/:id/invoice-print"
-          element={user ? <SalesInvoicePrint /> : <Navigate to="/login" replace />}
-        />
-
-        <Route
-          path="/reports/print"
-          element={user ? <ReportPrint /> : <Navigate to="/login" replace />}
-        />
-
-        <Route
-          path="/"
-          element={user ? <MainLayout /> : <Navigate to="/login" replace />}
-        >
+        <Route path="/" element={user ? <MainLayout /> : <Navigate to="/login" replace />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
-
           <Route path="dashboard" element={<Dashboard />} />
-
           <Route path="company" element={<Company />} />
-
           <Route path="units" element={<Units />} />
-
           <Route path="categories" element={<Categories />} />
-
           <Route path="items" element={<Items />} />
-
           <Route path="suppliers" element={<Suppliers />} />
-
           <Route path="customers" element={<Customers />} />
-
           <Route path="settings" element={<Settings />} />
-
           <Route path="purchases" element={<Purchases />} />
-
           <Route path="stock" element={<Stock />} />
-
           <Route path="purchase-register" element={<PurchaseRegister />} />
-
           <Route path="opening-stock" element={<OpeningStock />} />
-
           <Route path="opening-balances" element={<OpeningBalances />} />
-
           <Route path="stock-adjustment" element={<StockAdjustment />} />
-
           <Route path="formulas" element={<Formulas />} />
-
           <Route path="production" element={<Production />} />
-
           <Route path="production/:id/work" element={<ProductionWork />} />
-
           <Route path="production-register" element={<ProductionRegister />} />
-
           <Route path="sales" element={<Sales />} />
-
           <Route path="sales-register" element={<SalesRegister />} />
-
           <Route path="customer-ledger" element={<CustomerLedger />} />
-
           <Route path="supplier-ledger" element={<SupplierLedger />} />
-
+          <Route path="investments" element={<Investments />} />
+          <Route path="upad" element={<Upad />} />
           <Route path="reports" element={<Reports />} />
-
           <Route path="*" element={<Navigate to="/" replace />} />
-
         </Route>
       </Routes>
     </BrowserRouter>

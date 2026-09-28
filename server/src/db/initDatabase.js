@@ -27,6 +27,7 @@ import { runCategoryInventoryRoleMigration } from "./migrations/023_category_inv
 import { runFormulaProcessExtrasMigration } from "./migrations/024_formula_process_extras.js";
 import { runPasswordResetOtpMigration } from "./migrations/025_password_reset_otps.js";
 import { runPartyAlternatePhoneMigration } from "./migrations/026_party_alternate_phone.js";
+import { runOwnerFeedbackV11Migration } from "./migrations/027_owner_feedback_v1_1.js";
 import { seedRiseoraCatalog } from "./seeds/seedRiseoraCatalog.js";
 
 export async function initDatabase() {
@@ -56,6 +57,7 @@ export async function initDatabase() {
   runFormulaProcessExtrasMigration();
   runPasswordResetOtpMigration();
   runPartyAlternatePhoneMigration();
+  runOwnerFeedbackV11Migration();
 
   seedUnits();
   seedItemCategories();

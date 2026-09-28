@@ -1,11 +1,12 @@
 import db from "../db/database.js";
+import { toTitleCase } from "../utils/textFormat.js";
 
 const SYSTEM_CATEGORY_CODES = new Set(["RAW", "PACK", "FG", "CONS"]);
 const INVENTORY_ROLES = new Set(["RAW", "PACK", "FG", "CONS"]);
 
 function normalizeCategory(data) {
   const code = String(data.code || "").trim().toUpperCase();
-  const name = String(data.name || "").trim();
+  const name = toTitleCase(data.name);
   const inventoryRole = String(data.inventoryRole || data.inventory_role || "CONS")
     .trim()
     .toUpperCase();
@@ -15,19 +16,28 @@ function normalizeCategory(data) {
   if (!INVENTORY_ROLES.has(inventoryRole)) {
     throw new Error("Inventory role must be RAW, PACK, FG or CONS.");
   }
-
   return { code, name, inventoryRole };
+}
+
+function categorySelect(where = "") {
+  return `
+    SELECT
+      c.*,
+      (SELECT COUNT(*) FROM items i WHERE i.category_id = c.id) AS item_count
+    FROM item_categories c
+    ${where}
+  `;
 }
 
 export function getCategories(includeInactive = false) {
   const query = includeInactive
-    ? `SELECT * FROM item_categories ORDER BY is_active DESC, code`
-    : `SELECT * FROM item_categories WHERE is_active = 1 ORDER BY code`;
+    ? `${categorySelect()} ORDER BY c.is_active DESC, c.name`
+    : `${categorySelect("WHERE c.is_active = 1")} ORDER BY c.name`;
   return db.prepare(query).all();
 }
 
 export function getCategoryById(id) {
-  return db.prepare(`SELECT * FROM item_categories WHERE id = ?`).get(Number(id));
+  return db.prepare(`${categorySelect("WHERE c.id = ?")}`).get(Number(id));
 }
 
 export function createCategory(data) {
@@ -49,15 +59,17 @@ export function updateCategory(id, data) {
   if (!current) throw new Error("Category not found.");
 
   const normalized = normalizeCategory(data);
-  const duplicate = db.prepare(`SELECT id FROM item_categories WHERE code = ? AND id <> ?`).get(normalized.code, categoryId);
+  const duplicate = db.prepare(`
+    SELECT id FROM item_categories WHERE code = ? AND id <> ?
+  `).get(normalized.code, categoryId);
   if (duplicate) throw new Error("A category with this code already exists.");
 
-  const itemCount = Number(db.prepare(`SELECT COUNT(*) AS count FROM items WHERE category_id = ?`).get(categoryId)?.count || 0);
+  const itemCount = Number(current.item_count || 0);
   if (itemCount > 0 && normalized.code !== current.code) {
-    throw new Error("Category code cannot be changed after items have been assigned to it. Create a new category instead.");
+    throw new Error("Category code cannot be changed after items have been assigned. The category name can still be changed.");
   }
   if (itemCount > 0 && normalized.inventoryRole !== String(current.inventory_role || "CONS").toUpperCase()) {
-    throw new Error("Inventory role cannot be changed after items have been assigned to this category. Create a new category with the required role instead.");
+    throw new Error("Inventory role cannot be changed after items have been assigned. The category name can still be changed.");
   }
   if (SYSTEM_CATEGORY_CODES.has(current.code) && normalized.code !== current.code) {
     throw new Error(`${current.code} is a system manufacturing category. Its code cannot be changed.`);
@@ -80,7 +92,9 @@ export function deactivateCategory(id) {
   const category = getCategoryById(categoryId);
   if (!category) throw new Error("Category not found.");
 
-  const activeItems = Number(db.prepare(`SELECT COUNT(*) AS count FROM items WHERE category_id = ? AND is_active = 1`).get(categoryId)?.count || 0);
+  const activeItems = Number(db.prepare(`
+    SELECT COUNT(*) AS count FROM items WHERE category_id = ? AND is_active = 1
+  `).get(categoryId)?.count || 0);
   if (activeItems > 0) {
     throw new Error("This category is used by active items. Deactivate or move those items first.");
   }
@@ -93,7 +107,6 @@ export function activateCategory(id) {
   const categoryId = Number(id);
   const category = getCategoryById(categoryId);
   if (!category) throw new Error("Category not found.");
-
   db.prepare(`UPDATE item_categories SET is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(categoryId);
   return getCategoryById(categoryId);
 }

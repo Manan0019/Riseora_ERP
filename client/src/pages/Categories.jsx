@@ -1,545 +1,188 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
 import { useUi } from "../context/UiContext";
+import MasterEditorModal from "../components/MasterEditorModal";
+import { sameForm, toTitleCase } from "../utils/textFormat";
 
-const emptyForm = {
-  code: "",
-  name: "",
-  inventoryRole: "CONS",
-};
+const emptyForm = { code: "", name: "", inventoryRole: "CONS" };
+
+function mapCategory(category) {
+  return {
+    code: category?.code || "",
+    name: category?.name || "",
+    inventoryRole: category?.inventory_role || "CONS",
+  };
+}
 
 function Categories() {
-  const { confirm: confirmAction } = useUi();
+  const { confirm: confirmAction, success: toastSuccess, error: toastError } = useUi();
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState(emptyForm);
-
-  const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
-
+  const [originalForm, setOriginalForm] = useState(emptyForm);
   const [selectedId, setSelectedId] = useState(null);
   const [editing, setEditing] = useState(false);
-
+  const [modalOpen, setModalOpen] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
-
-  const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
   const [error, setError] = useState("");
 
-  const [search, setSearch] = useState("");
+  useEffect(() => { loadCategories(); }, [showInactive]);
 
-  useEffect(() => {
-    loadCategories();
-  }, [showInactive]);
-
-  const loadCategories = async () => {
+  async function loadCategories() {
     try {
       setError("");
-
-      const response = await api.get("/categories", {
-        params: {
-          includeInactive: showInactive,
-        },
-      });
-
+      const response = await api.get("/categories", { params: { includeInactive: showInactive } });
       setCategories(response.data.categories);
     } catch (err) {
       console.error(err);
       setError("Unable to load categories.");
     }
-  };
+  }
 
-  const handleNew = () => {
-    setForm(emptyForm);
-    setSelectedId(null);
-    setEditing(true);
-    setShowForm(true);
+  const selectedCategory = categories.find((category) => category.id === selectedId);
+  const existingHasItems = Number(selectedCategory?.item_count || 0) > 0;
+  const dirty = editing && !sameForm(form, originalForm);
 
-    setMessage("");
-    setError("");
-  };
-
-  const handleSelect = (category) => {
-    setSelectedId(category.id);
-
-    setForm({
-      code: category.code,
-      name: category.name,
-      inventoryRole: category.inventory_role || "CONS",
-    });
-
-    setEditing(false);
-    setShowForm(true);
-
-    setMessage("");
-    setError("");
-  };
-
-  const handleEdit = () => {
-    if (!selectedId) {
-      setError("Please select a category first.");
-      return;
-    }
-
-    const selectedCategory = categories.find(
-      (category) => category.id === selectedId
+  const filtered = useMemo(() => {
+    const text = search.trim().toLowerCase();
+    if (!text) return categories;
+    return categories.filter((category) =>
+      [category.code, category.name, category.inventory_role].some((value) => String(value || "").toLowerCase().includes(text)),
     );
+  }, [categories, search]);
 
-    if (!selectedCategory?.is_active) {
-      setError(
-        "Inactive category cannot be edited. Activate it first."
-      );
-      return;
-    }
-
-    setEditing(true);
-    setMessage("");
-    setError("");
-  };
-
-  const handleCancel = () => {
+  function openNew() {
     setSelectedId(null);
     setForm(emptyForm);
+    setOriginalForm(emptyForm);
+    setEditing(true);
+    setModalOpen(true);
+    setError("");
+  }
+
+  function openCategory(category) {
+    const mapped = mapCategory(category);
+    setSelectedId(category.id);
+    setForm(mapped);
+    setOriginalForm(mapped);
     setEditing(false);
-    setShowForm(false);
-
-    setMessage("");
+    setModalOpen(true);
     setError("");
-  };
+  }
 
-  const handleChange = (event) => {
+  async function requestClose() {
+    if (dirty) {
+      const discard = await confirmAction({
+        title: "Discard category changes?",
+        message: "This category has unsaved changes.",
+        confirmLabel: "Discard Changes",
+        cancelLabel: "Continue Editing",
+        variant: "warning",
+      });
+      if (!discard) return;
+    }
+    setModalOpen(false);
+    setEditing(false);
+  }
+
+  function handleChange(event) {
     const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: name === "code" ? value.toUpperCase() : value }));
+  }
 
-    setForm((current) => ({
-      ...current,
-      [name]:
-        name === "code"
-          ? value.toUpperCase()
-          : value,
-    }));
-  };
-
-  const handleSave = async () => {
-    setMessage("");
+  async function save(closeAfter) {
     setError("");
-
-    if (!form.code.trim()) {
-      setError("Category code is required.");
-      return;
-    }
-
-    if (!form.name.trim()) {
-      setError("Category name is required.");
-      return;
-    }
-
-    if (!form.inventoryRole) {
-      setError("Inventory role is required.");
-      return;
-    }
+    const payload = { ...form, name: toTitleCase(form.name) };
+    if (!payload.code.trim()) { setError("Category code is required."); return; }
+    if (!payload.name.trim()) { setError("Category name is required."); return; }
 
     try {
       setSaving(true);
-
-      if (selectedId) {
-        await api.put(
-          `/categories/${selectedId}`,
-          form
-        );
-
-        setMessage(
-          "Category updated successfully."
-        );
-      } else {
-        await api.post("/categories", form);
-
-        setMessage(
-          "Category created successfully."
-        );
-      }
-
-      setSelectedId(null);
-      setForm(emptyForm);
-      setEditing(false);
-      setShowForm(false);
-
+      const response = selectedId
+        ? await api.put(`/categories/${selectedId}`, payload)
+        : await api.post("/categories", payload);
+      const saved = response.data.category;
+      const mapped = mapCategory(saved);
+      setSelectedId(saved.id);
+      setForm(mapped);
+      setOriginalForm(mapped);
+      setEditing(!closeAfter);
       await loadCategories();
+      toastSuccess(selectedId ? "Category updated successfully." : "Category created successfully.", "Category saved");
+      if (closeAfter) setModalOpen(false);
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Unable to save category."
-      );
+      const message = err.response?.data?.message || "Unable to save category.";
+      setError(message);
+      toastError(message, "Category not saved");
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const handleDeactivate = async () => {
-    if (!selectedId) {
-      setError("Please select a category first.");
-      return;
-    }
-
-    const selectedCategory = categories.find(
-      (category) => category.id === selectedId
-    );
-
-    if (!selectedCategory) {
-      setError(
-        "Selected category could not be found."
-      );
-      return;
-    }
-
-    if (!selectedCategory.is_active) {
-      setError(
-        "This category is already inactive."
-      );
-      return;
-    }
-
+  async function toggleActive() {
+    const category = categories.find((item) => item.id === selectedId) || selectedCategory;
+    if (!category) return;
+    const activating = !category.is_active;
     const confirmed = await confirmAction({
-      title: "Deactivate category?",
-      message: `${selectedCategory.code} - ${selectedCategory.name} will be unavailable for new item setup.`,
-      detail: "Existing items and history remain intact.",
-      confirmLabel: "Deactivate Category",
-      cancelLabel: "Keep Active",
-      variant: "warning",
+      title: activating ? "Activate category?" : "Deactivate category?",
+      message: activating ? `${category.name} will become available for item setup.` : `${category.name} will be unavailable for new item setup.`,
+      detail: "Existing item/history links are never deleted.",
+      confirmLabel: activating ? "Activate Category" : "Deactivate Category",
+      cancelLabel: "Keep Unchanged",
+      variant: activating ? "primary" : "warning",
     });
-
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     try {
-      setMessage("");
-      setError("");
-
-      await api.patch(
-        `/categories/${selectedId}/deactivate`
-      );
-
-      setMessage(
-        "Category deactivated successfully."
-      );
-
-      setSelectedId(null);
-      setForm(emptyForm);
-      setEditing(false);
-      setShowForm(false);
-
+      await api.patch(`/categories/${category.id}/${activating ? "activate" : "deactivate"}`);
       await loadCategories();
+      setModalOpen(false);
+      toastSuccess(`Category ${activating ? "activated" : "deactivated"} successfully.`);
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Unable to deactivate category."
-      );
+      const message = err.response?.data?.message || "Unable to update category status.";
+      setError(message);
+      toastError(message);
     }
-  };
-
-  const handleActivate = async () => {
-    if (!selectedId) {
-      setError("Please select a category first.");
-      return;
-    }
-
-    const selectedCategory = categories.find(
-      (category) => category.id === selectedId
-    );
-
-    if (!selectedCategory) {
-      setError(
-        "Selected category could not be found."
-      );
-      return;
-    }
-
-    if (selectedCategory.is_active) {
-      setError(
-        "This category is already active."
-      );
-      return;
-    }
-
-    const confirmed = await confirmAction({
-      title: "Activate category?",
-      message: `${selectedCategory.code} - ${selectedCategory.name} will become available for item setup.`,
-      confirmLabel: "Activate Category",
-      cancelLabel: "Keep Inactive",
-      variant: "primary",
-    });
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      setMessage("");
-      setError("");
-
-      await api.patch(
-        `/categories/${selectedId}/activate`
-      );
-
-      setMessage(
-        "Category activated successfully."
-      );
-
-      setSelectedId(null);
-      setForm(emptyForm);
-      setEditing(false);
-      setShowForm(false);
-
-      await loadCategories();
-    } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Unable to activate category."
-      );
-    }
-  };
-
-  const selectedCategory = categories.find(
-    (category) => category.id === selectedId
-  );
-
-  const filteredCategories = categories.filter((category) => {
-  const text = search.toLowerCase();
-
-  return (
-    category.code.toLowerCase().includes(text) ||
-    category.name.toLowerCase().includes(text) ||
-    String(category.inventory_role || "").toLowerCase().includes(text)
-  );
-});
+  }
 
   return (
     <div>
-      <div className="mb-4">
-        <h2 className="mb-1">Item Categories</h2>
-
-        <p className="text-muted mb-0">
-          Maintain the categories used to classify raw materials, packaging and
-          finished goods.
-        </p>
+      <div className="d-flex justify-content-between align-items-start mb-4">
+        <div><h2 className="mb-1">Item Categories</h2><p className="text-muted mb-0">Rename category names safely without breaking items already linked to them.</p></div>
+        <button type="button" className="btn btn-primary" onClick={openNew}>+ New Category</button>
       </div>
+      {error && !modalOpen && <div className="alert alert-danger">{error}</div>}
 
-      {message && <div className="alert alert-success">{message}</div>}
-
-      {error && <div className="alert alert-danger">{error}</div>}
-
-      <div className="d-flex gap-2 flex-wrap mb-3">
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={handleNew}
-          disabled={editing}
-        >
-          New
-        </button>
-
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={handleEdit}
-          disabled={!selectedId || editing || !selectedCategory?.is_active}
-        >
-          Edit
-        </button>
-
-        <button
-          type="button"
-          className="btn btn-outline-secondary"
-          onClick={handleCancel}
-          disabled={!showForm}
-        >
-          Cancel
-        </button>
-
-        <button
-          type="button"
-          className="btn btn-outline-danger"
-          onClick={handleDeactivate}
-          disabled={!selectedId || editing || !selectedCategory?.is_active}
-        >
-          Deactivate
-        </button>
-
-        <button
-          type="button"
-          className="btn btn-outline-success"
-          onClick={handleActivate}
-          disabled={!selectedId || editing || selectedCategory?.is_active}
-        >
-          Activate
-        </button>
-      </div>
-
-      <div className="mb-3">
-        <input
-          type="text"
-          className="form-control"
-          placeholder="Search categories..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-
-      {showForm && (
-        <div className="card mb-4">
-          <div className="card-body">
-            <h5 className="mb-3">
-              {selectedId
-                ? editing
-                  ? "Edit Category"
-                  : "Category Details"
-                : "New Category"}
-            </h5>
-
-            <div className="row">
-              <div className="col-md-4 mb-3">
-                <label className="form-label">Code *</label>
-
-                <input
-                  type="text"
-                  className="form-control"
-                  name="code"
-                  value={form.code}
-                  onChange={handleChange}
-                  maxLength={20}
-                  disabled={!editing}
-                  autoFocus={editing}
-                />
-              </div>
-
-              <div className="col-md-5 mb-3">
-                <label className="form-label">Name *</label>
-
-                <input
-                  type="text"
-                  className="form-control"
-                  name="name"
-                  value={form.name}
-                  onChange={handleChange}
-                  disabled={!editing}
-                />
-              </div>
-
-              <div className="col-md-3 mb-3">
-                <label className="form-label">Inventory Role *</label>
-                <select
-                  className="form-select"
-                  name="inventoryRole"
-                  value={form.inventoryRole}
-                  onChange={handleChange}
-                  disabled={!editing}
-                >
-                  <option value="RAW">Raw Material</option>
-                  <option value="PACK">Packaging</option>
-                  <option value="FG">Finished Good</option>
-                  <option value="CONS">Consumable / Other</option>
-                </select>
-                <div className="form-text">
-                  Controls how this category behaves in Formula, Production and Sales.
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              className="btn btn-success"
-              onClick={handleSave}
-              disabled={!editing || saving}
-            >
-              {saving ? "Saving..." : "Save"}
-            </button>
-          </div>
+      <div className="card"><div className="card-body">
+        <div className="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3">
+          <input className="form-control" style={{ maxWidth: 520 }} placeholder="Search categories..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <div className="form-check"><input id="showInactiveCategories" type="checkbox" className="form-check-input" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} /><label className="form-check-label" htmlFor="showInactiveCategories">Show Inactive</label></div>
         </div>
-      )}
+        <div className="table-responsive"><table className="table table-bordered table-hover align-middle">
+          <thead className="table-light"><tr><th>Code</th><th>Name</th><th>Inventory Role</th><th>Items</th><th>Status</th></tr></thead>
+          <tbody>
+            {filtered.map((category) => <tr key={category.id} className="row-clickable" onClick={() => openCategory(category)}><td>{category.code}</td><td><strong>{category.name}</strong></td><td>{category.inventory_role}</td><td>{category.item_count ?? 0}</td><td>{category.is_active ? <span className="badge text-bg-success">Active</span> : <span className="badge text-bg-secondary">Inactive</span>}</td></tr>)}
+            {filtered.length === 0 && <tr><td colSpan={5} className="text-center text-muted">No categories found.</td></tr>}
+          </tbody>
+        </table></div>
+      </div></div>
 
-      <div className="card">
-        <div className="card-body">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="mb-0">Category List</h5>
-
-            <div className="form-check">
-              <input
-                id="showInactiveCategories"
-                type="checkbox"
-                className="form-check-input"
-                checked={showInactive}
-                onChange={(event) => {
-                  setShowInactive(event.target.checked);
-
-                  setSelectedId(null);
-                  setForm(emptyForm);
-                  setEditing(false);
-                  setShowForm(false);
-                }}
-              />
-
-              <label
-                className="form-check-label"
-                htmlFor="showInactiveCategories"
-              >
-                Show Inactive
-              </label>
-            </div>
-          </div>
-
-          <div className="table-responsive">
-            <table className="table table-bordered table-hover align-middle">
-              <thead className="table-light">
-                <tr>
-                  <th>Code</th>
-                  <th>Name</th>
-                  <th>Inventory Role</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredCategories.map((category) => (
-                  <tr
-                    key={category.id}
-                    onClick={() => handleSelect(category)}
-                    style={{
-                      cursor: "pointer",
-                    }}
-                    className={
-                      selectedId === category.id ? "table-primary" : ""
-                    }
-                  >
-                    <td>{category.code}</td>
-                    <td>{category.name}</td>
-                    <td>
-                      <span className="badge text-bg-light border text-dark">
-                        {category.inventory_role || "CONS"}
-                      </span>
-                    </td>
-
-                    <td>
-                      {category.is_active ? (
-                        <span className="badge text-bg-success">Active</span>
-                      ) : (
-                        <span className="badge text-bg-secondary">
-                          Inactive
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-
-                {filteredCategories.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="text-center text-muted">
-                      No categories found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+      <MasterEditorModal
+        open={modalOpen}
+        title={selectedId ? (editing ? "Edit Category" : "Category Details") : "New Category"}
+        subtitle={selectedId ? "Category name can be corrected even when imported items already use it." : "Create a new item category."}
+        onRequestClose={requestClose}
+        footer={<><div className="master-modal-footer-group">{selectedId && <button type="button" className={selectedCategory?.is_active ? "btn btn-outline-danger" : "btn btn-outline-success"} onClick={toggleActive}>{selectedCategory?.is_active ? "Deactivate" : "Activate"}</button>}</div><div className="master-modal-footer-group">{!editing && selectedId && selectedCategory?.is_active && <button type="button" className="btn btn-secondary" onClick={() => setEditing(true)}>Edit</button>}{editing && <button type="button" className="btn btn-outline-secondary" onClick={requestClose}>Cancel</button>}{editing && <button type="button" className="btn btn-outline-primary" disabled={saving} onClick={() => save(false)}>{saving ? "Saving..." : "Apply"}</button>}{editing && <button type="button" className="btn btn-success" disabled={saving} onClick={() => save(true)}>{saving ? "Saving..." : "OK"}</button>}{!editing && <button type="button" className="btn btn-primary" onClick={requestClose}>OK</button>}</div></>}
+      >
+        {error && <div className="alert alert-danger">{error}</div>}
+        {selectedId && existingHasItems && <div className="master-readonly-note mb-3">This category is used by {selectedCategory.item_count} item(s). You can change the <strong>Category Name</strong>, but Code and Inventory Role stay locked to protect inventory/manufacturing history.</div>}
+        <div className="row">
+          <div className="col-md-4 mb-3"><label className="form-label">Code *</label><input className="form-control" name="code" value={form.code} onChange={handleChange} disabled={!editing || Boolean(selectedId)} maxLength={20} /></div>
+          <div className="col-md-5 mb-3"><label className="form-label">Category Name *</label><input spellCheck className="form-control" name="name" value={form.name} onChange={handleChange} onBlur={() => setForm((current) => ({ ...current, name: toTitleCase(current.name) }))} disabled={!editing} autoFocus={editing && Boolean(selectedId)} /></div>
+          <div className="col-md-3 mb-3"><label className="form-label">Inventory Role *</label><select className="form-select" name="inventoryRole" value={form.inventoryRole} onChange={handleChange} disabled={!editing || (Boolean(selectedId) && existingHasItems)}><option value="RAW">Raw Material</option><option value="PACK">Packaging</option><option value="FG">Finished Good</option><option value="CONS">Consumable / Other</option></select></div>
         </div>
-      </div>
+      </MasterEditorModal>
     </div>
   );
 }

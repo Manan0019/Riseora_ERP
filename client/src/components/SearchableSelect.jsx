@@ -17,6 +17,21 @@ function defaultGetLabel(option) {
   return asText(option.name ?? option.code ?? option.id ?? "");
 }
 
+/*
+ * V1.1 owner-facing privacy/usability rule:
+ * supplier/customer codes remain in the database for compatibility, but are
+ * not shown in normal lookup controls. They still participate in search so an
+ * older internal reference can be found when needed.
+ */
+function isPartyOption(option) {
+  return Boolean(
+    option &&
+      option.name &&
+      (Object.prototype.hasOwnProperty.call(option, "payment_terms_days") ||
+        Object.prototype.hasOwnProperty.call(option, "customer_type")),
+  );
+}
+
 export default function SearchableSelect({
   value,
   onChange,
@@ -41,13 +56,21 @@ export default function SearchableSelect({
   const [menuStyle, setMenuStyle] = useState({});
 
   const normalizedValue = asText(value);
+  const displayLabel = (option) =>
+    isPartyOption(option) ? asText(option.name) : getOptionLabel(option);
 
   const selectedOption = useMemo(
     () => options.find((option) => asText(getOptionValue(option)) === normalizedValue) || null,
     [options, getOptionValue, normalizedValue],
   );
 
-  const selectedLabel = selectedOption ? getOptionLabel(selectedOption) : "";
+  const selectedLabel = selectedOption ? displayLabel(selectedOption) : "";
+  const partyLookup = options.some(isPartyOption);
+  const displayPlaceholder = partyLookup
+    ? placeholder
+        .replace(/\s+by\s+code\s+or\s+name/gi, " by name")
+        .replace(/code\s*,?\s*name/gi, "name")
+    : placeholder;
 
   useEffect(() => {
     if (!open) setQuery(selectedLabel);
@@ -59,27 +82,24 @@ export default function SearchableSelect({
     return trimmed.toLowerCase();
   }, [query, selectedLabel, selectedOption]);
 
+  const matchesOption = (option) => {
+    const originalLabel = getOptionLabel(option);
+    const visibleLabel = displayLabel(option);
+    const meta = getOptionMeta(option);
+    const extra = getOptionSearchText ? getOptionSearchText(option) : "";
+    return `${visibleLabel} ${originalLabel} ${meta} ${extra}`
+      .toLowerCase()
+      .includes(effectiveSearch);
+  };
+
   const filteredOptions = useMemo(() => {
     if (!effectiveSearch) return options.slice(0, maxResults);
-
-    const matches = options.filter((option) => {
-      const label = getOptionLabel(option);
-      const meta = getOptionMeta(option);
-      const extra = getOptionSearchText ? getOptionSearchText(option) : "";
-      return `${label} ${meta} ${extra}`.toLowerCase().includes(effectiveSearch);
-    });
-
-    return matches.slice(0, maxResults);
+    return options.filter(matchesOption).slice(0, maxResults);
   }, [options, effectiveSearch, maxResults, getOptionLabel, getOptionMeta, getOptionSearchText]);
 
   const moreCount = useMemo(() => {
     if (!effectiveSearch) return Math.max(0, options.length - filteredOptions.length);
-    const total = options.reduce((count, option) => {
-      const label = getOptionLabel(option);
-      const meta = getOptionMeta(option);
-      const extra = getOptionSearchText ? getOptionSearchText(option) : "";
-      return `${label} ${meta} ${extra}`.toLowerCase().includes(effectiveSearch) ? count + 1 : count;
-    }, 0);
+    const total = options.reduce((count, option) => (matchesOption(option) ? count + 1 : count), 0);
     return Math.max(0, total - filteredOptions.length);
   }, [options, filteredOptions.length, effectiveSearch, getOptionLabel, getOptionMeta, getOptionSearchText]);
 
@@ -120,7 +140,7 @@ export default function SearchableSelect({
   const choose = (option) => {
     const nextValue = option ? asText(getOptionValue(option)) : "";
     onChange?.(nextValue, option || null);
-    setQuery(option ? getOptionLabel(option) : "");
+    setQuery(option ? displayLabel(option) : "");
     setOpen(false);
     setHighlightedIndex(0);
   };
@@ -159,9 +179,7 @@ export default function SearchableSelect({
         setOpen(true);
         window.requestAnimationFrame(updateMenuPosition);
       } else if (filteredOptions.length) {
-        setHighlightedIndex((current) =>
-          current <= 0 ? filteredOptions.length - 1 : current - 1,
-        );
+        setHighlightedIndex((current) => (current <= 0 ? filteredOptions.length - 1 : current - 1));
       }
       return;
     }
@@ -199,7 +217,7 @@ export default function SearchableSelect({
           return (
             <button
               type="button"
-              key={optionValue || `${getOptionLabel(option)}-${index}`}
+              key={optionValue || `${displayLabel(option)}-${index}`}
               className={`searchable-select-option${active ? " is-active" : ""}${selected ? " is-selected" : ""}`}
               onMouseDown={(event) => {
                 event.preventDefault();
@@ -209,7 +227,7 @@ export default function SearchableSelect({
               role="option"
               aria-selected={selected}
             >
-              <span className="searchable-select-option-label">{getOptionLabel(option)}</span>
+              <span className="searchable-select-option-label">{displayLabel(option)}</span>
               {meta ? <span className="searchable-select-option-meta">{meta}</span> : null}
             </button>
           );
@@ -230,7 +248,7 @@ export default function SearchableSelect({
         type="text"
         className={`form-control searchable-select-input ${inputClassName}`.trim()}
         value={query}
-        placeholder={placeholder}
+        placeholder={displayPlaceholder}
         disabled={disabled}
         autoComplete="off"
         aria-label={ariaLabel || placeholder}

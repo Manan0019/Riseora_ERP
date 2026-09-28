@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
 import { useUi } from "../context/UiContext";
 import IndiaLocationFields from "../components/IndiaLocationFields";
+import MasterEditorModal from "../components/MasterEditorModal";
+import { normalizeTitleCaseFields, sameForm, toTitleCase } from "../utils/textFormat";
 
 const emptyForm = {
-  code: "",
   name: "",
   phone: "",
   alternatePhone: "",
@@ -20,729 +21,211 @@ const emptyForm = {
   notes: "",
 };
 
+function mapCustomer(customer) {
+  return {
+    name: customer?.name || "",
+    phone: customer?.phone || "",
+    alternatePhone: customer?.alternate_phone || "",
+    email: customer?.email || "",
+    gstin: customer?.gstin || "",
+    address: customer?.address || "",
+    city: customer?.city || "",
+    state: customer?.state || "",
+    pincode: customer?.pincode || "",
+    customerType: customer?.customer_type || "RETAIL",
+    creditDays: String(customer?.credit_days ?? 0),
+    creditLimit: String(customer?.credit_limit ?? 0),
+    notes: customer?.notes || "",
+  };
+}
+
 function Customers() {
-  const { confirm: confirmAction } = useUi();
-  const [customers, setCustomers] =
-    useState([]);
-
-  const [form, setForm] =
-    useState(emptyForm);
-
-  const [selectedId, setSelectedId] =
-    useState(null);
-
-  const [editing, setEditing] =
-    useState(false);
-
-  const [showForm, setShowForm] =
-    useState(false);
-
-  const [showInactive, setShowInactive] =
-    useState(false);
-
-  const [saving, setSaving] =
-    useState(false);
-
-  const [message, setMessage] =
-    useState("");
-
-  const [error, setError] =
-    useState("");
-
+  const { confirm: confirmAction, success: toastSuccess, error: toastError } = useUi();
+  const [customers, setCustomers] = useState([]);
+  const [form, setForm] = useState(emptyForm);
+  const [originalForm, setOriginalForm] = useState(emptyForm);
+  const [selectedId, setSelectedId] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    loadCustomers();
-  }, [showInactive]);
+  useEffect(() => { loadCustomers(); }, [showInactive]);
 
-  const loadCustomers = async () => {
+  async function loadCustomers() {
     try {
       setError("");
-
-      const response = await api.get(
-        "/customers",
-        {
-          params: {
-            includeInactive:
-              showInactive,
-          },
-        }
-      );
-
-      setCustomers(
-        response.data.customers
-      );
+      const response = await api.get("/customers", { params: { includeInactive: showInactive } });
+      setCustomers(response.data.customers);
     } catch (err) {
       console.error(err);
-
-      setError(
-        "Unable to load customers."
-      );
+      setError("Unable to load customers.");
     }
-  };
+  }
 
-  const handleNew = () => {
-    setForm(emptyForm);
+  const selectedCustomer = customers.find((customer) => customer.id === selectedId);
+  const dirty = editing && !sameForm(form, originalForm);
+
+  const filteredCustomers = useMemo(() => {
+    const text = search.trim().toLowerCase();
+    if (!text) return customers;
+    return customers.filter((customer) =>
+      [customer.name, customer.phone, customer.alternate_phone, customer.gstin, customer.city, customer.customer_type]
+        .some((value) => String(value || "").toLowerCase().includes(text)),
+    );
+  }, [customers, search]);
+
+  function openNew() {
     setSelectedId(null);
+    setForm(emptyForm);
+    setOriginalForm(emptyForm);
     setEditing(true);
-    setShowForm(true);
-
-    setMessage("");
+    setModalOpen(true);
     setError("");
-  };
+  }
 
-  const handleSelect = (customer) => {
+  function openCustomer(customer) {
+    const mapped = mapCustomer(customer);
     setSelectedId(customer.id);
-
-    setForm({
-      code: customer.code || "",
-      name: customer.name || "",
-
-      phone: customer.phone || "",
-      alternatePhone: customer.alternate_phone || "",
-      email: customer.email || "",
-      gstin: customer.gstin || "",
-
-      address: customer.address || "",
-      city: customer.city || "",
-      state: customer.state || "",
-      pincode: customer.pincode || "",
-
-      customerType:
-        customer.customer_type ||
-        "RETAIL",
-
-      creditDays:
-        String(
-          customer.credit_days ?? 0
-        ),
-
-      creditLimit:
-        String(
-          customer.credit_limit ?? 0
-        ),
-
-      notes: customer.notes || "",
-    });
-
+    setForm(mapped);
+    setOriginalForm(mapped);
     setEditing(false);
-    setShowForm(true);
-
-    setMessage("");
+    setModalOpen(true);
     setError("");
-  };
+  }
 
-  const handleEdit = () => {
-    if (!selectedId) {
-      setError(
-        "Please select a customer first."
-      );
-      return;
+  async function requestClose() {
+    if (dirty) {
+      const discard = await confirmAction({
+        title: "Discard customer changes?",
+        message: "This customer has unsaved changes.",
+        detail: "Choose Discard Changes to close without saving, or Continue Editing to return to the popup.",
+        confirmLabel: "Discard Changes",
+        cancelLabel: "Continue Editing",
+        variant: "warning",
+      });
+      if (!discard) return;
     }
-
-    const selectedCustomer =
-      customers.find(
-        (customer) =>
-          customer.id === selectedId
-      );
-
-    if (!selectedCustomer?.is_active) {
-      setError(
-        "Inactive customer cannot be edited. Activate it first."
-      );
-      return;
-    }
-
-    setEditing(true);
-    setMessage("");
-    setError("");
-  };
-
-  const handleCancel = () => {
-    setSelectedId(null);
-    setForm(emptyForm);
+    setModalOpen(false);
     setEditing(false);
-    setShowForm(false);
+  }
 
-    setMessage("");
+  function handleChange(event) {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: name === "gstin" ? value.toUpperCase() : value }));
+  }
+
+  function titleField(field) {
+    setForm((current) => ({ ...current, [field]: toTitleCase(current[field]) }));
+  }
+
+  async function save(closeAfter) {
     setError("");
-  };
-
-  const handleChange = (event) => {
-    const { name, value } =
-      event.target;
-
-    let newValue = value;
-
-    if (
-      name === "code" ||
-      name === "gstin"
-    ) {
-      newValue =
-        value.toUpperCase();
-    }
-
-    setForm((current) => ({
-      ...current,
-      [name]: newValue,
-    }));
-  };
-
-  const handleSave = async () => {
-    setMessage("");
-    setError("");
-
-    if (!form.code.trim()) {
-      setError(
-        "Customer code is required."
-      );
-      return;
-    }
-
-    if (!form.name.trim()) {
-      setError(
-        "Customer name is required."
-      );
-      return;
-    }
-
-    if (
-      Number(form.creditDays) < 0
-    ) {
-      setError(
-        "Credit days cannot be negative."
-      );
-      return;
-    }
-
-    if (
-      Number(form.creditLimit) < 0
-    ) {
-      setError(
-        "Credit limit cannot be negative."
-      );
-      return;
-    }
+    const payload = normalizeTitleCaseFields(form, ["name", "city", "state"]);
+    if (!payload.name.trim()) { setError("Customer name is required."); return; }
+    if (Number(payload.creditDays) < 0) { setError("Credit days cannot be negative."); return; }
+    if (Number(payload.creditLimit) < 0) { setError("Credit limit cannot be negative."); return; }
 
     try {
       setSaving(true);
-
-      if (selectedId) {
-        await api.put(
-          `/customers/${selectedId}`,
-          form
-        );
-
-        setMessage(
-          "Customer updated successfully."
-        );
-      } else {
-        await api.post(
-          "/customers",
-          form
-        );
-
-        setMessage(
-          "Customer created successfully."
-        );
-      }
-
-      setSelectedId(null);
-      setForm(emptyForm);
-      setEditing(false);
-      setShowForm(false);
-
+      const response = selectedId
+        ? await api.put(`/customers/${selectedId}`, payload)
+        : await api.post("/customers", payload);
+      const saved = response.data.customer;
+      const mapped = mapCustomer(saved);
+      setSelectedId(saved.id);
+      setForm(mapped);
+      setOriginalForm(mapped);
+      setEditing(!closeAfter);
       await loadCustomers();
+      toastSuccess(selectedId ? "Customer updated successfully." : "Customer created successfully.", "Customer saved");
+      if (closeAfter) setModalOpen(false);
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Unable to save customer."
-      );
+      const message = err.response?.data?.message || "Unable to save customer.";
+      setError(message);
+      toastError(message, "Customer not saved");
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const handleDeactivate =
-    async () => {
-      if (!selectedId) {
-        setError(
-          "Please select a customer first."
-        );
-        return;
-      }
+  async function toggleActive() {
+    const customer = customers.find((item) => item.id === selectedId) || selectedCustomer;
+    if (!customer) return;
+    const activating = !customer.is_active;
+    const confirmed = await confirmAction({
+      title: activating ? "Activate customer?" : "Deactivate customer?",
+      message: activating
+        ? `${customer.name} will become available for new sales.`
+        : `${customer.name} will no longer be available for new sales.`,
+      detail: "Historical invoices and ledger records remain unchanged.",
+      confirmLabel: activating ? "Activate Customer" : "Deactivate Customer",
+      cancelLabel: "Keep Unchanged",
+      variant: activating ? "primary" : "warning",
+    });
+    if (!confirmed) return;
 
-      const customer =
-        customers.find(
-          (item) =>
-            item.id === selectedId
-        );
-
-      if (!customer?.is_active) {
-        setError(
-          "This customer is already inactive."
-        );
-        return;
-      }
-
-      const confirmed = await confirmAction({
-        title: "Deactivate customer?",
-        message: `${customer.code} - ${customer.name} will no longer be available for new transactions.`,
-        detail: "Historical invoices and ledger records remain unchanged.",
-        confirmLabel: "Deactivate Customer",
-        cancelLabel: "Keep Active",
-        variant: "warning",
-      });
-
-      if (!confirmed) {
-        return;
-      }
-
-      try {
-        setMessage("");
-        setError("");
-
-        await api.patch(
-          `/customers/${selectedId}/deactivate`
-        );
-
-        setMessage(
-          "Customer deactivated successfully."
-        );
-
-        setSelectedId(null);
-        setForm(emptyForm);
-        setEditing(false);
-        setShowForm(false);
-
-        await loadCustomers();
-      } catch (err) {
-        setError(
-          err.response?.data?.message ||
-            "Unable to deactivate customer."
-        );
-      }
-    };
-
-  const handleActivate =
-    async () => {
-      if (!selectedId) {
-        setError(
-          "Please select a customer first."
-        );
-        return;
-      }
-
-      const customer =
-        customers.find(
-          (item) =>
-            item.id === selectedId
-        );
-
-      if (!customer) {
-        return;
-      }
-
-      const confirmed = await confirmAction({
-        title: "Activate customer?",
-        message: `${customer.code} - ${customer.name} will become available for new transactions.`,
-        confirmLabel: "Activate Customer",
-        cancelLabel: "Keep Inactive",
-        variant: "primary",
-      });
-
-      if (!confirmed) {
-        return;
-      }
-
-      try {
-        setMessage("");
-        setError("");
-
-        await api.patch(
-          `/customers/${selectedId}/activate`
-        );
-
-        setMessage(
-          "Customer activated successfully."
-        );
-
-        setSelectedId(null);
-        setForm(emptyForm);
-        setEditing(false);
-        setShowForm(false);
-
-        await loadCustomers();
-      } catch (err) {
-        setError(
-          err.response?.data?.message ||
-            "Unable to activate customer."
-        );
-      }
-    };
-
-  const selectedCustomer =
-    customers.find(
-      (customer) =>
-        customer.id === selectedId
-    );
-
-  const filteredCustomers = customers.filter((customer) => {
-    const text = search.toLowerCase();
-
-    return (
-      customer.code.toLowerCase().includes(text) ||
-      customer.name.toLowerCase().includes(text) ||
-      (customer.phone || "").toLowerCase().includes(text) ||
-      (customer.alternate_phone || "").toLowerCase().includes(text) ||
-      (customer.gstin || "").toLowerCase().includes(text) ||
-      (customer.city || "").toLowerCase().includes(text) ||
-      (customer.customer_type || "").toLowerCase().includes(text)
-    );
-  });
+    try {
+      await api.patch(`/customers/${customer.id}/${activating ? "activate" : "deactivate"}`);
+      await loadCustomers();
+      setModalOpen(false);
+      toastSuccess(`Customer ${activating ? "activated" : "deactivated"} successfully.`);
+    } catch (err) {
+      const message = err.response?.data?.message || "Unable to update customer status.";
+      setError(message);
+      toastError(message);
+    }
+  }
 
   return (
     <div>
-      <div className="mb-4">
-        <h2 className="mb-1">Customers</h2>
-
-        <p className="text-muted mb-0">
-          Maintain retail, wholesale and distributor customers.
-        </p>
+      <div className="d-flex justify-content-between align-items-start mb-4">
+        <div><h2 className="mb-1">Customers</h2><p className="text-muted mb-0">Maintain retail, wholesale and distributor customers without visible ERP IDs.</p></div>
+        <button type="button" className="btn btn-primary" onClick={openNew}>+ New Customer</button>
       </div>
 
-      {message && <div className="alert alert-success">{message}</div>}
+      {error && !modalOpen && <div className="alert alert-danger">{error}</div>}
 
-      {error && <div className="alert alert-danger">{error}</div>}
-
-      <div className="d-flex gap-2 flex-wrap mb-3">
-        <button
-          className="btn btn-primary"
-          onClick={handleNew}
-          disabled={editing}
-        >
-          New
-        </button>
-
-        <button
-          className="btn btn-secondary"
-          onClick={handleEdit}
-          disabled={!selectedId || editing || !selectedCustomer?.is_active}
-        >
-          Edit
-        </button>
-
-        <button
-          className="btn btn-outline-secondary"
-          onClick={handleCancel}
-          disabled={!showForm}
-        >
-          Cancel
-        </button>
-
-        <button
-          className="btn btn-outline-danger"
-          onClick={handleDeactivate}
-          disabled={!selectedId || editing || !selectedCustomer?.is_active}
-        >
-          Deactivate
-        </button>
-
-        <button
-          className="btn btn-outline-success"
-          onClick={handleActivate}
-          disabled={!selectedId || editing || selectedCustomer?.is_active}
-        >
-          Activate
-        </button>
-      </div>
-
-      <div className="mb-3">
-        <input
-          type="text"
-          className="form-control"
-          placeholder="Search customers..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-
-      {showForm && (
-        <div className="card mb-4">
-          <div className="card-body">
-            <h5 className="mb-3">
-              {selectedId
-                ? editing
-                  ? "Edit Customer"
-                  : "Customer Details"
-                : "New Customer"}
-            </h5>
-
-            <div className="row">
-              <div className="col-md-3 mb-3">
-                <label className="form-label">Customer Code *</label>
-
-                <input
-                  className="form-control"
-                  name="code"
-                  value={form.code}
-                  onChange={handleChange}
-                  disabled={!editing}
-                  maxLength={20}
-                  autoFocus={editing}
-                />
-              </div>
-
-              <div className="col-md-5 mb-3">
-                <label className="form-label">Customer Name *</label>
-
-                <input
-                  className="form-control"
-                  name="name"
-                  value={form.name}
-                  onChange={handleChange}
-                  disabled={!editing}
-                />
-              </div>
-
-              <div className="col-md-4 mb-3">
-                <label className="form-label">Customer Type</label>
-
-                <select
-                  className="form-select"
-                  name="customerType"
-                  value={form.customerType}
-                  onChange={handleChange}
-                  disabled={!editing}
-                >
-                  <option value="RETAIL">Retail</option>
-
-                  <option value="WHOLESALE">Wholesale</option>
-
-                  <option value="DISTRIBUTOR">Distributor</option>
-                </select>
-              </div>
-
-              <div className="col-md-4 mb-3">
-                <label className="form-label">Phone</label>
-
-                <input
-                  className="form-control"
-                  name="phone"
-                  value={form.phone}
-                  onChange={handleChange}
-                  disabled={!editing}
-                />
-              </div>
-
-              <div className="col-md-4 mb-3">
-                <label className="form-label">Alternate Number</label>
-
-                <input
-                  type="tel"
-                  className="form-control"
-                  name="alternatePhone"
-                  value={form.alternatePhone}
-                  onChange={handleChange}
-                  disabled={!editing}
-                  maxLength={20}
-                  placeholder="Optional"
-                />
-              </div>
-
-              <div className="col-md-4 mb-3">
-                <label className="form-label">Email</label>
-
-                <input
-                  type="email"
-                  className="form-control"
-                  name="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  disabled={!editing}
-                />
-              </div>
-
-              <div className="col-md-4 mb-3">
-                <label className="form-label">GSTIN</label>
-
-                <input
-                  className="form-control"
-                  name="gstin"
-                  value={form.gstin}
-                  onChange={handleChange}
-                  disabled={!editing}
-                  maxLength={15}
-                />
-              </div>
-
-              <div className="col-12 mb-3">
-                <label className="form-label">Address</label>
-
-                <textarea
-                  className="form-control"
-                  name="address"
-                  value={form.address}
-                  onChange={handleChange}
-                  disabled={!editing}
-                  rows="2"
-                />
-              </div>
-
-              <IndiaLocationFields
-                form={form}
-                setForm={setForm}
-                disabled={!editing}
-              />
-
-              <div className="col-md-3 mb-3">
-                <label className="form-label">Credit Days</label>
-
-                <input
-                  type="number"
-                  min="0"
-                  className="form-control"
-                  name="creditDays"
-                  value={form.creditDays}
-                  onChange={handleChange}
-                  disabled={!editing}
-                />
-              </div>
-
-              <div className="col-md-3 mb-3">
-                <label className="form-label">Credit Limit</label>
-
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  className="form-control"
-                  name="creditLimit"
-                  value={form.creditLimit}
-                  onChange={handleChange}
-                  disabled={!editing}
-                />
-              </div>
-
-              <div className="col-md-6 mb-3">
-                <label className="form-label">Notes</label>
-
-                <input
-                  className="form-control"
-                  name="notes"
-                  value={form.notes}
-                  onChange={handleChange}
-                  disabled={!editing}
-                />
-              </div>
-            </div>
-
-            <button
-              className="btn btn-success"
-              onClick={handleSave}
-              disabled={!editing || saving}
-            >
-              {saving ? "Saving..." : "Save"}
-            </button>
-          </div>
+      <div className="card"><div className="card-body">
+        <div className="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3">
+          <input className="form-control" style={{ maxWidth: 520 }} placeholder="Search customer name, phone, GSTIN or city..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <div className="form-check"><input id="showInactiveCustomers" type="checkbox" className="form-check-input" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} /><label className="form-check-label" htmlFor="showInactiveCustomers">Show Inactive</label></div>
         </div>
-      )}
+        <div className="table-responsive"><table className="table table-bordered table-hover align-middle">
+          <thead className="table-light"><tr><th>Name</th><th>Type</th><th>Phone</th><th>Alternate No.</th><th>GSTIN</th><th>Credit Days</th><th>Credit Limit</th><th>Status</th></tr></thead>
+          <tbody>
+            {filteredCustomers.map((customer) => <tr key={customer.id} className="row-clickable" onClick={() => openCustomer(customer)}>
+              <td><strong>{customer.name}</strong></td><td>{customer.customer_type}</td><td>{customer.phone || "-"}</td><td>{customer.alternate_phone || "-"}</td><td>{customer.gstin || "-"}</td><td>{customer.credit_days}</td><td>₹{Number(customer.credit_limit || 0).toFixed(2)}</td><td>{customer.is_active ? <span className="badge text-bg-success">Active</span> : <span className="badge text-bg-secondary">Inactive</span>}</td>
+            </tr>)}
+            {filteredCustomers.length === 0 && <tr><td colSpan={8} className="text-center text-muted">No customers found.</td></tr>}
+          </tbody>
+        </table></div>
+      </div></div>
 
-      <div className="card">
-        <div className="card-body">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="mb-0">Customer List</h5>
-
-            <div className="form-check">
-              <input
-                id="showInactiveCustomers"
-                type="checkbox"
-                className="form-check-input"
-                checked={showInactive}
-                onChange={(event) => {
-                  setShowInactive(event.target.checked);
-
-                  setSelectedId(null);
-                  setForm(emptyForm);
-                  setEditing(false);
-                  setShowForm(false);
-                }}
-              />
-
-              <label
-                className="form-check-label"
-                htmlFor="showInactiveCustomers"
-              >
-                Show Inactive
-              </label>
-            </div>
-          </div>
-
-          <div className="table-responsive">
-            <table className="table table-bordered table-hover align-middle">
-              <thead className="table-light">
-                <tr>
-                  <th>Code</th>
-                  <th>Name</th>
-                  <th>Type</th>
-                  <th>Phone</th>
-                  <th>Alternate No.</th>
-                  <th>Credit Days</th>
-                  <th>Credit Limit</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredCustomers.map((customer) => (
-                  <tr
-                    key={customer.id}
-                    onClick={() => handleSelect(customer)}
-                    style={{
-                      cursor: "pointer",
-                    }}
-                    className={
-                      selectedId === customer.id ? "table-primary" : ""
-                    }
-                  >
-                    <td>{customer.code}</td>
-
-                    <td>{customer.name}</td>
-
-                    <td>{customer.customer_type}</td>
-
-                    <td>{customer.phone || "-"}</td>
-
-                    <td>{customer.alternate_phone || "-"}</td>
-
-                    <td>{customer.credit_days}</td>
-
-                    <td>₹{Number(customer.credit_limit).toFixed(2)}</td>
-
-                    <td>
-                      {customer.is_active ? (
-                        <span className="badge text-bg-success">Active</span>
-                      ) : (
-                        <span className="badge text-bg-secondary">
-                          Inactive
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-
-                {filteredCustomers.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="text-center text-muted">
-                      No customers found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+      <MasterEditorModal
+        open={modalOpen}
+        title={selectedId ? (editing ? "Edit Customer" : "Customer Details") : "New Customer"}
+        subtitle="Internal customer IDs/codes are generated automatically and are not shown to the owner."
+        onRequestClose={requestClose}
+        footer={<><div className="master-modal-footer-group">{selectedId && <button type="button" className={selectedCustomer?.is_active ? "btn btn-outline-danger" : "btn btn-outline-success"} onClick={toggleActive}>{selectedCustomer?.is_active ? "Deactivate" : "Activate"}</button>}</div><div className="master-modal-footer-group">{!editing && selectedId && selectedCustomer?.is_active && <button type="button" className="btn btn-secondary" onClick={() => setEditing(true)}>Edit</button>}{editing && <button type="button" className="btn btn-outline-secondary" onClick={requestClose}>Cancel</button>}{editing && <button type="button" className="btn btn-outline-primary" disabled={saving} onClick={() => save(false)}>{saving ? "Saving..." : "Apply"}</button>}{editing && <button type="button" className="btn btn-success" disabled={saving} onClick={() => save(true)}>{saving ? "Saving..." : "OK"}</button>}{!editing && <button type="button" className="btn btn-primary" onClick={requestClose}>OK</button>}</div></>}
+      >
+        {error && <div className="alert alert-danger">{error}</div>}
+        <div className="row">
+          <div className="col-md-7 mb-3"><label className="form-label">Customer Name *</label><input spellCheck className="form-control" name="name" value={form.name} onChange={handleChange} onBlur={() => titleField("name")} disabled={!editing} autoFocus={editing} /></div>
+          <div className="col-md-5 mb-3"><label className="form-label">Customer Type</label><select className="form-select" name="customerType" value={form.customerType} onChange={handleChange} disabled={!editing}><option value="RETAIL">Retail</option><option value="WHOLESALE">Wholesale</option><option value="DISTRIBUTOR">Distributor</option></select></div>
+          <div className="col-md-4 mb-3"><label className="form-label">Phone</label><input className="form-control" name="phone" value={form.phone} onChange={handleChange} disabled={!editing} /></div>
+          <div className="col-md-4 mb-3"><label className="form-label">Alternate Number</label><input className="form-control" name="alternatePhone" value={form.alternatePhone} onChange={handleChange} disabled={!editing} /></div>
+          <div className="col-md-4 mb-3"><label className="form-label">Email</label><input type="email" className="form-control" name="email" value={form.email} onChange={handleChange} disabled={!editing} /></div>
+          <div className="col-md-4 mb-3"><label className="form-label">GSTIN</label><input className="form-control" name="gstin" value={form.gstin} onChange={handleChange} disabled={!editing} maxLength={15} /></div>
+          <div className="col-md-8 mb-3"><label className="form-label">Address</label><input spellCheck className="form-control" name="address" value={form.address} onChange={handleChange} disabled={!editing} /></div>
+          <IndiaLocationFields form={form} setForm={setForm} disabled={!editing} />
+          <div className="col-md-3 mb-3"><label className="form-label">Credit Days</label><input type="number" min="0" className="form-control" name="creditDays" value={form.creditDays} onChange={handleChange} disabled={!editing} /></div>
+          <div className="col-md-3 mb-3"><label className="form-label">Credit Limit</label><input type="number" min="0" step="0.01" className="form-control" name="creditLimit" value={form.creditLimit} onChange={handleChange} disabled={!editing} /></div>
+          <div className="col-md-6 mb-3"><label className="form-label">Notes</label><input spellCheck className="form-control" name="notes" value={form.notes} onChange={handleChange} disabled={!editing} /></div>
         </div>
-      </div>
+      </MasterEditorModal>
     </div>
   );
 }

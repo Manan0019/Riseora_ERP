@@ -51,19 +51,16 @@ function amountToWords(value) {
     parts.push(`${wordsBelowThousand(crore)} Crore`);
     rupees %= 10000000;
   }
-
   const lakh = Math.floor(rupees / 100000);
   if (lakh) {
     parts.push(`${wordsBelowThousand(lakh)} Lakh`);
     rupees %= 100000;
   }
-
   const thousand = Math.floor(rupees / 1000);
   if (thousand) {
     parts.push(`${wordsBelowThousand(thousand)} Thousand`);
     rupees %= 1000;
   }
-
   if (rupees) parts.push(wordsBelowThousand(rupees));
   if (parts.length === 0) parts.push("Zero");
 
@@ -101,7 +98,6 @@ function SalesInvoicePrint() {
         setLoading(false);
       }
     }
-
     load();
   }, [id]);
 
@@ -127,17 +123,14 @@ function SalesInvoicePrint() {
       phone: invoice.seller_phone || company?.phone || "",
       email: invoice.seller_email || company?.email || "",
       bankName: invoice.seller_bank_name || company?.bank_name || "",
-      bankAccountName:
-        invoice.seller_bank_account_name || company?.bank_account_name || "",
-      bankAccountNo:
-        invoice.seller_bank_account_no || company?.bank_account_no || "",
+      bankAccountName: invoice.seller_bank_account_name || company?.bank_account_name || "",
+      bankAccountNo: invoice.seller_bank_account_no || company?.bank_account_no || "",
       bankIfsc: invoice.seller_bank_ifsc || company?.bank_ifsc || "",
       upiId: invoice.seller_upi_id || company?.upi_id || "",
       terms: invoice.invoice_terms_snapshot || company?.invoice_terms || "",
     };
 
     const buyer = {
-      code: invoice.buyer_code || invoice.customer_code || "",
       name: invoice.buyer_name || invoice.customer_name || "",
       phone: invoice.buyer_phone || invoice.customer_phone || "",
       email: invoice.buyer_email || invoice.customer_email || "",
@@ -154,11 +147,9 @@ function SalesInvoicePrint() {
 
     const lines = (invoice.items || []).map((item) => {
       const baseTaxable = Number(item.taxable_amount || 0);
-      const discountShare =
-        subtotal > 0 ? invoiceDiscount * (baseTaxable / subtotal) : 0;
+      const discountShare = subtotal > 0 ? invoiceDiscount * (baseTaxable / subtotal) : 0;
       const taxableAfterInvoiceDiscount = Math.max(0, baseTaxable - discountShare);
       const tax = Number(item.gst_amount || 0);
-
       return {
         ...item,
         invoice_discount_share: discountShare,
@@ -171,16 +162,9 @@ function SalesInvoicePrint() {
     return { seller, buyer, lines, taxType };
   }, [invoice, company]);
 
-  if (loading) {
-    return <div className="invoice-loading">Loading invoice...</div>;
-  }
-
+  if (loading) return <div className="invoice-loading">Loading invoice...</div>;
   if (error || !invoice || !documentData) {
-    return (
-      <div className="invoice-loading text-danger">
-        {error || "Invoice not found."}
-      </div>
-    );
+    return <div className="invoice-loading text-danger">{error || "Invoice not found."}</div>;
   }
 
   const { seller, buyer, lines, taxType } = documentData;
@@ -188,43 +172,25 @@ function SalesInvoicePrint() {
   const cgst = taxType === "INTRA_STATE" ? gst / 2 : 0;
   const sgst = taxType === "INTRA_STATE" ? gst / 2 : 0;
   const igst = taxType === "INTER_STATE" ? gst : 0;
-  const buyerAddress = compactAddress([
-    buyer.address,
-    buyer.city,
-    buyer.state,
-    buyer.pincode,
-  ]);
-  const sellerAddress = compactAddress([
-    seller.address,
-    seller.city,
-    seller.state,
-    seller.pincode,
-  ]);
+  const buyerAddress = compactAddress([buyer.address, buyer.city, buyer.state, buyer.pincode]);
+  const sellerAddress = compactAddress([seller.address, seller.city, seller.state, seller.pincode]);
 
   return (
     <div className="invoice-print-screen">
       <div className="invoice-screen-toolbar no-print">
-        <button type="button" className="btn btn-outline-secondary" onClick={() => window.close()}>
-          Close
-        </button>
-        <button type="button" className="btn btn-primary" onClick={() => window.print()}>
-          Print / Save PDF
-        </button>
+        <button type="button" className="btn btn-outline-secondary" onClick={() => window.close()}>Close</button>
+        <button type="button" className="btn btn-primary" onClick={() => window.print()}>Print / Save PDF</button>
       </div>
 
       <main className="invoice-paper">
-        {invoice.status === "CANCELLED" && (
-          <div className="invoice-cancelled-watermark">CANCELLED</div>
-        )}
+        {invoice.status === "CANCELLED" && <div className="invoice-cancelled-watermark">CANCELLED</div>}
 
         <header className="invoice-company-header">
           <div className="invoice-brand-block">
             <img src={logo} alt="Riseora" className="invoice-logo" />
             <div>
               <div className="invoice-company-name">{seller.name}</div>
-              {seller.legalName && seller.legalName !== seller.name && (
-                <div className="invoice-muted">{seller.legalName}</div>
-              )}
+              {seller.legalName && seller.legalName !== seller.name && <div className="invoice-muted">{seller.legalName}</div>}
               {sellerAddress && <div>{sellerAddress}</div>}
               <div className="invoice-contact-line">
                 {seller.phone && <span>Phone: {seller.phone}</span>}
@@ -233,17 +199,13 @@ function SalesInvoicePrint() {
               {seller.gstin && <div><strong>GSTIN:</strong> {seller.gstin}</div>}
             </div>
           </div>
-          <div className="invoice-title-block">
-            <div className="invoice-title">TAX INVOICE</div>
-            <div className="invoice-copy-label">Original for Recipient</div>
-          </div>
+          <div className="invoice-title-block"><div className="invoice-title">TAX INVOICE</div><div className="invoice-copy-label">Original for Recipient</div></div>
         </header>
 
         <section className="invoice-meta-grid">
           <div className="invoice-box">
             <div className="invoice-box-title">Bill To</div>
             <div className="invoice-party-name">{buyer.name}</div>
-            {buyer.code && <div className="invoice-muted">Customer Code: {buyer.code}</div>}
             {buyerAddress && <div>{buyerAddress}</div>}
             {buyer.phone && <div>Phone: {buyer.phone}</div>}
             {buyer.email && <div>Email: {buyer.email}</div>}
@@ -261,117 +223,47 @@ function SalesInvoicePrint() {
         </section>
 
         <table className="invoice-items-table">
-          <thead>
-            <tr>
-              <th className="text-center">#</th>
-              <th>Description</th>
-              <th>HSN</th>
-              <th className="text-end">Qty</th>
-              <th>Unit</th>
-              <th className="text-end">Rate</th>
-              <th className="text-end">Discount</th>
-              <th className="text-end">Taxable</th>
-              <th className="text-end">GST %</th>
-              <th className="text-end">GST</th>
-              <th className="text-end">Amount</th>
-            </tr>
-          </thead>
+          <thead><tr><th className="text-center">#</th><th>Description</th><th>HSN</th><th className="text-end">Qty</th><th>Unit</th><th className="text-end">Rate</th><th className="text-end">Discount</th><th className="text-end">Taxable</th><th className="text-end">GST %</th><th className="text-end">GST</th><th className="text-end">Amount</th></tr></thead>
           <tbody>
             {lines.map((item, index) => (
               <tr key={item.id}>
                 <td className="text-center">{index + 1}</td>
-                <td>
-                  <div className="invoice-item-name">{item.item_name}</div>
-                  <div className="invoice-muted small">{item.item_code}</div>
-                  {item.lot_no && <div className="invoice-muted small">Lot: {item.lot_no}</div>}
-                </td>
-                <td>{item.hsn_code || "-"}</td>
-                <td className="text-end">{qty(item.quantity)}</td>
-                <td>{item.unit_code || "-"}</td>
-                <td className="text-end">₹{money(item.rate)}</td>
-                <td className="text-end">₹{money(item.discount_amount)}</td>
-                <td className="text-end">₹{money(item.print_taxable)}</td>
-                <td className="text-end">{Number(item.gst_rate || 0).toFixed(2)}%</td>
-                <td className="text-end">₹{money(item.print_tax)}</td>
-                <td className="text-end">₹{money(item.print_total)}</td>
+                <td><div className="invoice-item-name">{item.item_name}</div><div className="invoice-muted small">{item.item_code}</div>{item.lot_no && <div className="invoice-muted small">Lot: {item.lot_no}</div>}</td>
+                <td>{item.hsn_code || "-"}</td><td className="text-end">{qty(item.quantity)}</td><td>{item.unit_code || "-"}</td><td className="text-end">₹{money(item.rate)}</td><td className="text-end">₹{money(item.discount_amount)}</td><td className="text-end">₹{money(item.print_taxable)}</td><td className="text-end">{Number(item.gst_rate || 0).toFixed(2)}%</td><td className="text-end">₹{money(item.print_tax)}</td><td className="text-end">₹{money(item.print_total)}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
         <div className="invoice-page-fill" aria-hidden="true" />
-
         <div className="invoice-bottom-zone">
           <section className="invoice-summary-section">
-          <div className="invoice-words-bank">
-            <div className="invoice-box-title">Amount in Words</div>
-            <div className="invoice-amount-words">{amountToWords(invoice.grand_total)}</div>
+            <div className="invoice-words-bank">
+              <div className="invoice-box-title">Amount in Words</div><div className="invoice-amount-words">{amountToWords(invoice.grand_total)}</div>
+              {(seller.bankName || seller.bankAccountNo || seller.upiId) && (
+                <div className="invoice-bank-block"><div className="invoice-box-title">Payment Details</div>{seller.bankName && <div><strong>Bank:</strong> {seller.bankName}</div>}{seller.bankAccountName && <div><strong>Account Name:</strong> {seller.bankAccountName}</div>}{seller.bankAccountNo && <div><strong>Account No.:</strong> {seller.bankAccountNo}</div>}{seller.bankIfsc && <div><strong>IFSC:</strong> {seller.bankIfsc}</div>}{seller.upiId && <div><strong>UPI:</strong> {seller.upiId}</div>}</div>
+              )}
+            </div>
 
-            {(seller.bankName || seller.bankAccountNo || seller.upiId) && (
-              <div className="invoice-bank-block">
-                <div className="invoice-box-title">Payment Details</div>
-                {seller.bankName && <div><strong>Bank:</strong> {seller.bankName}</div>}
-                {seller.bankAccountName && <div><strong>Account Name:</strong> {seller.bankAccountName}</div>}
-                {seller.bankAccountNo && <div><strong>Account No.:</strong> {seller.bankAccountNo}</div>}
-                {seller.bankIfsc && <div><strong>IFSC:</strong> {seller.bankIfsc}</div>}
-                {seller.upiId && <div><strong>UPI:</strong> {seller.upiId}</div>}
-              </div>
-            )}
-          </div>
-
-          <div className="invoice-total-box">
-            <div><span>Taxable Subtotal</span><strong>₹{money(invoice.subtotal)}</strong></div>
-            {Number(invoice.discount_amount || 0) > 0 && (
-              <div><span>Invoice Discount</span><strong>- ₹{money(invoice.discount_amount)}</strong></div>
-            )}
-            {taxType === "INTRA_STATE" ? (
-              <>
-                <div><span>CGST</span><strong>₹{money(cgst)}</strong></div>
-                <div><span>SGST</span><strong>₹{money(sgst)}</strong></div>
-              </>
-            ) : (
-              <div><span>IGST</span><strong>₹{money(igst)}</strong></div>
-            )}
-            {Number(invoice.other_charges || 0) > 0 && (
-              <div><span>Other Charges</span><strong>₹{money(invoice.other_charges)}</strong></div>
-            )}
-            <div className="invoice-grand-total"><span>Grand Total</span><strong>₹{money(invoice.grand_total)}</strong></div>
-            <div><span>Paid</span><strong>₹{money(invoice.net_amount_paid ?? invoice.amount_paid)}</strong></div>
-            <div><span>Balance</span><strong>₹{money(invoice.balance_amount)}</strong></div>
-          </div>
-          </section>
-
-          <section className="invoice-footer-grid">
-          <div>
-            {invoice.notes && (
-              <div className="invoice-footer-block">
-                <div className="invoice-box-title">Notes</div>
-                <div>{invoice.notes}</div>
-              </div>
-            )}
-            {seller.terms && (
-              <div className="invoice-footer-block">
-                <div className="invoice-box-title">Terms & Conditions</div>
-                <div className="invoice-pre-line">{seller.terms}</div>
-              </div>
-            )}
-          </div>
-
-            <div className="invoice-signature">
-              <div className="invoice-signature-company">
-                For <strong>{seller.name}</strong>
-              </div>
-              <div className="invoice-signature-space" />
-              <div className="invoice-signature-line" />
-              <div className="invoice-signature-caption">
-                Company Stamp &amp; Authorised Signatory
-              </div>
+            <div className="invoice-total-box">
+              <div><span>Taxable Subtotal</span><strong>₹{money(invoice.subtotal)}</strong></div>
+              {Number(invoice.discount_amount || 0) > 0 && <div><span>Invoice Discount</span><strong>- ₹{money(invoice.discount_amount)}</strong></div>}
+              {taxType === "INTRA_STATE" ? <><div><span>CGST</span><strong>₹{money(cgst)}</strong></div><div><span>SGST</span><strong>₹{money(sgst)}</strong></div></> : <div><span>IGST</span><strong>₹{money(igst)}</strong></div>}
+              {Number(invoice.other_charges || 0) > 0 && <div><span>Other Charges</span><strong>₹{money(invoice.other_charges)}</strong></div>}
+              <div className="invoice-grand-total"><span>Grand Total</span><strong>₹{money(invoice.grand_total)}</strong></div>
+              <div><span>Paid</span><strong>₹{money(invoice.net_amount_paid ?? invoice.amount_paid)}</strong></div>
+              <div><span>Balance</span><strong>₹{money(invoice.balance_amount)}</strong></div>
             </div>
           </section>
 
-          <footer className="invoice-document-footer">
-            This is a computer-generated tax invoice.
-          </footer>
+          <section className="invoice-footer-grid">
+            <div>
+              {invoice.notes && <div className="invoice-footer-block"><div className="invoice-box-title">Notes</div><div>{invoice.notes}</div></div>}
+              {seller.terms && <div className="invoice-footer-block"><div className="invoice-box-title">Terms & Conditions</div><div className="invoice-pre-line">{seller.terms}</div></div>}
+            </div>
+            <div className="invoice-signature"><div className="invoice-signature-company">For <strong>{seller.name}</strong></div><div className="invoice-signature-space" /><div className="invoice-signature-line" /><div className="invoice-signature-caption">Company Stamp &amp; Authorised Signatory</div></div>
+          </section>
+          <footer className="invoice-document-footer">This is a computer-generated tax invoice.</footer>
         </div>
       </main>
     </div>

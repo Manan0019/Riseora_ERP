@@ -1,6 +1,6 @@
 {
   "name": "riseora-erp-desktop",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "main": "main.js",
@@ -32,13 +32,8 @@
     "appId": "in.riseora.erp",
     "productName": "Riseora ERP",
     "asar": true,
-    "asarUnpack": [
-      "node_modules/**/*.node"
-    ],
-    "directories": {
-      "output": "release",
-      "buildResources": "build"
-    },
+    "asarUnpack": ["node_modules/**/*.node"],
+    "directories": { "output": "release", "buildResources": "build" },
     "files": [
       "main.js",
       "preload.cjs",
@@ -49,14 +44,7 @@
       "package.json"
     ],
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
       "icon": "build/icon.png",
       "artifactName": "Riseora-ERP-Setup-${version}.${ext}"
     },

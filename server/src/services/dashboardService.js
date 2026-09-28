@@ -16,6 +16,12 @@ export function getDashboardSummary() {
     WHERE scn.status = 'POSTED' AND si.status = 'POSTED'
   `).get()?.total || 0);
 
+  const totalUpad = Number(db.prepare(`
+    SELECT COALESCE(SUM(amount), 0) AS total
+    FROM upad_entries
+    WHERE is_active = 1
+  `).get()?.total || 0);
+
   const purchases = db.prepare(`
     SELECT COALESCE(SUM(CASE WHEN status = 'POSTED' THEN grand_total ELSE 0 END), 0) AS total
     FROM purchases
@@ -27,7 +33,8 @@ export function getDashboardSummary() {
   const supplierOutstanding = getSupplierOutstanding()
     .reduce((total, row) => total + Number(row.outstanding || 0), 0);
 
-  const netSales = grossSales - salesCredits;
+  const invoiceNetSales = grossSales - salesCredits;
+  const netSalesAfterUpad = invoiceNetSales - totalUpad;
 
   const stockRows = db.prepare(`
     SELECT
@@ -76,7 +83,9 @@ export function getDashboardSummary() {
   `).all();
 
   return {
-    totalSales: netSales,
+    totalSales: netSalesAfterUpad,
+    invoiceNetSales,
+    upadDeduction: totalUpad,
     totalPurchases: Number(purchases?.total || 0),
     customerOutstanding,
     supplierOutstanding,
