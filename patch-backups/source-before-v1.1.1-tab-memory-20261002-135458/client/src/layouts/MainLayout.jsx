@@ -429,75 +429,6 @@ function MainLayout() {
     ));
   };
 
-  useEffect(() => {
-  const markEditedTab = (event) => {
-    const target = event.target;
-
-    if (!(target instanceof Element)) {
-      return;
-    }
-
-    if (
-      !target.matches(
-        'input, textarea, select, [contenteditable="true"]'
-      )
-    ) {
-      return;
-    }
-
-    const pageHost = target.closest(
-      "[data-workspace-page-tab-id]"
-    );
-
-    if (!pageHost) {
-      return;
-    }
-
-    const tabId = Number(
-      pageHost.getAttribute(
-        "data-workspace-page-tab-id"
-      )
-    );
-
-    if (
-      !Number.isInteger(tabId) ||
-      tabId !== activeTabIdRef.current
-    ) {
-      return;
-    }
-
-    /*
-     * Do this AFTER the field's own React handler.
-     * This is important for controlled inputs.
-     */
-    window.queueMicrotask(() => {
-      markTabDirty(tabId);
-    });
-  };
-
-  document.addEventListener(
-    "input",
-    markEditedTab,
-  );
-
-  document.addEventListener(
-    "change",
-    markEditedTab,
-  );
-
-  return () => {
-    document.removeEventListener(
-      "input",
-      markEditedTab,
-    );
-
-    document.removeEventListener(
-      "change",
-      markEditedTab,
-    );
-  };
-}, []);
-
   const navigateInActiveTab = (path) => {
     const targetPath = safeWorkspacePath(path);
     const tabId = activeTabIdRef.current;
@@ -754,14 +685,7 @@ function MainLayout() {
           >
             <img src={riseoraLogoHori} alt="Riseora" className="brand-logo" />
           </NavLink>
-          <button
-            type="button"
-            className="sidebar-mobile-close"
-            aria-label="Close navigation"
-            onClick={() => setSidebarOpen(false)}
-          >
-            ×
-          </button>
+          <button type="button" className="sidebar-mobile-close" aria-label="Close navigation" onClick={() => setSidebarOpen(false)}>×</button>
         </div>
 
         <div className="sidebar-scroll">
@@ -775,25 +699,13 @@ function MainLayout() {
                       type="button"
                       className="sidebar-heading"
                       aria-expanded={!isCollapsed}
-                      onClick={() =>
-                        setCollapsed((current) => ({
-                          ...current,
-                          [group.key]: !current[group.key],
-                        }))
-                      }
+                      onClick={() => setCollapsed((current) => ({ ...current, [group.key]: !current[group.key] }))}
                     >
                       <span>{group.label}</span>
-                      <AppIcon
-                        name="chevron"
-                        size={14}
-                        className={`heading-chevron ${isCollapsed ? "collapsed" : ""}`}
-                      />
+                      <AppIcon name="chevron" size={14} className={`heading-chevron ${isCollapsed ? "collapsed" : ""}`} />
                     </button>
                   )}
-                  <div
-                    className={`nav-group-items ${isCollapsed ? "collapsed" : ""}`}
-                    aria-hidden={Boolean(isCollapsed)}
-                  >
+                  <div className={`nav-group-items ${isCollapsed ? "collapsed" : ""}`} aria-hidden={Boolean(isCollapsed)}>
                     <div className="nav-group-items-inner">
                       {group.items.map((item) => (
                         <NavLink
@@ -806,16 +718,10 @@ function MainLayout() {
                             navigateInActiveTab(item.to);
                             setSidebarOpen(false);
                           }}
-                          className={
-                            location.pathname === item.to
-                              ? "sidebar-link active"
-                              : "sidebar-link"
-                          }
+                          className={location.pathname === item.to ? "sidebar-link active" : "sidebar-link"}
                           tabIndex={isCollapsed ? -1 : undefined}
                         >
-                          <span className="sidebar-icon">
-                            <AppIcon name={item.icon} size={18} />
-                          </span>
+                          <span className="sidebar-icon"><AppIcon name={item.icon} size={18} /></span>
                           <span className="sidebar-label">{item.label}</span>
                         </NavLink>
                       ))}
@@ -829,10 +735,7 @@ function MainLayout() {
 
         <div className="sidebar-footer">
           <div className="sidebar-footer-dot" />
-          <div>
-            <strong>Riseora ERP</strong>
-            <small>Version 1.1.1 · Local business system</small>
-          </div>
+          <div><strong>Riseora ERP</strong><small>Version 1.1.1 · Local business system</small></div>
         </div>
       </aside>
 
@@ -848,12 +751,7 @@ function MainLayout() {
       <div className="app-main">
         <header className="topbar">
           <div className="topbar-left">
-            <button
-              type="button"
-              className="topbar-menu-button"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open navigation"
-            >
+            <button type="button" className="topbar-menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation">
               <AppIcon name="menu" size={21} />
             </button>
             <div className="page-context">
@@ -863,58 +761,26 @@ function MainLayout() {
           </div>
 
           <div className="topbar-user">
-            <div
-              className="topbar-workspace-tools"
-              aria-label="Workspace controls"
-            >
-              <button
-                type="button"
-                title="New tab"
-                onClick={() => openPathInNewTab("/dashboard")}
-              >
-                <span aria-hidden="true">＋</span>
-                <span>New Tab</span>
+            <div className="topbar-workspace-tools" aria-label="Workspace controls">
+              <button type="button" title="New tab" onClick={() => openPathInNewTab("/dashboard")}>
+                <span aria-hidden="true">＋</span><span>New Tab</span>
               </button>
-              <button
-                type="button"
-                title="Open current page in a new Riseora window"
-                onClick={() => openNewWindow()}
-              >
-                <span aria-hidden="true">□</span>
-                <span>New Window</span>
+              <button type="button" title="Open current page in a new Riseora window" onClick={() => openNewWindow()}>
+                <span aria-hidden="true">□</span><span>New Window</span>
               </button>
-              <button
-                type="button"
-                title="Reload only the current Riseora tab"
-                onClick={() => reloadTab(activeTabId)}
-              >
-                <span aria-hidden="true">↻</span>
-                <span>Reload</span>
+              <button type="button" title="Reload only the current Riseora tab" onClick={() => reloadTab(activeTabId)}>
+                <span aria-hidden="true">↻</span><span>Reload</span>
               </button>
             </div>
-            <div className="user-avatar" aria-hidden="true">
-              {initials}
-            </div>
-            <div className="user-copy">
-              <strong>{user?.fullName || user?.username || "Ram"}</strong>
-              <small>Administrator</small>
-            </div>
-            <button
-              type="button"
-              className="topbar-logout"
-              onClick={handleLogout}
-            >
-              <AppIcon name="logout" size={17} />
-              <span>Logout</span>
+            <div className="user-avatar" aria-hidden="true">{initials}</div>
+            <div className="user-copy"><strong>{user?.fullName || user?.username || "Ram"}</strong><small>Administrator</small></div>
+            <button type="button" className="topbar-logout" onClick={handleLogout}>
+              <AppIcon name="logout" size={17} /><span>Logout</span>
             </button>
           </div>
         </header>
 
-        <div
-          className="workspace-tabs"
-          role="tablist"
-          aria-label="Open Riseora tabs"
-        >
+        <div className="workspace-tabs" role="tablist" aria-label="Open Riseora tabs">
           {tabs.map((tab) => {
             const isActive = tab.id === activeTabId;
             const tabStateTitle = tab.sleeping
@@ -934,24 +800,12 @@ function MainLayout() {
                 onClick={() => switchTab(tab)}
                 title={`${titleForPath(tab.path)} · ${tabStateTitle}`}
               >
-                <span className="workspace-tab-label">
-                  {titleForPath(tab.path)}
-                </span>
+                <span className="workspace-tab-label">{titleForPath(tab.path)}</span>
 
                 {tab.sleeping ? (
-                  <span
-                    className="workspace-tab-state workspace-tab-state-sleep"
-                    aria-label="Sleeping"
-                  >
-                    Zz
-                  </span>
+                  <span className="workspace-tab-state workspace-tab-state-sleep" aria-label="Sleeping">Zz</span>
                 ) : tab.dirty ? (
-                  <span
-                    className="workspace-tab-state workspace-tab-state-dirty"
-                    aria-label="Local changes"
-                  >
-                    ●
-                  </span>
+                  <span className="workspace-tab-state workspace-tab-state-dirty" aria-label="Local changes">●</span>
                 ) : null}
 
                 <span
@@ -962,8 +816,7 @@ function MainLayout() {
                   title="Close tab"
                   onClick={(event) => closeTab(event, tab.id)}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ")
-                      closeTab(event, tab.id);
+                    if (event.key === "Enter" || event.key === " ") closeTab(event, tab.id);
                   }}
                 >
                   ×
@@ -990,9 +843,14 @@ function MainLayout() {
             return (
               <div
                 key={tab.id}
-                data-workspace-page-tab-id={tab.id}
                 className={`page-transition workspace-page-host ${isActive ? "is-active" : ""}${tab.sleeping ? " is-sleeping" : ""}`}
                 aria-hidden={!isActive}
+                onInputCapture={() => {
+                  if (isActive) markTabDirty(tab.id);
+                }}
+                onChangeCapture={() => {
+                  if (isActive) markTabDirty(tab.id);
+                }}
               >
                 {shouldMount ? (
                   <WorkspaceTabProvider
@@ -1012,10 +870,7 @@ function MainLayout() {
                     </div>
                   </WorkspaceTabProvider>
                 ) : (
-                  <div
-                    className="workspace-sleep-placeholder"
-                    aria-hidden="true"
-                  >
+                  <div className="workspace-sleep-placeholder" aria-hidden="true">
                     Sleeping
                   </div>
                 )}
@@ -1033,41 +888,18 @@ function MainLayout() {
           onMouseDown={(event) => event.stopPropagation()}
           onContextMenu={(event) => event.preventDefault()}
         >
-          <div
-            className="workspace-context-menu-title"
-            title={contextMenu.title}
-          >
-            {contextMenu.title}
-          </div>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => openPathInNewTab(contextMenu.path)}
-          >
-            <span className="workspace-context-menu-icon" aria-hidden="true">
-              ＋
-            </span>
+          <div className="workspace-context-menu-title" title={contextMenu.title}>{contextMenu.title}</div>
+          <button type="button" role="menuitem" onClick={() => openPathInNewTab(contextMenu.path)}>
+            <span className="workspace-context-menu-icon" aria-hidden="true">＋</span>
             Open in New Tab
           </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => openNewWindow(contextMenu.path)}
-          >
-            <span className="workspace-context-menu-icon" aria-hidden="true">
-              □
-            </span>
+          <button type="button" role="menuitem" onClick={() => openNewWindow(contextMenu.path)}>
+            <span className="workspace-context-menu-icon" aria-hidden="true">□</span>
             Open in New Window
           </button>
           <div className="workspace-context-menu-separator" />
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => reloadTab(contextMenu.tabId)}
-          >
-            <span className="workspace-context-menu-icon" aria-hidden="true">
-              ↻
-            </span>
+          <button type="button" role="menuitem" onClick={() => reloadTab(contextMenu.tabId)}>
+            <span className="workspace-context-menu-icon" aria-hidden="true">↻</span>
             Reload Tab
           </button>
         </div>
