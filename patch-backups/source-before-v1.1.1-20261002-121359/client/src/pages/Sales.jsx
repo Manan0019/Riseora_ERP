@@ -1,8 +1,7 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
 import SearchableSelect from "../components/SearchableSelect";
 import { useUi } from "../context/UiContext";
-import { useWorkspaceTab } from "../context/WorkspaceTabContext";
 
 const createEmptyLine = () => ({
   itemId: "",
@@ -15,7 +14,6 @@ const createEmptyLine = () => ({
 
 function Sales() {
   const { success: toastSuccess, error: toastError } = useUi();
-  const { active: workspaceTabActive } = useWorkspaceTab();
   const today = new Date().toISOString().slice(0, 10);
 
   const [customers, setCustomers] = useState([]);
@@ -46,8 +44,8 @@ function Sales() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (workspaceTabActive) loadData();
-  }, [workspaceTabActive]);
+    loadData();
+  }, []);
 
   const loadData = async () => {
     try {
@@ -613,9 +611,9 @@ function Sales() {
                   handleCustomerChange({ target: { value } })
                 }
                 options={customers}
-                placeholder="Search customer by name..."
+                placeholder="Search customer by code or name..."
                 ariaLabel="Customer"
-                getOptionLabel={(customer) => customer.name}
+                getOptionLabel={(customer) => `${customer.code} - ${customer.name}`}
                 getOptionMeta={(customer) =>
                   [customer.city, customer.state].filter(Boolean).join(", ")
                 }
@@ -802,7 +800,7 @@ function Sales() {
                             }
                             getOptionMeta={(itemOption) => {
                               const availableQty = getStock(itemOption.id);
-                              return `${itemOption.unit_code || ""} Â· Available ${availableQty.toFixed(3)}`;
+                              return `${itemOption.unit_code || ""} · Available ${availableQty.toFixed(3)}`;
                             }}
                             getOptionSearchText={(itemOption) =>
                               `${itemOption.hsn_code || ""}`
@@ -916,21 +914,21 @@ function Sales() {
                         </td>
 
                         <td>
-                          â‚¹
+                          ₹
                           {values.taxable.toFixed(
                             2
                           )}
                         </td>
 
                         <td>
-                          â‚¹
+                          ₹
                           {values.gst.toFixed(
                             2
                           )}
                         </td>
 
                         <td>
-                          â‚¹
+                          ₹
                           {values.total.toFixed(
                             2
                           )}
@@ -1131,7 +1129,7 @@ function Sales() {
                     </th>
 
                     <td className="text-end">
-                      â‚¹
+                      ₹
                       {totals.subtotal.toFixed(
                         2
                       )}
@@ -1144,7 +1142,7 @@ function Sales() {
                     </th>
 
                     <td className="text-end">
-                      - â‚¹
+                      - ₹
                       {totals.invoiceDiscount.toFixed(
                         2
                       )}
@@ -1155,7 +1153,7 @@ function Sales() {
                     <th>GST</th>
 
                     <td className="text-end">
-                      â‚¹
+                      ₹
                       {totals.gst.toFixed(
                         2
                       )}
@@ -1168,7 +1166,7 @@ function Sales() {
                     </th>
 
                     <td className="text-end">
-                      â‚¹
+                      ₹
                       {totals.otherCharges.toFixed(
                         2
                       )}
@@ -1181,7 +1179,7 @@ function Sales() {
                     </th>
 
                     <th className="text-end">
-                      â‚¹
+                      ₹
                       {totals.grandTotal.toFixed(
                         2
                       )}
@@ -1194,7 +1192,7 @@ function Sales() {
                     </th>
 
                     <td className="text-end">
-                      â‚¹
+                      ₹
                       {totals.amountPaid.toFixed(
                         2
                       )}
@@ -1207,7 +1205,7 @@ function Sales() {
                     </th>
 
                     <th className="text-end">
-                      â‚¹
+                      ₹
                       {totals.balance.toFixed(
                         2
                       )}
@@ -1247,8 +1245,8 @@ function Sales() {
       <div className="transaction-action-bar">
         <div className="transaction-action-copy">
           <span>Invoice total</span>
-          <strong>â‚¹{totals.grandTotal.toFixed(2)}</strong>
-          <small>Balance after this receipt: â‚¹{totals.balance.toFixed(2)}</small>
+          <strong>₹{totals.grandTotal.toFixed(2)}</strong>
+          <small>Balance after this receipt: ₹{totals.balance.toFixed(2)}</small>
         </div>
         <button
           type="button"

@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
 import SearchableSelect from "../components/SearchableSelect";
 
@@ -339,7 +339,7 @@ function Reports() {
                       ariaLabel="Report item filter"
                       getOptionLabel={(item) => `${item.code} - ${item.name}`}
                       getOptionMeta={(item) =>
-                        [item.category_name, item.unit_code].filter(Boolean).join(" Â· ")
+                        [item.category_name, item.unit_code].filter(Boolean).join(" · ")
                       }
                       getOptionSearchText={(item) => `${item.hsn_code || ""}`}
                     />
@@ -357,7 +357,7 @@ function Reports() {
                       <option value="">All Categories</option>
                       {categories.map((category) => (
                         <option key={category.id} value={category.id}>
-                          {category.name}
+                          {category.code} - {category.name}
                         </option>
                       ))}
                     </select>
@@ -494,4 +494,3 @@ function Reports() {
 }
 
 export default Reports;
-

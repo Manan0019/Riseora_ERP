@@ -1,0 +1,24 @@
+Riseora ERP V1.1.1 changed/new complete files
+
+client/src/App.jsx
+client/src/layouts/MainLayout.jsx
+client/src/context/WorkspaceTabContext.jsx
+client/src/components/MasterEditorModal.jsx
+client/src/pages/Categories.jsx
+client/src/pages/Items.jsx
+client/src/pages/Purchases.jsx
+client/src/v11.css
+server/src/services/categoryService.js
+server/src/controllers/categoryController.js
+desktop/package.json
+
+APPLY_V1_1_1_UPDATE.ps1 also updates the one category label inside existing
+client/src/pages/Reports.jsx from "code - name" to "name" without replacing the
+rest of that file.
+
+No database file is included.
+No production reset is included.
+No migration is required for this patch.
+Existing category/item IDs and relationships remain unchanged.
+
+APPLY_V1_1_1_UPDATE.ps1 also refreshes Sales Invoice lookups when its tab is re-activated while preserving the in-memory draft.
