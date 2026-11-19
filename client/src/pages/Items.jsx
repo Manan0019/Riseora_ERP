@@ -4,6 +4,7 @@ import api from "../api/api";
 import { useUi } from "../context/UiContext";
 import { useWorkspaceTab } from "../context/WorkspaceTabContext";
 import MasterEditorModal from "../components/MasterEditorModal";
+import SortableTh, { useSortableRows } from "../components/SortableTh";
 import { sameForm, toTitleCase } from "../utils/textFormat";
 
 const emptyForm = {
@@ -56,6 +57,7 @@ function Items() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [saving, setSaving] = useState(false);
+  const [customCode, setCustomCode] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => { if (workspaceTabActive) loadItems(); }, [showInactive, workspaceTabActive]);
@@ -102,6 +104,18 @@ function Items() {
     }
   }
 
+  useEffect(() => {
+    if (!modalOpen || !editing || selectedId || !form.categoryId || customCode) return;
+    let ignore = false;
+    const categoryId = form.categoryId;
+    api.get("/items/next-code", { params: { categoryId } }).then((response) => {
+      if (!ignore) setForm((current) => current.categoryId === categoryId ? { ...current, code: response.data.code } : current);
+    }).catch((err) => {
+      if (!ignore) toastError(err.response?.data?.message || "Unable to generate item code.");
+    });
+    return () => { ignore = true; };
+  }, [form.categoryId, modalOpen, editing, selectedId, customCode]);
+
   const selectedItem = items.find((item) => item.id === selectedId);
   const dirty = editing && !sameForm(form, originalForm);
 
@@ -118,6 +132,8 @@ function Items() {
     });
   }, [items, search, categoryFilter]);
 
+  const { sortedRows: sortedItems, sort: itemSort, toggle: sortItems } = useSortableRows(filteredItems, "name");
+
   const selectedFilterCategory = categoryFilter
     ? categories.find((category) => Number(category.id) === Number(categoryFilter))
     : null;
@@ -133,6 +149,7 @@ function Items() {
     clearRecordQuery();
     setSelectedId(null);
     setForm(emptyForm);
+    setCustomCode(false);
     setOriginalForm(emptyForm);
     setEditing(true);
     setModalOpen(true);
@@ -144,6 +161,7 @@ function Items() {
     const mapped = mapItem(item);
     setSelectedId(item.id);
     setForm(mapped);
+    setCustomCode(true);
     setOriginalForm(mapped);
     setEditing(false);
     setModalOpen(true);
@@ -170,6 +188,8 @@ function Items() {
 
   function handleChange(event) {
     const { name, value, type, checked } = event.target;
+    if (name === "code") setCustomCode(Boolean(value.trim()));
+    if (name === "categoryId" && !selectedId) setCustomCode(false);
     setForm((current) => ({
       ...current,
       [name]: type === "checkbox" ? checked : (name === "code" || name === "hsnCode") ? value.toUpperCase() : value,
@@ -177,7 +197,7 @@ function Items() {
   }
 
   function validate(payload) {
-    if (!payload.code.trim()) return "Item code is required.";
+    if (!payload.code.trim() && selectedId) return "Item code is required.";
     if (!payload.name.trim()) return "Item name is required.";
     if (!payload.categoryId) return "Category is required.";
     if (!payload.baseUnitId) return "Base unit is required.";
@@ -193,7 +213,7 @@ function Items() {
     setError("");
     const payload = { ...form, name: toTitleCase(form.name) };
     const validationError = validate(payload);
-    if (validationError) { setError(validationError); return; }
+    if (validationError) { setError(validationError); toastError(validationError, "Check item details"); return; }
 
     try {
       setSaving(true);
@@ -300,9 +320,9 @@ function Items() {
         </div>
 
         <div className="table-responsive"><table className="table table-bordered table-hover align-middle">
-          <thead className="table-light"><tr><th>Code</th><th>Name</th><th>Category</th><th>Unit</th><th>HSN</th><th>GST %</th><th>Reorder</th><th>Sale Price</th><th>Target Margin</th><th>Lot</th><th>Expiry</th><th>Status</th></tr></thead>
+          <thead className="table-light"><tr><SortableTh field="code" sort={itemSort} onSort={sortItems}>Code</SortableTh><SortableTh field="name" sort={itemSort} onSort={sortItems}>Name</SortableTh><SortableTh field="category_name" sort={itemSort} onSort={sortItems}>Category</SortableTh><SortableTh field="unit_code" sort={itemSort} onSort={sortItems}>Unit</SortableTh><SortableTh field="hsn_code" sort={itemSort} onSort={sortItems}>HSN</SortableTh><SortableTh field="default_gst_rate" sort={itemSort} onSort={sortItems}>GST %</SortableTh><SortableTh field="reorder_level" sort={itemSort} onSort={sortItems}>Reorder</SortableTh><SortableTh field="default_selling_price" sort={itemSort} onSort={sortItems}>Sale Price</SortableTh><SortableTh field="target_margin_percent" sort={itemSort} onSort={sortItems}>Target Margin</SortableTh><SortableTh field="track_lot" sort={itemSort} onSort={sortItems}>Lot</SortableTh><SortableTh field="track_expiry" sort={itemSort} onSort={sortItems}>Expiry</SortableTh><SortableTh field="is_active" sort={itemSort} onSort={sortItems}>Status</SortableTh></tr></thead>
           <tbody>
-            {filteredItems.map((item) => <tr key={item.id} className="row-clickable" data-workspace-path={`/items?record=${item.id}`} data-workspace-title={item.name} onClick={() => openItem(item)}>
+            {sortedItems.map((item) => <tr key={item.id} className="row-clickable" data-workspace-path={`/items?record=${item.id}`} data-workspace-title={item.name} onClick={() => openItem(item)}>
               <td>{item.code}</td><td><strong>{item.name}</strong></td><td>{item.category_name}</td><td>{item.unit_code}</td><td>{item.hsn_code || "-"}</td><td>{Number(item.default_gst_rate || 0).toFixed(2)}%</td><td>{item.reorder_level}</td><td>₹{Number(item.default_selling_price || 0).toFixed(2)}</td><td>{Number(item.target_margin_percent || 0).toFixed(2)}%</td><td>{item.track_lot ? "Yes" : "No"}</td><td>{item.track_expiry ? "Yes" : "No"}</td><td>{item.is_active ? <span className="badge text-bg-success">Active</span> : <span className="badge text-bg-secondary">Inactive</span>}</td>
             </tr>)}
             {filteredItems.length === 0 && <tr><td colSpan={12} className="text-center text-muted">No items found.</td></tr>}
@@ -320,7 +340,7 @@ function Items() {
       >
         {error && <div className="alert alert-danger">{error}</div>}
         <div className="row">
-          <div className="col-md-3 mb-3"><label className="form-label">Item Code *</label><input className="form-control" name="code" value={form.code} onChange={handleChange} disabled={!editing} maxLength={30} /></div>
+          <div className="col-md-3 mb-3"><label className="form-label">Item Code (Auto / Editable)</label><input className="form-control" name="code" value={form.code} onChange={handleChange} disabled={!editing} maxLength={30} /></div>
           <div className="col-md-5 mb-3"><label className="form-label">Item Name *</label><input spellCheck className="form-control" name="name" value={form.name} onChange={handleChange} onBlur={() => setForm((current) => ({ ...current, name: toTitleCase(current.name) }))} disabled={!editing} autoFocus={editing} /></div>
           <div className="col-md-4 mb-3"><label className="form-label">Category *</label><select className="form-select" name="categoryId" value={form.categoryId} onChange={handleChange} disabled={!editing}><option value="">Select Category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name} [{category.inventory_role || "CONS"}]</option>)}</select></div>
           <div className="col-md-4 mb-3"><label className="form-label">Base Unit *</label><select className="form-select" name="baseUnitId" value={form.baseUnitId} onChange={handleChange} disabled={!editing}><option value="">Select Unit</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.code} - {unit.name}</option>)}</select></div>

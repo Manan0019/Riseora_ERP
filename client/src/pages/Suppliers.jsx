@@ -1,3 +1,4 @@
+import SortableTh, { useSortableRows } from "../components/SortableTh";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../api/api";
@@ -212,6 +213,8 @@ function Suppliers() {
     }
   }
 
+  const { sortedRows: suppliersSorted, sort: tableSort, toggle: toggleSort } = useSortableRows(filteredSuppliers, "name");
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-start mb-4">
@@ -236,9 +239,9 @@ function Suppliers() {
 
           <div className="table-responsive">
             <table className="table table-bordered table-hover align-middle">
-              <thead className="table-light"><tr><th>Name</th><th>Contact</th><th>Phone</th><th>Alternate No.</th><th>GSTIN</th><th>Terms</th><th>Status</th></tr></thead>
+              <thead className="table-light"><tr><SortableTh field="name" sort={tableSort} onSort={toggleSort}>Name</SortableTh><SortableTh field="contact_person" sort={tableSort} onSort={toggleSort}>Contact</SortableTh><SortableTh field="phone" sort={tableSort} onSort={toggleSort}>Phone</SortableTh><SortableTh field="alternate_phone" sort={tableSort} onSort={toggleSort}>Alternate No.</SortableTh><SortableTh field="gstin" sort={tableSort} onSort={toggleSort}>GSTIN</SortableTh><SortableTh field="payment_terms_days" sort={tableSort} onSort={toggleSort}>Terms</SortableTh><SortableTh field="is_active" sort={tableSort} onSort={toggleSort}>Status</SortableTh></tr></thead>
               <tbody>
-                {filteredSuppliers.map((supplier) => (
+                {suppliersSorted.map((supplier) => (
                   <tr key={supplier.id} className="row-clickable" data-workspace-path={`/suppliers?record=${supplier.id}`} data-workspace-title={supplier.name} onClick={() => openSupplier(supplier)}>
                     <td><strong>{supplier.name}</strong></td>
                     <td>{supplier.contact_person || "-"}</td>

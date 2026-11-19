@@ -3,7 +3,16 @@
   width: 100%;
 }
 
-.searchable-select-input {
+/*
+ * SearchableSelect is used in both page forms and compact entry tables.
+ * Their generic .form-control padding rules can otherwise override this
+ * field's icon clearance and make the icon overlap the placeholder/value.
+ * Use a component-scoped, more-specific selector so the clearance is kept
+ * everywhere, including embedded purchase editors and modal forms.
+ */
+.searchable-select > input.form-control.searchable-select-input {
+  box-sizing: border-box;
+  min-width: 0;
   padding-left: 2rem;
   padding-right: 2rem;
 }

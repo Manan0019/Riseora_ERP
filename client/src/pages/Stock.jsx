@@ -1,3 +1,5 @@
+import MasterEditorModal from "../components/MasterEditorModal";
+import SortableTh, { useSortableRows } from "../components/SortableTh";
 import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
 import { useUi } from "../context/UiContext";
@@ -147,6 +149,8 @@ function Stock() {
     }
   };
 
+  const { sortedRows: stockSorted, sort: tableSort, toggle: toggleSort } = useSortableRows(filteredStock, "name");
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-start mb-4">
@@ -196,15 +200,15 @@ function Stock() {
             <table className="table table-bordered table-hover align-middle">
               <thead className="table-light">
                 <tr>
-                  <th>Code</th>
-                  <th>Item</th>
-                  <th>Category</th>
-                  <th>Current Stock</th>
-                  <th>Costing Qty</th>
-                  <th>Unit</th>
-                  <th>Average Cost</th>
-                  <th>Inventory Value</th>
-                  <th>Costing</th>
+                  <SortableTh field="code" sort={tableSort} onSort={toggleSort}>Code</SortableTh>
+                  <SortableTh field="name" sort={tableSort} onSort={toggleSort}>Item</SortableTh>
+                  <SortableTh field="category_name" sort={tableSort} onSort={toggleSort}>Category</SortableTh>
+                  <SortableTh field="current_stock" sort={tableSort} onSort={toggleSort}>Current Stock</SortableTh>
+                  <SortableTh field="costing_quantity" sort={tableSort} onSort={toggleSort}>Costing Qty</SortableTh>
+                  <SortableTh field="unit_code" sort={tableSort} onSort={toggleSort}>Unit</SortableTh>
+                  <SortableTh field="average_cost" sort={tableSort} onSort={toggleSort}>Average Cost</SortableTh>
+                  <SortableTh field="inventory_value" sort={tableSort} onSort={toggleSort}>Inventory Value</SortableTh>
+                  <SortableTh field="costing_status" sort={tableSort} onSort={toggleSort}>Costing</SortableTh>
                 </tr>
               </thead>
 
@@ -217,7 +221,7 @@ function Stock() {
                   </tr>
                 ) : (
                   <>
-                    {filteredStock.map((item) => (
+                    {stockSorted.map((item) => (
                       <tr
                         key={item.id}
                         onClick={() => loadLedger(item)}
@@ -286,6 +290,7 @@ function Stock() {
         </div>
       </div>
 
+      <MasterEditorModal open={Boolean(costingPreview)} size="lg" title="Inventory Cost Rebuild Preview" onRequestClose={() => setCostingPreview(null)}>
       {costingPreview && (
         <div className="card mt-4">
           <div className="card-body">
@@ -407,7 +412,10 @@ function Stock() {
         </div>
       )}
 
+      </MasterEditorModal>
+
       {/* STOCK LEDGER - MUST BE OUTSIDE CURRENT STOCK TABLE */}
+      <MasterEditorModal open={Boolean(selectedItem) && !costingPreview} size="xl" title={selectedItem ? `Stock Ledger — ${selectedItem.name}` : "Stock Ledger"} onRequestClose={() => setSelectedItem(null)}>
       {selectedItem && (
         <div className="card mt-4">
           <div className="card-body">
@@ -484,6 +492,7 @@ function Stock() {
           </div>
         </div>
       )}
+      </MasterEditorModal>
     </div>
   );
 }

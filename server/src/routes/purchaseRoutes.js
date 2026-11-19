@@ -2,6 +2,7 @@ import express from "express";
 
 import {
   addPurchase,
+  editPurchase,
   listPurchases,
   getPurchaseDetails,
   cancelPurchaseEntry,
@@ -14,6 +15,7 @@ router.post("/", addPurchase);
 router.get("/", listPurchases);
 
 router.get("/:id", getPurchaseDetails);
+router.put("/:id", editPurchase);
 
 router.patch("/:id/cancel", cancelPurchaseEntry);
 

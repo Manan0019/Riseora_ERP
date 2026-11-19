@@ -73,10 +73,28 @@ export function getItemById(id) {
   return db.prepare(`SELECT * FROM items WHERE id = ?`).get(Number(id));
 }
 
+// Displayed preview is advisory; a fresh collision-free code is assigned at save time.
+export function getNextItemCode(categoryId) {
+  const category = db.prepare(`SELECT name FROM item_categories WHERE id = ? AND is_active = 1`).get(Number(categoryId));
+  if (!category) throw new Error("Select an active category first.");
+  const firstWord = String(category.name || "").match(/[A-Za-z]+/)?.[0] || "ITM";
+  const prefix = firstWord.toUpperCase().slice(0, 3);
+  const codes = db.prepare(`SELECT code FROM items WHERE code LIKE ?`).all(`${prefix}-%`);
+  let maxNumber = 0;
+  for (const entry of codes) {
+    const match = String(entry.code).match(new RegExp(`^${prefix}-(\\d+)$`, "i"));
+    if (match) maxNumber = Math.max(maxNumber, Number(match[1]));
+  }
+  let nextNumber = maxNumber + 1;
+  while (db.prepare(`SELECT id FROM items WHERE code = ?`).get(`${prefix}-${String(nextNumber).padStart(3, "0")}`)) {
+    nextNumber += 1;
+  }
+  return `${prefix}-${String(nextNumber).padStart(3, "0")}`;
+}
+
 export function createItem(data) {
-  const code = String(data.code || "").trim().toUpperCase();
+  const code = String(data.code || "").trim().toUpperCase() || getNextItemCode(data.categoryId);
   const name = toTitleCase(data.name);
-  if (!code) throw new Error("Item code is required.");
   if (!name) throw new Error("Item name is required.");
 
   const duplicate = db.prepare(`SELECT id FROM items WHERE code = ?`).get(code);

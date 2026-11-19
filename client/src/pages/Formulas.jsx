@@ -1,3 +1,4 @@
+import SortableTh, { useSortableRows } from "../components/SortableTh";
 import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
 import SearchableSelect from "../components/SearchableSelect";
@@ -728,6 +729,8 @@ function Formulas() {
         ? `Formula Details — ${form.code} V${form.versionNo}`
         : `Edit Formula — ${form.code} V${form.versionNo}`;
 
+  const { sortedRows: formulasSorted, sort: tableSort, toggle: toggleSort } = useSortableRows(filteredFormulas, "name");
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-start mb-4 gap-3 flex-wrap">
@@ -1193,14 +1196,14 @@ function Formulas() {
           <div className="table-responsive">
             <table className="table table-bordered table-hover align-middle">
               <thead className="table-light">
-                <tr><th>Code</th><th>Name</th><th>Finished Product</th><th>Version</th><th>Base Batch</th><th>Entry Method</th><th>Usage</th><th>Status</th><th style={{ minWidth: 300 }}>Action</th></tr>
+                <tr><SortableTh field="code" sort={tableSort} onSort={toggleSort}>Code</SortableTh><SortableTh field="name" sort={tableSort} onSort={toggleSort}>Name</SortableTh><SortableTh field="finished_item_name" sort={tableSort} onSort={toggleSort}>Finished Product</SortableTh><SortableTh field="version_no" sort={tableSort} onSort={toggleSort}>Version</SortableTh><SortableTh field="batch_size" sort={tableSort} onSort={toggleSort}>Base Batch</SortableTh><SortableTh field="entry_mode" sort={tableSort} onSort={toggleSort}>Entry Method</SortableTh><SortableTh field="production_count" sort={tableSort} onSort={toggleSort}>Usage</SortableTh><SortableTh field="is_active" sort={tableSort} onSort={toggleSort}>Status</SortableTh><th style={{ minWidth: 300 }}>Action</th></tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr><td colSpan={9} className="text-center text-muted">Loading formulas...</td></tr>
                 ) : (
                   <>
-                    {filteredFormulas.map((formula) => (
+                    {formulasSorted.map((formula) => (
                       <tr key={formula.id}>
                         <td>{formula.code}</td>
                         <td>{formula.name}</td>

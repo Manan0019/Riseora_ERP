@@ -1,5 +1,6 @@
 import {
   getItems,
+  getNextItemCode,
   createItem,
   updateItem,
   deactivateItem,
@@ -32,22 +33,21 @@ export function listItems(req, res) {
   }
 }
 
+export function previewItemCode(req, res) {
+  try {
+    return res.json({ success: true, code: getNextItemCode(req.query.categoryId) });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+}
+
 export function addItem(req, res) {
   try {
     const {
-      code,
       name,
       categoryId,
       baseUnitId,
     } = req.body;
-
-    if (!code?.trim()) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Item code is required",
-      });
-    }
 
     if (!name?.trim()) {
       return res.status(400).json({

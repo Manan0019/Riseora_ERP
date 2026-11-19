@@ -2,6 +2,7 @@ import express from "express";
 
 import {
   listItems,
+  previewItemCode,
   addItem,
   editItem,
   removeItem,
@@ -12,6 +13,7 @@ const router =
   express.Router();
 
 router.get("/", listItems);
+router.get("/next-code", previewItemCode);
 router.post("/", addItem);
 router.put("/:id", editItem);
 

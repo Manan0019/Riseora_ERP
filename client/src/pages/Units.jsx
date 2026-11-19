@@ -1,3 +1,5 @@
+import MasterEditorModal from "../components/MasterEditorModal";
+import SortableTh, { useSortableRows } from "../components/SortableTh";
 import { useEffect, useState } from "react";
 import api from "../api/api";
 import { useUi } from "../context/UiContext";
@@ -259,6 +261,8 @@ function Units() {
     );
   });
 
+  const { sortedRows: unitsSorted, sort: tableSort, toggle: toggleSort } = useSortableRows(filteredUnits, "code");
+
   return (
     <div>
       <div className="mb-4">
@@ -330,6 +334,7 @@ function Units() {
         />
       </div>
 
+      <MasterEditorModal open={showForm} size="lg" title={selectedId ? (editing ? "Edit Unit" : "Unit Details") : "New Unit"} onRequestClose={handleCancel}>
       {showForm && (
         <div className="card mb-4">
           <div className="card-body">
@@ -389,6 +394,9 @@ function Units() {
               </div>
             </div>
 
+            {!editing && selectedUnit?.is_active && <button type="button" className="btn btn-outline-primary me-2" onClick={handleEdit}>Edit</button>}
+            {!editing && selectedUnit?.is_active && <button type="button" className="btn btn-outline-danger me-2" onClick={handleDeactivate}>Deactivate</button>}
+            {!editing && selectedUnit && !selectedUnit.is_active && <button type="button" className="btn btn-outline-success me-2" onClick={handleActivate}>Activate</button>}
             <button
               type="button"
               className="btn btn-success"
@@ -400,6 +408,9 @@ function Units() {
           </div>
         </div>
       )}
+
+        <button type="button" className="btn btn-outline-secondary" onClick={handleCancel}>Close</button>
+      </MasterEditorModal>
 
       <div className="card">
         <div className="card-body">
@@ -432,15 +443,15 @@ function Units() {
             <table className="table table-bordered table-hover align-middle">
               <thead className="table-light">
                 <tr>
-                  <th>Code</th>
-                  <th>Name</th>
-                  <th>Type</th>
-                  <th>Status</th>
+                  <SortableTh field="code" sort={tableSort} onSort={toggleSort}>Code</SortableTh>
+                  <SortableTh field="name" sort={tableSort} onSort={toggleSort}>Name</SortableTh>
+                  <SortableTh field="unit_type" sort={tableSort} onSort={toggleSort}>Type</SortableTh>
+                  <SortableTh field="is_active" sort={tableSort} onSort={toggleSort}>Status</SortableTh>
                 </tr>
               </thead>
 
               <tbody>
-                {filteredUnits.map((unit) => (
+                {unitsSorted.map((unit) => (
                   <tr
                     key={unit.id}
                     onClick={() => handleSelect(unit)}

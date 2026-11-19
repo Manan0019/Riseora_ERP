@@ -1,5 +1,6 @@
 import {
   createPurchase,
+  updatePurchase,
   getPurchases,
   getPurchaseById,
   cancelPurchase,
@@ -23,6 +24,15 @@ export function addPurchase(req, res) {
     return res.status(201).json({ success: true, message: "Purchase saved successfully", purchase });
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message || "Unable to save purchase" });
+  }
+}
+
+export function editPurchase(req, res) {
+  try {
+    const purchase = updatePurchase(Number(req.params.id), req.body);
+    return res.json({ success: true, message: "Purchase corrected successfully", purchase });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message || "Unable to edit purchase" });
   }
 }
 

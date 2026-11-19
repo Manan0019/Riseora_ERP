@@ -1,6 +1,7 @@
 import db from "../db/database.js";
 import { addStockTransaction } from "./stockService.js";
 import { addInventoryValue, reverseInventoryReceipt } from "./costService.js";
+import { convertQuantityByUnitIds } from "./unitConversionService.js";
 
 function addDaysToDate(dateText, days) {
   const date = new Date(`${dateText}T00:00:00Z`);
@@ -15,8 +16,7 @@ function generatePurchaseNumber() {
   return `PUR-${year}-${String((lastPurchase?.id || 0) + 1).padStart(5, "0")}`;
 }
 
-export function createPurchase(data) {
-  const transaction = db.transaction(() => {
+function savePurchaseWithinTransaction(data, previous = null) {
     if (!Array.isArray(data.items) || data.items.length === 0) {
       throw new Error("At least one purchase item is required.");
     }
@@ -39,32 +39,33 @@ export function createPurchase(data) {
         FROM purchases
         WHERE supplier_id = ?
           AND status = 'POSTED'
+          AND id <> ?
           AND UPPER(TRIM(COALESCE(supplier_invoice_no, ''))) = UPPER(?)
         LIMIT 1
-      `).get(Number(data.supplierId), supplierInvoiceNo);
+      `).get(Number(data.supplierId), previous?.id || -1, supplierInvoiceNo);
 
       if (duplicateInvoice) {
         throw new Error(`Supplier invoice ${supplierInvoiceNo} is already recorded as ${duplicateInvoice.purchase_no}.`);
       }
     }
 
-    const purchaseNo = generatePurchaseNumber();
+    const purchaseNo = previous?.purchase_no || generatePurchaseNumber();
     let subtotal = 0;
     let gstAmount = 0;
 
     const calculatedItems = data.items.map((item, index) => {
-      const quantity = Number(item.quantity);
-      const rate = Number(item.rate);
+      const entryQuantity = Number(item.quantity);
+      const entryRate = Number(item.rate);
       const gstRate = Number(item.gstRate || 0);
       const itemId = Number(item.itemId);
 
       if (!Number.isInteger(itemId) || itemId <= 0) throw new Error(`Please select a valid item in row ${index + 1}.`);
-      if (!Number.isFinite(quantity) || quantity <= 0) throw new Error(`Purchase quantity must be greater than zero in row ${index + 1}.`);
-      if (!Number.isFinite(rate) || rate < 0) throw new Error(`Purchase rate cannot be negative in row ${index + 1}.`);
+      if (!Number.isFinite(entryQuantity) || entryQuantity <= 0) throw new Error(`Purchase quantity must be greater than zero in row ${index + 1}.`);
+      if (!Number.isFinite(entryRate) || entryRate < 0) throw new Error(`Purchase rate cannot be negative in row ${index + 1}.`);
       if (!Number.isFinite(gstRate) || gstRate < 0 || gstRate > 100) throw new Error(`GST rate must be between 0 and 100 percent in row ${index + 1}.`);
 
       const masterItem = db.prepare(`
-        SELECT id, code, name, is_active, track_lot, track_expiry
+        SELECT id, code, name, is_active, track_lot, track_expiry, base_unit_id, hsn_code
         FROM items WHERE id = ?
       `).get(itemId);
 
@@ -78,7 +79,14 @@ export function createPurchase(data) {
       if (Number(masterItem.track_expiry) === 1 && !expiryDate) throw new Error(`${masterItem.name}: expiry date is required.`);
       if (mfgDate && expiryDate && expiryDate < mfgDate) throw new Error(`${masterItem.name}: expiry date cannot be earlier than manufacturing date.`);
 
-      const taxableAmount = quantity * rate;
+      const entryUnitId = Number(item.unitId || masterItem.base_unit_id);
+      const quantity = convertQuantityByUnitIds(entryQuantity, entryUnitId, masterItem.base_unit_id);
+      if (!Number.isFinite(quantity) || quantity <= 0) throw new Error(`Invalid converted quantity in row ${index + 1}.`);
+      const taxableAmount = item.taxableAmount == null ? entryQuantity * entryRate : Number(item.taxableAmount);
+      if (!Number.isFinite(taxableAmount) || taxableAmount < 0 || Math.abs(entryQuantity * entryRate - taxableAmount) > 0.01) {
+        throw new Error(`Rate and taxable amount do not match in row ${index + 1}.`);
+      }
+      const rate = taxableAmount / quantity; // base-unit cost; stock always uses the item's base unit
       const lineGst = taxableAmount * (gstRate / 100);
       const lineTotal = taxableAmount + lineGst;
       subtotal += taxableAmount;
@@ -88,6 +96,10 @@ export function createPurchase(data) {
         itemId,
         quantity,
         rate,
+        entryQuantity,
+        entryRate,
+        entryUnitId,
+        hsnCode: String(masterItem.hsn_code || "").trim().toUpperCase() || null,
         gstRate,
         taxableAmount,
         gstAmount: lineGst,
@@ -116,7 +128,7 @@ export function createPurchase(data) {
     const paymentDate = String(data.paymentDate || "").trim() || null;
     const paymentAccount = String(data.paymentAccount || "").trim() || null;
 
-    const purchaseResult = db.prepare(`
+    const purchaseResult = previous ? null : db.prepare(`
       INSERT INTO purchases (
         purchase_no, purchase_date, supplier_id, supplier_invoice_no,
         supplier_invoice_date, payment_date, payment_account,
@@ -139,7 +151,17 @@ export function createPurchase(data) {
       String(data.notes || "").trim() || null,
     );
 
-    const purchaseId = Number(purchaseResult.lastInsertRowid);
+    const purchaseId = previous ? previous.id : Number(purchaseResult.lastInsertRowid);
+    if (previous) {
+      db.prepare(`
+        UPDATE purchases SET purchase_date = ?, supplier_id = ?, supplier_invoice_no = ?,
+          payment_date = ?, payment_account = ?, subtotal = ?, gst_amount = ?, freight_amount = ?,
+          other_charges = ?, grand_total = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(invoiceDate, Number(data.supplierId), supplierInvoiceNo || null,
+        paymentDate, paymentAccount, subtotal, gstAmount, freightAmount, otherCharges,
+        grandTotal, String(data.notes || "").trim() || null, purchaseId);
+    }
     const paymentTermsDaysSnapshot = Number(supplier.payment_terms_days || 0);
     const dueDate = addDaysToDate(invoiceDate, paymentTermsDaysSnapshot);
 
@@ -150,8 +172,9 @@ export function createPurchase(data) {
     const insertItem = db.prepare(`
       INSERT INTO purchase_items (
         purchase_id, item_id, quantity, rate, taxable_amount, gst_rate,
-        gst_amount, line_total, lot_no, mfg_date, expiry_date
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        gst_amount, line_total, lot_no, mfg_date, expiry_date,
+        entry_quantity, entry_unit_id, entry_rate, hsn_code_snapshot
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     for (const item of calculatedItems) {
@@ -167,6 +190,10 @@ export function createPurchase(data) {
         item.lotNo,
         item.mfgDate,
         item.expiryDate,
+        item.entryQuantity,
+        item.entryUnitId,
+        item.entryRate,
+        item.hsnCode,
       );
 
       addInventoryValue(item.itemId, item.quantity, item.inventoryUnitCost);
@@ -199,9 +226,59 @@ export function createPurchase(data) {
       paymentDate,
       paymentAccount,
     };
-  });
+}
 
-  return transaction();
+export function createPurchase(data) {
+  return db.transaction(() => savePurchaseWithinTransaction(data))();
+}
+
+// Corrections are atomic. Keep original number/id; reject any purchase whose receipts
+// have subsequent stock movements, or a payment, rather than silently changing COGS.
+export function updatePurchase(id, data) {
+  return db.transaction(() => {
+    const previous = db.prepare(`SELECT * FROM purchases WHERE id = ?`).get(Number(id));
+    if (!previous) throw new Error("Purchase not found.");
+    if (previous.status !== "POSTED") throw new Error("Cancelled purchases cannot be edited.");
+    if (Number(previous.amount_paid || 0) > 0 || Number(db.prepare(`SELECT COUNT(*) AS n FROM supplier_payments WHERE purchase_id = ?`).get(previous.id)?.n || 0) > 0) {
+      throw new Error("This purchase has recorded supplier payments. Reverse them before correcting the purchase.");
+    }
+    const receipts = db.prepare(`
+      SELECT * FROM stock_transactions
+      WHERE reference_type = 'PURCHASE' AND reference_id = ? AND transaction_type = 'PURCHASE'
+      ORDER BY id
+    `).all(previous.id);
+    const oldItems = db.prepare(`SELECT * FROM purchase_items WHERE purchase_id = ? ORDER BY id`).all(previous.id);
+    if (receipts.length !== oldItems.length || receipts.length === 0) {
+      throw new Error("Original purchase receipt records do not match invoice lines. Editing is blocked for safety.");
+    }
+    const used = new Set();
+    for (const row of oldItems) {
+      const receipt = receipts.find((r) => !used.has(r.id) && r.item_id === row.item_id && Math.abs(r.quantity_in - row.quantity) < 0.0000001 && (r.lot_no || "") === (row.lot_no || ""));
+      if (!receipt) throw new Error("Original stock receipt differs from invoice; editing is blocked.");
+      used.add(receipt.id);
+      // Even a later receipt can alter moving-average costing. Require latest movement
+      // for every affected item to belong to this purchase, including duplicate lines.
+      const laterMovement = db.prepare(`
+        SELECT id FROM stock_transactions WHERE item_id = ? AND id > ?
+          AND NOT (reference_type = 'PURCHASE' AND reference_id = ? AND transaction_type = 'PURCHASE')
+        LIMIT 1
+      `).get(row.item_id, receipt.id, previous.id);
+      if (laterMovement) throw new Error("This item has stock activity after the purchase. Use a stock adjustment/return instead of editing historical costing.");
+    }
+    const oldestReceiptId = receipts[0].id;
+    const previousItemIds = new Set(oldItems.map((row) => row.item_id));
+    for (const row of data.items || []) {
+      const newId = Number(row.itemId);
+      if (previousItemIds.has(newId)) continue;
+      const newerMovement = db.prepare(`SELECT id FROM stock_transactions WHERE item_id = ? AND id > ? LIMIT 1`).get(newId, oldestReceiptId);
+      if (newerMovement) throw new Error("Cannot introduce an item with later stock history into this purchase. Use a new stock adjustment/return entry.");
+    }
+    // Reversal cost is exact because no intervening stock movements exist.
+    for (const receipt of receipts) reverseInventoryReceipt(receipt.item_id, receipt.quantity_in, receipt.unit_cost);
+    db.prepare(`DELETE FROM stock_transactions WHERE reference_type = 'PURCHASE' AND reference_id = ? AND transaction_type = 'PURCHASE'`).run(previous.id);
+    db.prepare(`DELETE FROM purchase_items WHERE purchase_id = ?`).run(previous.id);
+    return savePurchaseWithinTransaction(data, previous);
+  })();
 }
 
 export function getPurchases() {
@@ -230,10 +307,12 @@ export function getPurchaseById(id) {
   if (!purchase) return null;
 
   const items = db.prepare(`
-    SELECT pi.*, i.code AS item_code, i.name AS item_name, u.code AS unit_code
+    SELECT pi.*, i.code AS item_code, i.name AS item_name, u.code AS unit_code,
+      eu.code AS entry_unit_code, COALESCE(pi.hsn_code_snapshot, i.hsn_code) AS hsn_code
     FROM purchase_items pi
     INNER JOIN items i ON i.id = pi.item_id
     INNER JOIN units u ON u.id = i.base_unit_id
+    LEFT JOIN units eu ON eu.id = pi.entry_unit_id
     WHERE pi.purchase_id = ?
     ORDER BY pi.id
   `).all(Number(id));
@@ -250,40 +329,28 @@ export function cancelPurchase(id) {
       throw new Error("This purchase has supplier payment recorded. Reverse/refund the payment before cancelling the purchase.");
     }
 
-    const items = db.prepare(`SELECT * FROM purchase_items WHERE purchase_id = ?`).all(purchase.id);
-
+    const items = db.prepare(`SELECT * FROM purchase_items WHERE purchase_id = ? ORDER BY id`).all(purchase.id);
+    const receipts = db.prepare(`
+      SELECT * FROM stock_transactions
+      WHERE reference_type = 'PURCHASE' AND reference_id = ? AND transaction_type = 'PURCHASE'
+      ORDER BY id
+    `).all(purchase.id);
+    if (items.length !== receipts.length) throw new Error("Purchase receipt count is inconsistent; cancellation is blocked.");
+    const consumedReceipts = new Set();
     for (const item of items) {
-      const originalReceipt = db.prepare(`
-        SELECT id, unit_cost
-        FROM stock_transactions
-        WHERE reference_type = 'PURCHASE'
-          AND reference_id = ?
-          AND item_id = ?
-          AND transaction_type = 'PURCHASE'
-        ORDER BY id LIMIT 1
-      `).get(purchase.id, item.item_id);
-
-      if (!originalReceipt) {
-        throw new Error(`Original inventory receipt was not found for purchase ${purchase.purchase_no}.`);
-      }
-
+      const originalReceipt = receipts.find((receipt) => !consumedReceipts.has(receipt.id)
+        && receipt.item_id === item.item_id
+        && Math.abs(Number(receipt.quantity_in) - Number(item.quantity)) < 0.0000001
+        && (receipt.lot_no || "") === (item.lot_no || ""));
+      if (!originalReceipt) throw new Error(`Original inventory receipt was not found for ${purchase.purchase_no}.`);
+      consumedReceipts.add(originalReceipt.id);
       const laterOutgoing = db.prepare(`
-        SELECT id, transaction_type, reference_no
-        FROM stock_transactions
+        SELECT id FROM stock_transactions
         WHERE item_id = ? AND id > ? AND quantity_out > 0
-        ORDER BY id LIMIT 1
+        LIMIT 1
       `).get(item.item_id, originalReceipt.id);
-
-      if (laterOutgoing) {
-        throw new Error(`${purchase.purchase_no} cannot be cancelled because this item has subsequent stock usage. Use a supplier return/stock adjustment workflow instead.`);
-      }
-
-      const costResult = reverseInventoryReceipt(
-        item.item_id,
-        item.quantity,
-        Number(originalReceipt.unit_cost || 0),
-      );
-
+      if (laterOutgoing) throw new Error(`${purchase.purchase_no} cannot be cancelled because this item has later stock usage.`);
+      const costResult = reverseInventoryReceipt(item.item_id, item.quantity, Number(originalReceipt.unit_cost || 0));
       addStockTransaction({
         transactionDate: new Date().toISOString().slice(0, 10),
         itemId: item.item_id,

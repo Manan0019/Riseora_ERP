@@ -1,3 +1,4 @@
+import SortableTh, { useSortableRows } from "../components/SortableTh";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../api/api";
@@ -214,6 +215,8 @@ function Customers() {
     }
   }
 
+  const { sortedRows: customersSorted, sort: tableSort, toggle: toggleSort } = useSortableRows(filteredCustomers, "name");
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-start mb-4">
@@ -229,9 +232,9 @@ function Customers() {
           <div className="form-check"><input id="showInactiveCustomers" type="checkbox" className="form-check-input" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} /><label className="form-check-label" htmlFor="showInactiveCustomers">Show Inactive</label></div>
         </div>
         <div className="table-responsive"><table className="table table-bordered table-hover align-middle">
-          <thead className="table-light"><tr><th>Name</th><th>Type</th><th>Phone</th><th>Alternate No.</th><th>GSTIN</th><th>Credit Days</th><th>Credit Limit</th><th>Status</th></tr></thead>
+          <thead className="table-light"><tr><SortableTh field="name" sort={tableSort} onSort={toggleSort}>Name</SortableTh><SortableTh field="customer_type" sort={tableSort} onSort={toggleSort}>Type</SortableTh><SortableTh field="phone" sort={tableSort} onSort={toggleSort}>Phone</SortableTh><SortableTh field="alternate_phone" sort={tableSort} onSort={toggleSort}>Alternate No.</SortableTh><SortableTh field="gstin" sort={tableSort} onSort={toggleSort}>GSTIN</SortableTh><SortableTh field="credit_days" sort={tableSort} onSort={toggleSort}>Credit Days</SortableTh><SortableTh field="credit_limit" sort={tableSort} onSort={toggleSort}>Credit Limit</SortableTh><SortableTh field="is_active" sort={tableSort} onSort={toggleSort}>Status</SortableTh></tr></thead>
           <tbody>
-            {filteredCustomers.map((customer) => <tr key={customer.id} className="row-clickable" data-workspace-path={`/customers?record=${customer.id}`} data-workspace-title={customer.name} onClick={() => openCustomer(customer)}>
+            {customersSorted.map((customer) => <tr key={customer.id} className="row-clickable" data-workspace-path={`/customers?record=${customer.id}`} data-workspace-title={customer.name} onClick={() => openCustomer(customer)}>
               <td><strong>{customer.name}</strong></td><td>{customer.customer_type}</td><td>{customer.phone || "-"}</td><td>{customer.alternate_phone || "-"}</td><td>{customer.gstin || "-"}</td><td>{customer.credit_days}</td><td>₹{Number(customer.credit_limit || 0).toFixed(2)}</td><td>{customer.is_active ? <span className="badge text-bg-success">Active</span> : <span className="badge text-bg-secondary">Inactive</span>}</td>
             </tr>)}
             {filteredCustomers.length === 0 && <tr><td colSpan={8} className="text-center text-muted">No customers found.</td></tr>}

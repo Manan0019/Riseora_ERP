@@ -758,3 +758,65 @@ input[type="number"] {
   font-size: 11.5px;
   font-weight: 650;
 }
+
+/* ---------- Owner feedback: compact data-entry screens ---------- */
+.content-area .card-body { padding: 13px 15px; }
+.content-area .card { margin-bottom: 13px !important; }
+.content-area .form-label { margin-bottom: 3px; font-size: 12px; font-weight: 600; }
+.content-area .form-control,
+.content-area .form-select { min-height: 34px; padding: 5px 8px; font-size: 13px; }
+.content-area textarea.form-control { min-height: 58px; }
+.content-area .table { font-size: 12.5px; }
+.content-area .table th, .content-area .table td { padding: 6px 7px; }
+.content-area .table .btn { white-space: nowrap; }
+.content-area h2 { font-size: 22px; }
+.content-area h5 { font-size: 15px; }
+.entry-table .form-control, .entry-table .form-select { min-height: 30px; padding: 3px 5px; font-size: 12px; }
+.entry-table input[type="number"] { min-width: 65px; padding: 3px 5px; }
+.purchase-entry-page .entry-table { min-width: 1180px; width: max-content; }
+.sales-entry-page .entry-table { min-width: 1160px; width: 100%; }
+.purchase-entry-page .entry-table .purchase-item-name { min-width: 210px; }
+.purchase-entry-page .entry-table .purchase-qty { width: 75px; }
+.purchase-entry-page .entry-table .purchase-money { width: 95px; }
+.purchase-entry-page .entry-table .purchase-unit { width: 66px; }
+.purchase-entry-page .entry-table .purchase-gst { width: 59px; }
+.purchase-entry-page .entry-table .purchase-lot { width: 90px; }
+.purchase-entry-page .entry-table .smart-date-input { min-width: 122px; }
+.purchase-entry-page .entry-table td, .sales-entry-page .entry-table td { white-space: nowrap; }
+.purchase-entry-page .purchase-total-summary { font-size: 13px; }
+.purchase-entry-page .purchase-total-summary strong { margin-left: 4px; }
+.purchase-editor-embedded .transaction-card { margin-bottom: 9px !important; }
+.purchase-editor-embedded .transaction-action-bar { position: sticky; bottom: 0; z-index: 2; }
+.master-modal-body .purchase-editor-embedded .form-control,
+.master-modal-body .purchase-editor-embedded .form-select { padding: 4px 7px; min-height: 32px; font-size: 13px; }
+.master-modal-body .purchase-editor-embedded .card-body { padding: 10px; }
+.master-modal-body .purchase-editor-embedded .card { margin-bottom: 10px !important; }
+.master-modal-body .purchase-editor-embedded .form-label { font-size: 12px; margin-bottom: 3px; }
+.master-modal-body .purchase-editor-embedded .table td,
+.master-modal-body .purchase-editor-embedded .table th { padding: 5px 6px; font-size: 12px; }
+.table-sort-button { display: inline-flex; align-items: center; justify-content: space-between; gap: 7px; width: 100%; border: 0; background: transparent; padding: 0; text-align: left; color: inherit; font: inherit; font-weight: inherit; cursor: pointer; }
+.table-sort-button:hover, .table-sort-button:focus-visible { color: var(--riseora-primary-800); text-decoration: underline; }
+.table-sort-indicator { color: var(--riseora-primary-600); font-size: 10px; }
+.sales-register-detail-popup { min-width: 0; }
+.sales-register-detail-popup .card-body { padding: 0; }
+
+/* Collapsed navigation never consumes its overlay width. Hover or keyboard focus expands it. */
+.topbar-collapse-button { display: inline-grid; place-items: center; flex: 0 0 auto; width: 34px; height: 34px; border: 1px solid var(--riseora-border); border-radius: 9px; background: #fff; color: var(--riseora-primary-800); }
+.topbar-collapse-button:hover { background: var(--riseora-primary-50); }
+@media (min-width: 992px) {
+  .app-shell.is-sidebar-condensed .sidebar { width: 66px; overflow-x: hidden; transition: width 180ms ease; }
+  .app-shell.is-sidebar-condensed .app-main { margin-left: 66px; width: calc(100% - 66px); }
+  .app-shell.is-sidebar-condensed .sidebar:hover,
+  .app-shell.is-sidebar-condensed .sidebar:focus-within { width: var(--sidebar-width); box-shadow: 12px 0 32px rgba(70, 45, 35, .20); }
+  .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .sidebar-label,
+  .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .sidebar-heading span,
+  .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .sidebar-heading .heading-chevron,
+  .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .sidebar-footer div,
+  .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .brand-logo { display: none; }
+  .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .sidebar-brand-wrap { justify-content: center; padding: 12px 5px; }
+  .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .brand-link::after { content: "R"; display: grid; place-items: center; width: 37px; height: 37px; border-radius: 10px; background: rgba(255,255,255,.7); color: var(--riseora-primary-900); font-weight: 800; font-size: 20px; }
+  .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .sidebar-link { justify-content: center; padding: 9px 6px; }
+  .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .sidebar-scroll { padding: 8px 6px; }
+  .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .sidebar-heading { height: 20px; min-height: 20px; padding: 0; }
+}
+@media (max-width: 991.98px) { .topbar-collapse-button { display: none; } }

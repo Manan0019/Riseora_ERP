@@ -1,205 +1,200 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
 import SearchableSelect from "../components/SearchableSelect";
+import SmartDateInput from "../components/SmartDateInput";
 import { useUi } from "../context/UiContext";
 import { useWorkspaceTab } from "../context/WorkspaceTabContext";
-import SmartDateInput from "../components/SmartDateInput";
+import { blankPurchaseForm, blankPurchaseLine, convertEntryQuantity, matchingUnits, purchaseLineValues } from "../utils/purchaseEntry";
 
-const emptyLine = () => ({
-  itemId: "",
-  quantity: "",
-  rate: "",
-  gstRate: "0",
-  lotNo: "",
-  mfgDate: "",
-  expiryDate: ""
-});
+const todayLocal = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
 
-function Purchases() {
+function Purchases({ initialPurchase = null, onSaved = null, embedded = false }) {
   const { success: toastSuccess, error: toastError } = useUi();
   const { active: workspaceTabActive, markClean: markWorkspaceTabClean } = useWorkspaceTab();
-  const today = new Date().toISOString().slice(0, 10);
   const [suppliers, setSuppliers] = useState([]);
   const [items, setItems] = useState([]);
+  const [units, setUnits] = useState([]);
   const [paymentAccounts, setPaymentAccounts] = useState([]);
-  const [form, setForm] = useState({
-    purchaseDate: today,
-    supplierId: "",
-    supplierInvoiceNo: "",
-    paymentDate: "",
-    paymentAccount: "",
-    freightAmount: "0",
-    otherCharges: "0",
-    notes: ""
-  });
-  const [lines, setLines] = useState([emptyLine()]);
+  const [form, setForm] = useState(() => initialPurchase ? {
+    purchaseDate: initialPurchase.purchase_date || todayLocal(),
+    supplierId: String(initialPurchase.supplier_id || ""),
+    supplierInvoiceNo: initialPurchase.supplier_invoice_no || "",
+    paymentDate: initialPurchase.payment_date || "",
+    paymentAccount: initialPurchase.payment_account || "",
+    freightAmount: String(initialPurchase.freight_amount ?? 0),
+    otherCharges: String(initialPurchase.other_charges ?? 0),
+    notes: initialPurchase.notes || "",
+  } : blankPurchaseForm(todayLocal()));
+  const [lines, setLines] = useState(() => initialPurchase?.items?.length ? initialPurchase.items.map((line) => ({
+    itemId: String(line.item_id),
+    quantity: String(line.entry_quantity ?? line.quantity),
+    unitId: String(line.entry_unit_id || ""),
+    rate: String(line.entry_rate ?? line.rate),
+    taxableAmount: String(line.taxable_amount ?? 0),
+    pricingBasis: "TAXABLE", // retain the posted invoice taxable amount exactly
+    gstRate: String(line.gst_rate ?? 0),
+    lotNo: line.lot_no || "", mfgDate: line.mfg_date || "", expiryDate: line.expiry_date || "",
+  })) : [blankPurchaseLine()]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {if (workspaceTabActive) loadLookups();}, [workspaceTabActive]);
+  useEffect(() => { if (workspaceTabActive) loadLookups(); }, [workspaceTabActive]);
 
   async function loadLookups() {
     try {
-      const [supplierResponse, itemResponse, purchaseResponse] = await Promise.all([
-      api.get("/suppliers"),
-      api.get("/items"),
-      api.get("/purchases")]
-      );
-      setSuppliers(supplierResponse.data.suppliers);
-      setItems(itemResponse.data.items);
-      const used = purchaseResponse.data.purchases.
-      map((purchase) => String(purchase.payment_account || "").trim()).
-      filter(Boolean);
+      const [supplierResponse, itemResponse, unitResponse, purchaseResponse] = await Promise.all([
+        api.get("/suppliers"), api.get("/items", { params: { includeInactive: Boolean(initialPurchase) } }),
+        api.get("/units"), api.get("/purchases"),
+      ]);
+      setSuppliers(supplierResponse.data.suppliers || []);
+      setItems(itemResponse.data.items || []);
+      setUnits(unitResponse.data.units || []);
+      const used = (purchaseResponse.data.purchases || []).map((p) => String(p.payment_account || "").trim()).filter(Boolean);
       setPaymentAccounts([...new Set(["Cash", ...used])].sort((a, b) => a.localeCompare(b)));
     } catch (err) {
       console.error(err);
-      setError("Unable to load suppliers, items or payment accounts.");
+      notifyError("Unable to load suppliers, items or units.");
     }
   }
 
-  function handleFormChange(event) {
-    const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
-  }
+  function notifyError(text) { setError(text); toastError(text, "Purchase entry"); }
+  function updateForm(event) { const { name, value } = event.target; setForm((current) => ({ ...current, [name]: value })); }
+  const getItem = (id) => items.find((item) => Number(item.id) === Number(id));
 
-  function handleLineChange(index, field, value) {
-    setLines((current) => current.map((line, lineIndex) =>
-    lineIndex === index ? { ...line, [field]: value } : line
-    ));
-  }
-
-  function addLine() {setLines((current) => [...current, emptyLine()]);}
-  function removeLine(index) {
-    if (lines.length === 1) {setLines([emptyLine()]);return;}
-    setLines((current) => current.filter((_, lineIndex) => lineIndex !== index));
-  }
-
-  function calculateLine(line) {
-    const quantity = Number(line.quantity || 0);
-    const rate = Number(line.rate || 0);
-    const gstRate = Number(line.gstRate || 0);
-    const taxable = quantity * rate;
-    const gst = taxable * (gstRate / 100);
-    return { taxable, gst, total: taxable + gst };
+  function changeLine(index, field, value) {
+    setLines((current) => current.map((line, i) => {
+      if (i !== index) return line;
+      if (field === "itemId") {
+        const item = getItem(value);
+        return { ...blankPurchaseLine(), itemId: value, unitId: String(item?.base_unit_id || ""), gstRate: String(item?.default_gst_rate ?? 0) };
+      }
+      if (field === "unitId") {
+        const oldUnit = units.find((unit) => Number(unit.id) === Number(line.unitId));
+        const newUnit = units.find((unit) => Number(unit.id) === Number(value));
+        const converted = line.quantity && oldUnit && newUnit ? convertEntryQuantity(line.quantity, oldUnit.code, newUnit.code) : null;
+        const taxable = purchaseLineValues(line).taxable;
+        return { ...line, unitId: value, quantity: converted == null ? line.quantity : String(Number(converted.toPrecision(12))), taxableAmount: String(taxable), pricingBasis: "TAXABLE" };
+      }
+      if (field === "rate") return { ...line, rate: value, pricingBasis: "RATE" };
+      if (field === "taxableAmount") return { ...line, taxableAmount: value, pricingBasis: "TAXABLE" };
+      return { ...line, [field]: value };
+    }));
   }
 
   const totals = useMemo(() => {
-    let subtotal = 0;
-    let gst = 0;
-    for (const line of lines) {
-      const result = calculateLine(line);
-      subtotal += result.taxable;
-      gst += result.gst;
-    }
+    const amounts = lines.map(purchaseLineValues);
+    const subtotal = amounts.reduce((sum, line) => sum + line.taxable, 0);
+    const gst = amounts.reduce((sum, line) => sum + line.gst, 0);
     const freight = Number(form.freightAmount || 0);
     const other = Number(form.otherCharges || 0);
     return { subtotal, gst, freight, other, grandTotal: subtotal + gst + freight + other };
   }, [lines, form.freightAmount, form.otherCharges]);
 
-  const getSelectedItem = (itemId) => items.find((item) => item.id === Number(itemId));
-
   function validate() {
     if (!form.purchaseDate) return "Invoice date is required.";
     if (!form.supplierId) return "Supplier is required.";
     if (form.paymentDate && !form.paymentAccount.trim()) return "Payment account is required when Payment Date is entered.";
+    if (![form.freightAmount, form.otherCharges].every((v) => Number.isFinite(Number(v)) && Number(v) >= 0)) return "Charges must be valid non-negative amounts.";
     for (let i = 0; i < lines.length; i += 1) {
-      const line = lines[i];
-      if (!line.itemId) return `Item is required in row ${i + 1}.`;
-      if (Number(line.quantity) <= 0) return `Quantity must be greater than zero in row ${i + 1}.`;
-      if (Number(line.rate) < 0) return `Rate cannot be negative in row ${i + 1}.`;
-      const item = getSelectedItem(line.itemId);
-      if (item?.track_lot && !line.lotNo.trim()) return `Lot number is required for ${item.name}.`;
-      if (item?.track_expiry && !line.expiryDate) return `Expiry date is required for ${item.name}.`;
+      const line = lines[i]; const item = getItem(line.itemId); const amounts = purchaseLineValues(line);
+      if (!item) return `Select an item in row ${i + 1}.`;
+      if (!Number.isFinite(Number(line.quantity)) || Number(line.quantity) <= 0) return `Enter a valid positive quantity in row ${i + 1}.`;
+      if (!line.unitId && !item.base_unit_id) return `Select a unit in row ${i + 1}.`;
+      if (![amounts.rate, amounts.taxable, Number(line.gstRate)].every(Number.isFinite) || amounts.rate < 0 || amounts.taxable < 0 || Number(line.gstRate) < 0 || Number(line.gstRate) > 100) return `Check rate, taxable amount and GST in row ${i + 1}.`;
+      if (item.track_lot && !line.lotNo.trim()) return `Lot number is required for ${item.name}.`;
+      if (item.track_expiry && !line.expiryDate) return `Expiry date is required for ${item.name}.`;
+      if (line.mfgDate && line.expiryDate && line.expiryDate < line.mfgDate) return `Expiry must follow manufacturing date in row ${i + 1}.`;
     }
     return null;
   }
 
-  async function handleSave() {
-    setMessage("");
-    setError("");
-    const validationError = validate();
-    if (validationError) {setError(validationError);return;}
-
+  async function savePurchase() {
+    setError(""); setMessage("");
+    const problem = validate();
+    if (problem) { notifyError(problem); return; }
     try {
       setSaving(true);
-      const response = await api.post("/purchases", {
-        ...form,
-        supplierId: Number(form.supplierId),
-        freightAmount: Number(form.freightAmount || 0),
-        otherCharges: Number(form.otherCharges || 0),
+      const payload = {
+        ...form, supplierId: Number(form.supplierId),
+        freightAmount: Number(form.freightAmount || 0), otherCharges: Number(form.otherCharges || 0),
         items: lines.map((line) => ({
-          ...line,
-          itemId: Number(line.itemId),
-          quantity: Number(line.quantity),
-          rate: Number(line.rate),
-          gstRate: Number(line.gstRate || 0)
-        }))
-      });
-      const successMessage = `Purchase ${response.data.purchase.purchaseNo} saved successfully.`;
-      setMessage(successMessage);
-      toastSuccess(successMessage, "Purchase posted");
-      setForm({ purchaseDate: today, supplierId: "", supplierInvoiceNo: "", paymentDate: "", paymentAccount: "", freightAmount: "0", otherCharges: "0", notes: "" });
-      setLines([emptyLine()]);
+          itemId: Number(line.itemId), quantity: Number(line.quantity), unitId: Number(line.unitId || getItem(line.itemId)?.base_unit_id),
+          rate: purchaseLineValues(line).rate, taxableAmount: purchaseLineValues(line).taxable,
+          gstRate: Number(line.gstRate || 0), lotNo: line.lotNo, mfgDate: line.mfgDate, expiryDate: line.expiryDate,
+        })),
+      };
+      const response = initialPurchase
+        ? await api.put(`/purchases/${initialPurchase.id}`, payload)
+        : await api.post("/purchases", payload);
+      const note = `Purchase ${response.data.purchase.purchaseNo} ${initialPurchase ? "corrected" : "posted"} successfully.`;
+      toastSuccess(note, "Purchase saved");
       markWorkspaceTabClean();
-      await loadLookups();
+      if (onSaved) onSaved(response.data.purchase);
+      else { setMessage(note); setForm(blankPurchaseForm(todayLocal())); setLines([blankPurchaseLine()]); await loadLookups(); }
     } catch (err) {
-      const errorMessage = err.response?.data?.message || "Unable to save purchase.";
-      setError(errorMessage);
-      toastError(errorMessage, "Purchase not saved");
-    } finally {
-      setSaving(false);
-    }
+      notifyError(err.response?.data?.message || "Unable to save purchase.");
+    } finally { setSaving(false); }
   }
 
+  const money = (value) => `₹${Number(value || 0).toFixed(2)}`;
   return (
-    <div className="transaction-page purchase-entry-page">
-      <div className="transaction-intro mb-4"><div><h2 className="mb-1">Purchase Entry</h2><p className="text-muted mb-0">Record supplier invoice, payment reference and purchased stock.</p></div></div>
+    <div className={`transaction-page purchase-entry-page ${embedded ? "purchase-editor-embedded" : ""}`}>
+      {!embedded && <div className="transaction-intro mb-3"><div><h2 className="mb-1">Purchase Entry</h2><p className="text-muted mb-0">Record supplier invoices, GST and purchased stock.</p></div></div>}
       {message && <div className="alert alert-success">{message}</div>}
-      {error && <div className="alert alert-danger">{error}</div>}
-
-      <div className="card mb-4 transaction-card"><div className="card-body">
-        <div className="transaction-section-heading"><div><span className="transaction-step">01</span><div><h5>Purchase Details</h5><p>Invoice date, supplier invoice and optional payment information.</p></div></div></div>
-        <div className="row">
-          <div className="col-md-3 mb-3"><label className="form-label">Invoice Date *</label><SmartDateInput className="form-control" name="purchaseDate" value={form.purchaseDate} onChange={handleFormChange} /></div>
-          <div className="col-md-5 mb-3"><label className="form-label">Supplier *</label><SearchableSelect value={form.supplierId} onChange={(value) => setForm((current) => ({ ...current, supplierId: value }))} options={suppliers} placeholder="Search supplier by name..." ariaLabel="Supplier" getOptionLabel={(supplier) => supplier.name} getOptionMeta={(supplier) => [supplier.city, supplier.state].filter(Boolean).join(", ")} getOptionSearchText={(supplier) => `${supplier.name || ""} ${supplier.phone || ""} ${supplier.alternate_phone || ""} ${supplier.gstin || ""}`} /></div>
-          <div className="col-md-4 mb-3"><label className="form-label">Supplier Invoice No.</label><input className="form-control" name="supplierInvoiceNo" value={form.supplierInvoiceNo} onChange={handleFormChange} /></div>
-          <div className="col-md-3 mb-3"><label className="form-label">Payment Date</label><SmartDateInput className="form-control" name="paymentDate" value={form.paymentDate} onChange={handleFormChange} /></div>
-          <div className="col-md-5 mb-3"><label className="form-label">Payment Account</label><input spellCheck className="form-control" name="paymentAccount" list="purchase-payment-accounts" value={form.paymentAccount} onChange={handleFormChange} placeholder="e.g. Samjay Current Account / Cash" /><datalist id="purchase-payment-accounts">{paymentAccounts.map((account) => <option key={account} value={account} />)}</datalist><div className="form-text">Previously used account names appear as suggestions. This is a purchase reference; supplier payment ledger entries remain separate.</div></div>
+      {error && <div className="alert alert-danger" role="alert">{error}</div>}
+      <div className="card mb-3 transaction-card"><div className="card-body">
+        <div className="transaction-mini-title">Purchase Details</div>
+        <div className="row g-2">
+          <div className="col-md-3"><label className="form-label">Invoice Date *</label><SmartDateInput className="form-control" name="purchaseDate" value={form.purchaseDate} onChange={updateForm} /></div>
+          <div className="col-md-5"><label className="form-label">Supplier *</label><SearchableSelect value={form.supplierId} onChange={(value) => setForm((f) => ({ ...f, supplierId: value }))} options={suppliers} placeholder="Search supplier..." ariaLabel="Supplier" getOptionLabel={(supplier) => supplier.name} getOptionMeta={(supplier) => [supplier.city, supplier.state].filter(Boolean).join(", ")} getOptionSearchText={(supplier) => `${supplier.name} ${supplier.phone || ""} ${supplier.gstin || ""}`} /></div>
+          <div className="col-md-4"><label className="form-label">Supplier Invoice No.</label><input className="form-control" name="supplierInvoiceNo" value={form.supplierInvoiceNo} onChange={updateForm} /></div>
+          <div className="col-md-3"><label className="form-label">Payment Date</label><SmartDateInput className="form-control" name="paymentDate" value={form.paymentDate} onChange={updateForm} /></div>
+          <div className="col-md-5"><label className="form-label">Payment Account</label><input className="form-control" name="paymentAccount" list="purchase-payment-accounts" value={form.paymentAccount} onChange={updateForm} placeholder="Account / Cash" /><datalist id="purchase-payment-accounts">{paymentAccounts.map((account) => <option key={account} value={account} />)}</datalist></div>
+          <div className="col-md-4"><label className="form-label">Notes</label><input className="form-control" name="notes" value={form.notes} onChange={updateForm} /></div>
         </div>
       </div></div>
 
-      <div className="card mb-4 transaction-card transaction-lines-card"><div className="card-body">
-        <div className="d-flex justify-content-between align-items-center mb-3 transaction-section-heading compact"><div><span className="transaction-step">02</span><div><h5>Purchase Items</h5><p>Quantities, rates, GST and traceability details.</p></div></div><button type="button" className="btn btn-sm btn-primary" onClick={addLine}>+ Add Item</button></div>
+      <div className="card mb-3 transaction-card"><div className="card-body">
+        <div className="d-flex justify-content-between align-items-center mb-2"><div className="transaction-mini-title mb-0">Purchase Items</div><button type="button" className="btn btn-sm btn-primary" onClick={() => setLines((current) => [...current, blankPurchaseLine()])}>+ Add Item</button></div>
         <div className="table-responsive"><table className="table table-bordered align-middle entry-table">
-          <thead className="table-light"><tr><th style={{ minWidth: 220 }}>Item</th><th>Qty</th><th>Unit</th><th>Rate</th><th>GST %</th><th>Taxable</th><th>GST</th><th>Total</th><th>Lot No.</th><th>Mfg Date</th><th>Expiry Date</th><th>Action</th></tr></thead>
+          <thead className="table-light"><tr><th className="purchase-item-name">Item / Name</th><th>HSN</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Taxable</th><th>GST %</th><th>GST Amount</th><th>Total</th><th>Lot No.</th><th>Mfg Date</th><th>Expiry Date</th><th></th></tr></thead>
           <tbody>{lines.map((line, index) => {
-                  const item = getSelectedItem(line.itemId);
-                  const values = calculateLine(line);
-                  return <tr key={index}>
-              <td><SearchableSelect value={line.itemId} onChange={(value) => handleLineChange(index, "itemId", value)} options={items} placeholder="Search item..." ariaLabel={`Purchase item row ${index + 1}`} getOptionLabel={(option) => `${option.code} - ${option.name}`} getOptionMeta={(option) => [option.category_name, option.unit_code].filter(Boolean).join(" · ")} getOptionSearchText={(option) => `${option.hsn_code || ""}`} /></td>
-              <td><input type="number" min="0" step="0.001" className="form-control" value={line.quantity} onChange={(e) => handleLineChange(index, "quantity", e.target.value)} /></td>
-              <td>{item?.unit_code || "-"}</td>
-              <td><input type="number" min="0" step="0.01" className="form-control" value={line.rate} onChange={(e) => handleLineChange(index, "rate", e.target.value)} /></td>
-              <td><input type="number" min="0" step="0.01" className="form-control" value={line.gstRate} onChange={(e) => handleLineChange(index, "gstRate", e.target.value)} /></td>
-              <td>₹{values.taxable.toFixed(2)}</td><td>₹{values.gst.toFixed(2)}</td><td>₹{values.total.toFixed(2)}</td>
-              <td><input className="form-control" value={line.lotNo} disabled={!item?.track_lot} onChange={(e) => handleLineChange(index, "lotNo", e.target.value)} /></td>
-              <td><SmartDateInput className="form-control" value={line.mfgDate} disabled={!item?.track_lot && !item?.track_expiry} onChange={(e) => handleLineChange(index, "mfgDate", e.target.value)} /></td>
-              <td><SmartDateInput className="form-control" value={line.expiryDate} disabled={!item?.track_expiry} onChange={(e) => handleLineChange(index, "expiryDate", e.target.value)} /></td>
-              <td><button type="button" className="btn btn-sm btn-outline-danger" onClick={() => removeLine(index)}>Remove</button></td>
+            const item = getItem(line.itemId);
+            const amounts = purchaseLineValues(line);
+            const compatibleUnits = matchingUnits(item?.unit_code, units);
+            return <tr key={index}>
+              <td><SearchableSelect value={line.itemId} onChange={(value) => changeLine(index, "itemId", value)} options={items} placeholder="Search item..." ariaLabel={`Purchase item row ${index + 1}`} getOptionLabel={(option) => `${option.code} - ${option.name}`} getOptionMeta={(option) => `${option.category_name || ""} · ${option.unit_code || ""}`} getOptionSearchText={(option) => option.hsn_code || ""} /></td>
+              <td>{item?.hsn_code || "–"}</td>
+              <td><input aria-label={`Quantity row ${index + 1}`} type="number" min="0" step="any" className="form-control purchase-qty" value={line.quantity} onChange={(e) => changeLine(index, "quantity", e.target.value)} /></td>
+              <td><select aria-label={`Unit row ${index + 1}`} className="form-select purchase-unit" value={line.unitId || item?.base_unit_id || ""} onChange={(e) => changeLine(index, "unitId", e.target.value)}><option value="">–</option>{compatibleUnits.map((unit) => <option key={unit.id} value={unit.id}>{unit.code}</option>)}</select></td>
+              <td><input aria-label={`Rate row ${index + 1}`} type="number" min="0" step="any" className="form-control purchase-money" value={line.pricingBasis === "TAXABLE" ? (line.quantity ? Number(amounts.rate.toPrecision(12)) : "") : line.rate} onChange={(e) => changeLine(index, "rate", e.target.value)} /></td>
+              <td><input aria-label={`Taxable amount row ${index + 1}`} type="number" min="0" step="any" className="form-control purchase-money" value={line.pricingBasis === "TAXABLE" ? line.taxableAmount : (line.quantity && line.rate !== "" ? Number(amounts.taxable.toFixed(6)) : "")} onChange={(e) => changeLine(index, "taxableAmount", e.target.value)} /></td>
+              <td><input aria-label={`GST percentage row ${index + 1}`} type="number" min="0" max="100" step="any" className="form-control purchase-gst" value={line.gstRate} onChange={(e) => changeLine(index, "gstRate", e.target.value)} /></td>
+              <td className="text-end">{money(amounts.gst)}</td><td className="text-end"><strong>{money(amounts.total)}</strong></td>
+              <td><input aria-label={`Lot row ${index + 1}`} className="form-control purchase-lot" value={line.lotNo} disabled={!item?.track_lot} onChange={(e) => changeLine(index, "lotNo", e.target.value)} /></td>
+              <td><SmartDateInput className="form-control" value={line.mfgDate} disabled={!item?.track_lot && !item?.track_expiry} onChange={(e) => changeLine(index, "mfgDate", e.target.value)} /></td>
+              <td><SmartDateInput className="form-control" value={line.expiryDate} disabled={!item?.track_expiry} onChange={(e) => changeLine(index, "expiryDate", e.target.value)} /></td>
+              <td><button type="button" className="btn btn-sm btn-outline-danger" onClick={() => setLines((current) => current.length === 1 ? [blankPurchaseLine()] : current.filter((_, i) => i !== index))} title="Remove item" aria-label={`Remove row ${index + 1}`}>×</button></td>
             </tr>;
-                })}</tbody>
+          })}</tbody>
         </table></div>
+        <small className="text-muted">Enter Rate to calculate Taxable, or enter Taxable to calculate Rate. The selected unit is converted to the item’s base unit for stock.</small>
       </div></div>
 
-      <div className="row">
-        <div className="col-lg-7"><div className="card mb-4 transaction-card"><div className="card-body"><div className="transaction-mini-title">Notes & Purchase Context</div><label className="form-label">Notes</label><textarea spellCheck className="form-control" rows="3" name="notes" value={form.notes} onChange={handleFormChange} /></div></div></div>
-        <div className="col-lg-5"><div className="card mb-4 transaction-card totals-card"><div className="card-body"><div className="transaction-mini-title">Charges & Purchase Total</div><div className="row"><div className="col-6 mb-3"><label className="form-label">Freight</label><input type="number" min="0" step="0.01" className="form-control" name="freightAmount" value={form.freightAmount} onChange={handleFormChange} /></div><div className="col-6 mb-3"><label className="form-label">Other Charges</label><input type="number" min="0" step="0.01" className="form-control" name="otherCharges" value={form.otherCharges} onChange={handleFormChange} /></div></div><table className="table mb-0"><tbody><tr><th>Subtotal</th><td className="text-end">₹{totals.subtotal.toFixed(2)}</td></tr><tr><th>GST</th><td className="text-end">₹{totals.gst.toFixed(2)}</td></tr><tr><th>Freight</th><td className="text-end">₹{totals.freight.toFixed(2)}</td></tr><tr><th>Other Charges</th><td className="text-end">₹{totals.other.toFixed(2)}</td></tr><tr><th>Grand Total</th><th className="text-end">₹{totals.grandTotal.toFixed(2)}</th></tr></tbody></table></div></div></div>
-      </div>
-
-      <div className="transaction-action-bar"><div className="transaction-action-copy"><span>Purchase total</span><strong>₹{totals.grandTotal.toFixed(2)}</strong><small>{lines.length} line{lines.length === 1 ? "" : "s"} ready to post</small></div><button type="button" className="btn btn-success btn-lg" onClick={handleSave} disabled={saving}>{saving ? "Saving Purchase..." : "Post Purchase"}</button></div>
-    </div>);
-
+      <div className="card mb-3 transaction-card"><div className="card-body">
+        <div className="row g-2 align-items-end">
+          <div className="col-sm-3 col-md-2"><label className="form-label">Freight</label><input type="number" min="0" step="any" className="form-control" name="freightAmount" value={form.freightAmount} onChange={updateForm} /></div>
+          <div className="col-sm-3 col-md-2"><label className="form-label">Other Charges</label><input type="number" min="0" step="any" className="form-control" name="otherCharges" value={form.otherCharges} onChange={updateForm} /></div>
+          <div className="col-sm-6 col-md-8 d-flex justify-content-end gap-3 flex-wrap purchase-total-summary"><span>Taxable <strong>{money(totals.subtotal)}</strong></span><span>GST <strong>{money(totals.gst)}</strong></span><span>Grand Total <strong>{money(totals.grandTotal)}</strong></span></div>
+        </div>
+      </div></div>
+      <div className="transaction-action-bar"><div className="transaction-action-copy"><span>{initialPurchase ? `Correct ${initialPurchase.purchase_no}` : "Purchase total"}</span><strong>{money(totals.grandTotal)}</strong></div><button type="button" className="btn btn-success" onClick={savePurchase} disabled={saving}>{saving ? "Saving..." : initialPurchase ? "Save Purchase Corrections" : "Post Purchase"}</button></div>
+    </div>
+  );
 }
 
 export default Purchases;

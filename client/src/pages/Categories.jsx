@@ -1,3 +1,4 @@
+import SortableTh, { useSortableRows } from "../components/SortableTh";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import api from "../api/api";
@@ -244,6 +245,8 @@ function Categories() {
     }
   }
 
+  const { sortedRows: categoriesSorted, sort: tableSort, toggle: toggleSort } = useSortableRows(filtered, "name");
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-start mb-4">
@@ -283,10 +286,10 @@ function Categories() {
           <div className="table-responsive">
             <table className="table table-bordered table-hover align-middle">
               <thead className="table-light">
-                <tr><th>Category Name</th><th>Inventory Role</th><th>Items</th><th>Status</th><th>Action</th></tr>
+                <tr><SortableTh field="name" sort={tableSort} onSort={toggleSort}>Category Name</SortableTh><SortableTh field="inventory_role" sort={tableSort} onSort={toggleSort}>Inventory Role</SortableTh><SortableTh field="item_count" sort={tableSort} onSort={toggleSort}>Items</SortableTh><SortableTh field="is_active" sort={tableSort} onSort={toggleSort}>Status</SortableTh><th>Action</th></tr>
               </thead>
               <tbody>
-                {filtered.map((category) => (
+                {categoriesSorted.map((category) => (
                   <tr
                     key={category.id}
                     className="row-clickable"

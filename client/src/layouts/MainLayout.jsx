@@ -34,6 +34,10 @@ const WORKSPACE_STORAGE_KEY = "riseora.workspace.tabs.v2";
 const TAB_SLEEP_MS = 30 * 60 * 1000;
 const TAB_SLEEP_CHECK_MS = 60 * 1000;
 
+function getCurrentTime() {
+  return Date.now();
+}
+
 const navGroups = [
   { label: "Overview", key: "overview", items: [{ to: "/dashboard", label: "Dashboard", icon: "dashboard" }] },
   {
@@ -226,6 +230,14 @@ function MainLayout() {
   const currentLocationPath = safeWorkspacePath(`${location.pathname}${location.search}`);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCondensed, setSidebarCondensed] = useState(() => {
+    try { return window.localStorage.getItem("riseora.sidebar.condensed") === "true"; }
+    catch { return false; }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem("riseora.sidebar.condensed", String(sidebarCondensed)); }
+    catch { /* Preferences are optional. */ }
+  }, [sidebarCondensed]);
   const [collapsed, setCollapsed] = useState({});
   const [initialWorkspace] = useState(() => loadWorkspace(currentLocationPath));
   const [tabs, setTabs] = useState(initialWorkspace.tabs);
@@ -369,7 +381,7 @@ function MainLayout() {
         window.cancelAnimationFrame(scrollRestoreFrameRef.current);
       }
     };
-  }, [activeTabId, activeTab?.revision]);
+  }, [activeTabId, activeTab?.revision, activeTab?.scrollY]);
 
   useEffect(() => {
     if (!contextMenu) return undefined;
@@ -464,7 +476,7 @@ function MainLayout() {
   const navigateInActiveTab = (path) => {
     const targetPath = safeWorkspacePath(path);
     const tabId = activeTabIdRef.current;
-    const now = Date.now();
+    const now = getCurrentTime();
 
     blurCurrentEditor();
 
@@ -488,7 +500,7 @@ function MainLayout() {
     const targetPath = safeWorkspacePath(path);
     const id = nextTabIdRef.current;
     const previousActiveId = activeTabIdRef.current;
-    const now = Date.now();
+    const now = getCurrentTime();
     const currentScrollY = window.scrollY;
 
     blurCurrentEditor();
@@ -522,7 +534,7 @@ function MainLayout() {
   const switchTab = (tab) => {
     const targetId = Number(tab.id);
     const previousActiveId = activeTabIdRef.current;
-    const now = Date.now();
+    const now = getCurrentTime();
     const currentScrollY = window.scrollY;
 
     if (targetId === previousActiveId) {
@@ -565,7 +577,7 @@ function MainLayout() {
     const currentTabs = tabs;
 
     if (currentTabs.length === 1) {
-      const now = Date.now();
+      const now = getCurrentTime();
       const reset = [{
         ...currentTabs[0],
         path: "/dashboard",
@@ -592,7 +604,7 @@ function MainLayout() {
     }
 
     const replacement = next[Math.max(0, Math.min(index, next.length - 1))];
-    const now = Date.now();
+    const now = getCurrentTime();
 
     setTabs(next.map((tab) =>
       tab.id === replacement.id
@@ -618,7 +630,7 @@ function MainLayout() {
     if (!target) return;
 
     const previousActiveId = activeTabIdRef.current;
-    const now = Date.now();
+    const now = getCurrentTime();
     const currentScrollY = window.scrollY;
 
     blurCurrentEditor();
@@ -701,7 +713,7 @@ function MainLayout() {
     .join("");
 
   return (
-    <div className="app-shell" onContextMenu={handleContextMenu}>
+    <div className={`app-shell ${sidebarCondensed ? "is-sidebar-condensed" : ""}`} onContextMenu={handleContextMenu}>
       <aside className={`sidebar ${sidebarOpen ? "is-open" : ""}`}>
         <div className="sidebar-brand-wrap">
           <NavLink
@@ -783,6 +795,9 @@ function MainLayout() {
       <div className="app-main">
         <header className="topbar">
           <div className="topbar-left">
+            <button type="button" className="topbar-collapse-button" onClick={() => setSidebarCondensed((value) => !value)} title={sidebarCondensed ? "Expand sidebar" : "Collapse sidebar"} aria-label={sidebarCondensed ? "Expand sidebar" : "Collapse sidebar"} aria-pressed={sidebarCondensed}>
+              <AppIcon name="menu" size={19} />
+            </button>
             <button type="button" className="topbar-menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation">
               <AppIcon name="menu" size={21} />
             </button>

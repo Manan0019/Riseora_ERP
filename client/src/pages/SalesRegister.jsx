@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
 import { useUi } from "../context/UiContext";
 import SmartDateInput from "../components/SmartDateInput";
+import MasterEditorModal from "../components/MasterEditorModal";
+import SortableTh, { useSortableRows } from "../components/SortableTh";
 
 function SalesRegister() {
   const { confirm: confirmAction, success: toastSuccess, error: toastError } = useUi();
@@ -125,6 +127,8 @@ function SalesRegister() {
       (invoice.customer_name || "").toLowerCase().includes(text)
     );
   }, [invoices, search]);
+
+  const { sortedRows: sortedInvoices, sort: invoiceSort, toggle: sortInvoices } = useSortableRows(filteredInvoices, "invoice_date", "desc");
 
   const openInvoicePreview = () => {
     if (!selectedInvoice) return;
@@ -616,23 +620,23 @@ function SalesRegister() {
             <table className="table table-bordered table-hover align-middle">
               <thead className="table-light">
                 <tr>
-                  <th>Invoice</th>
+                  <SortableTh field="invoice_no" sort={invoiceSort} onSort={sortInvoices}>Invoice</SortableTh>
 
-                  <th>Date</th>
+                  <SortableTh field="invoice_date" sort={invoiceSort} onSort={sortInvoices}>Date</SortableTh>
 
-                  <th>Due Date</th>
+                  <SortableTh field="due_date" sort={invoiceSort} onSort={sortInvoices}>Due Date</SortableTh>
 
-                  <th>Customer</th>
+                  <SortableTh field="customer_name" sort={invoiceSort} onSort={sortInvoices}>Customer</SortableTh>
 
-                  <th>Effective Total</th>
+                  <SortableTh field="effective_invoice_total" sort={invoiceSort} onSort={sortInvoices}>Effective Total</SortableTh>
 
-                  <th>Net Paid</th>
+                  <SortableTh field="net_amount_paid" sort={invoiceSort} onSort={sortInvoices}>Net Paid</SortableTh>
 
-                  <th>Balance</th>
+                  <SortableTh field="balance_amount" sort={invoiceSort} onSort={sortInvoices}>Balance</SortableTh>
 
-                  <th>Payment Status</th>
+                  <SortableTh field="payment_status" sort={invoiceSort} onSort={sortInvoices}>Payment Status</SortableTh>
 
-                  <th>Invoice Status</th>
+                  <SortableTh field="status" sort={invoiceSort} onSort={sortInvoices}>Invoice Status</SortableTh>
                 </tr>
               </thead>
 
@@ -645,7 +649,7 @@ function SalesRegister() {
                   </tr> :
 
                 <>
-                    {filteredInvoices.map((invoice) => {
+                    {sortedInvoices.map((invoice) => {
                     const balance =
                     Number(invoice.balance_amount || 0);
 
@@ -733,9 +737,9 @@ function SalesRegister() {
       </div>
 
       {/* INVOICE DETAILS */}
+      <MasterEditorModal open={Boolean(selectedInvoice)} size="xl" title={selectedInvoice ? `Invoice Details — ${selectedInvoice.invoice_no}` : "Invoice Details"} onRequestClose={() => setSelectedInvoice(null)}>
       {selectedInvoice &&
-      <div className="card">
-          <div className="card-body">
+      <div className="sales-register-detail-popup">
             <div className="d-flex justify-content-between align-items-center mb-3 gap-3 flex-wrap">
               <h5 className="mb-0">Invoice Details</h5>
 
@@ -935,7 +939,7 @@ function SalesRegister() {
                   <table className="table table-bordered align-middle">
                     <thead className="table-light">
                       <tr>
-                        <th>Product</th>
+                        <th>Product</th><th>HSN</th>
 
                         <th>Qty</th>
 
@@ -955,7 +959,7 @@ function SalesRegister() {
 
                         <th>Margin %</th>
 
-                        <th>GST</th>
+                        <th>GST %</th><th>GST Amount</th>
 
                         <th>Line Total</th>
                       </tr>
@@ -972,6 +976,7 @@ function SalesRegister() {
                             </small>
                           </td>
 
+                          <td>{item.hsn_code || "–"}</td>
                           <td>{Number(item.quantity || 0).toFixed(3)}</td>
 
                           <td>{item.unit_code}</td>
@@ -1000,6 +1005,7 @@ function SalesRegister() {
 
                           <td>{Number(item.gst_rate || 0).toFixed(2)}%</td>
 
+                          <td>₹{Number(item.gst_amount || 0).toFixed(2)}</td>
                           <td>₹{Number(item.line_total || 0).toFixed(2)}</td>
                         </tr>
                   )}
@@ -1007,7 +1013,7 @@ function SalesRegister() {
                       {(!selectedInvoice.items ||
                   selectedInvoice.items.length === 0) &&
                   <tr>
-                          <td colSpan={12} className="text-center text-muted">
+                          <td colSpan={14} className="text-center text-muted">
                             No invoice items found.
                           </td>
                         </tr>
@@ -1464,9 +1470,9 @@ function SalesRegister() {
             }
               </>
           }
-          </div>
         </div>
       }
+      </MasterEditorModal>
     </div>);
 
 }

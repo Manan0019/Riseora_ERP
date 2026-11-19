@@ -1,3 +1,5 @@
+import MasterEditorModal from "../components/MasterEditorModal";
+import SortableTh, { useSortableRows } from "../components/SortableTh";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -251,6 +253,8 @@ function ProductionRegister() {
     }
   };
 
+  const { sortedRows: batchesSorted, sort: tableSort, toggle: toggleSort } = useSortableRows(filteredBatches, "production_date");
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-start mb-4">
@@ -307,18 +311,18 @@ function ProductionRegister() {
             <table className="table table-bordered table-hover align-middle">
               <thead className="table-light">
                 <tr>
-                  <th>Batch</th>
-                  <th>Date</th>
-                  <th>Product</th>
-                  <th>Formula</th>
-                  <th>Planned</th>
-                  <th>Good</th>
-                  <th>Rejected</th>
-                  <th>Rework</th>
-                  <th>Scrap</th>
-                  <th>Yield %</th>
-                  <th>QC</th>
-                  <th>Status</th>
+                  <SortableTh field="batch_no" sort={tableSort} onSort={toggleSort}>Batch</SortableTh>
+                  <SortableTh field="production_date" sort={tableSort} onSort={toggleSort}>Date</SortableTh>
+                  <SortableTh field="finished_item_name" sort={tableSort} onSort={toggleSort}>Product</SortableTh>
+                  <SortableTh field="formula_code" sort={tableSort} onSort={toggleSort}>Formula</SortableTh>
+                  <SortableTh field="planned_batch_size" sort={tableSort} onSort={toggleSort}>Planned</SortableTh>
+                  <SortableTh field="good_output_qty" sort={tableSort} onSort={toggleSort}>Good</SortableTh>
+                  <SortableTh field="rejected_qty" sort={tableSort} onSort={toggleSort}>Rejected</SortableTh>
+                  <SortableTh field="rework_qty" sort={tableSort} onSort={toggleSort}>Rework</SortableTh>
+                  <SortableTh field="scrap_qty" sort={tableSort} onSort={toggleSort}>Scrap</SortableTh>
+                  <SortableTh field="yield_percent" sort={tableSort} onSort={toggleSort}>Yield %</SortableTh>
+                  <SortableTh field="qc_status" sort={tableSort} onSort={toggleSort}>QC</SortableTh>
+                  <SortableTh field="status" sort={tableSort} onSort={toggleSort}>Status</SortableTh>
                 </tr>
               </thead>
               <tbody>
@@ -335,7 +339,7 @@ function ProductionRegister() {
                     </td>
                   </tr>
                 ) : (
-                  filteredBatches.map((batch) => (
+                  batchesSorted.map((batch) => (
                     <tr
                       key={batch.id}
                       onClick={() => loadBatchDetails(batch.id)}
@@ -367,6 +371,7 @@ function ProductionRegister() {
         </div>
       </div>
 
+      <MasterEditorModal open={Boolean(selectedBatch)} size="xl" title={selectedBatch ? `Production Batch — ${selectedBatch.batch_no}` : "Production Batch"} onRequestClose={() => setSelectedBatch(null)}>
       {selectedBatch && (
         <div className="card">
           <div className="card-body">
@@ -808,6 +813,7 @@ function ProductionRegister() {
           </div>
         </div>
       )}
+      </MasterEditorModal>
     </div>
   );
 }

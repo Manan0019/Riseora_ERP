@@ -702,59 +702,10 @@ function Sales() {
 
           <div className="table-responsive">
             <table className="table table-bordered align-middle entry-table">
-              <thead className="table-light">
-                <tr>
-                  <th style={{ minWidth: 240 }}>
-                    Product
-                  </th>
-
-                  <th>HSN</th>
-
-                  <th>
-                    Available
-                  </th>
-
-                  <th>
-                    Qty
-                  </th>
-
-                  <th>
-                    Unit
-                  </th>
-
-                  <th>
-                    Rate
-                  </th>
-
-                  <th>
-                    Discount
-                  </th>
-
-                  <th>
-                    GST %
-                  </th>
-
-                  <th>
-                    Taxable
-                  </th>
-
-                  <th>
-                    GST
-                  </th>
-
-                  <th>
-                    Total
-                  </th>
-
-                  <th>
-                    Lot
-                  </th>
-
-                  <th>
-                    Action
-                  </th>
-                </tr>
-              </thead>
+              <thead className="table-light"><tr>
+                <th style={{ minWidth: 240 }}>Product / Name</th><th>HSN</th><th>Qty</th><th>Unit</th><th>Rate</th>
+                <th>Discount</th><th>Taxable</th><th>GST %</th><th>GST Amount</th><th>Total</th><th>Available</th><th>Lot</th><th>Action</th>
+              </tr></thead>
 
               <tbody>
                 {lines.map(
@@ -816,13 +767,7 @@ function Sales() {
                           {item?.hsn_code || "-"}
                         </td>
 
-                        <td>
-                          {line.itemId ?
-                          available.toFixed(
-                            3
-                          ) :
-                          "-"}
-                        </td>
+
 
                         <td>
                           <input
@@ -895,6 +840,15 @@ function Sales() {
                           
                         </td>
 
+
+
+                        <td>
+                          ₹
+                          {values.taxable.toFixed(
+                            2
+                          )}
+                        </td>
+
                         <td>
                           <input
                             type="number"
@@ -919,13 +873,6 @@ function Sales() {
 
                         <td>
                           ₹
-                          {values.taxable.toFixed(
-                            2
-                          )}
-                        </td>
-
-                        <td>
-                          ₹
                           {values.gst.toFixed(
                             2
                           )}
@@ -936,6 +883,14 @@ function Sales() {
                           {values.total.toFixed(
                             2
                           )}
+                        </td>
+
+                        <td>
+                          {line.itemId ?
+                          available.toFixed(
+                            3
+                          ) :
+                          "-"}
                         </td>
 
                         <td>
