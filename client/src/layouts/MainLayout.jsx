@@ -779,7 +779,7 @@ function MainLayout() {
 
         <div className="sidebar-footer">
           <div className="sidebar-footer-dot" />
-          <div><strong>Riseora ERP</strong><small>Version 1.1.2 · Local business system</small></div>
+          <div><strong>Riseora ERP</strong><small>Version 1.1.3 · Local business system</small></div>
         </div>
       </aside>
 
