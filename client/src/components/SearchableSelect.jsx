@@ -47,6 +47,8 @@ export default function SearchableSelect({
   allowClear = true,
   ariaLabel,
   inputClassName = "",
+  invalid = false,
+  fieldId,
 }) {
   const rootRef = useRef(null);
   const inputRef = useRef(null);
@@ -242,11 +244,12 @@ export default function SearchableSelect({
   ) : null;
 
   return (
-    <div className={`searchable-select ${disabled ? "is-disabled" : ""}`} ref={rootRef}>
+    <div className={`searchable-select ${disabled ? "is-disabled" : ""}${invalid ? " is-invalid" : ""}`} ref={rootRef} data-entry-field={fieldId}>
       <input
         ref={inputRef}
         type="text"
-        className={`form-control searchable-select-input ${inputClassName}`.trim()}
+        className={`form-control searchable-select-input ${invalid ? "is-invalid" : ""} ${inputClassName}`.trim()}
+        aria-invalid={invalid ? "true" : undefined}
         value={query}
         placeholder={displayPlaceholder}
         disabled={disabled}

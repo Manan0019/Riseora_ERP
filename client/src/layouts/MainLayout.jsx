@@ -3,6 +3,7 @@ import { NavLink, Route, Routes, useLocation, useNavigate } from "react-router-d
 import { useAuth } from "../context/AuthContext";
 import AppIcon from "../components/AppIcon";
 import riseoraLogoHori from "../assets/riseora-logo-Horizontal.png";
+import riseoraFallbackMark from "../assets/riseora-Logo-Vertical.png";
 import { WorkspaceTabProvider } from "../context/WorkspaceTabContext";
 import Dashboard from "../pages/Dashboard";
 import Company from "../pages/Company";
@@ -728,6 +729,18 @@ function MainLayout() {
             }}
           >
             <img src={riseoraLogoHori} alt="Riseora" className="brand-logo" />
+            {/* Place a square logo-only PNG at client/public/riseora-logo-mark.png. */}
+            <img
+              src="/riseora-logo-mark.png"
+              alt="Riseora"
+              className="brand-logo-mark"
+              onError={(event) => {
+                // No broken image if the owner has not supplied the logo mark yet.
+                if (event.currentTarget.getAttribute("src") !== riseoraFallbackMark) {
+                  event.currentTarget.src = riseoraFallbackMark;
+                }
+              }}
+            />
           </NavLink>
           <button type="button" className="sidebar-mobile-close" aria-label="Close navigation" onClick={() => setSidebarOpen(false)}>×</button>
         </div>

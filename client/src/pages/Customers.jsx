@@ -6,6 +6,7 @@ import { useUi } from "../context/UiContext";
 import IndiaLocationFields from "../components/IndiaLocationFields";
 import MasterEditorModal from "../components/MasterEditorModal";
 import { normalizeTitleCaseFields, sameForm, toTitleCase } from "../utils/textFormat";
+import { clearInvalidField } from "../utils/entryValidation";
 
 const emptyForm = {
   name: "",
@@ -54,6 +55,7 @@ function Customers() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
+  const [invalidFields, setInvalidFields] = useState({});
 
   useEffect(() => { loadCustomers(); }, [showInactive]);
 
@@ -73,6 +75,7 @@ function Customers() {
     setOriginalForm(mapped);
     setEditing(false);
     setModalOpen(true);
+    setInvalidFields({});
     setError("");
   }, [customers, searchParams, selectedId, showInactive]);
 
@@ -113,6 +116,7 @@ function Customers() {
     setOriginalForm(emptyForm);
     setEditing(true);
     setModalOpen(true);
+    setInvalidFields({});
     setError("");
   }
 
@@ -124,6 +128,7 @@ function Customers() {
     setOriginalForm(mapped);
     setEditing(false);
     setModalOpen(true);
+    setInvalidFields({});
     setError("");
   }
 
@@ -146,6 +151,7 @@ function Customers() {
 
   function handleChange(event) {
     const { name, value } = event.target;
+    clearInvalidField(setInvalidFields, name);
     setForm((current) => ({ ...current, [name]: name === "gstin" ? value.toUpperCase() : value }));
   }
 
@@ -156,9 +162,18 @@ function Customers() {
   async function save(closeAfter) {
     setError("");
     const payload = normalizeTitleCaseFields(form, ["name", "city", "state"]);
-    if (!payload.name.trim()) { setError("Customer name is required."); return; }
-    if (Number(payload.creditDays) < 0) { setError("Credit days cannot be negative."); return; }
-    if (Number(payload.creditLimit) < 0) { setError("Credit limit cannot be negative."); return; }
+    const issues = [];
+    const fail = (field, message) => issues.push({ field, message });
+    if (!payload.name.trim()) fail("name", "Customer name is required.");
+    if (!Number.isFinite(Number(payload.creditDays)) || Number(payload.creditDays) < 0) fail("creditDays", "Credit days cannot be negative.");
+    if (!Number.isFinite(Number(payload.creditLimit)) || Number(payload.creditLimit) < 0) fail("creditLimit", "Credit limit cannot be negative.");
+    if (issues.length) {
+      setInvalidFields(Object.fromEntries(issues.map(({ field }) => [field, true])));
+      setError(issues[0].message);
+      toastError(issues[0].message, "Check customer details");
+      return;
+    }
+    setInvalidFields({});
 
     try {
       setSaving(true);
@@ -244,6 +259,7 @@ function Customers() {
 
       <MasterEditorModal
         open={modalOpen}
+        invalidFields={invalidFields}
         title={selectedId ? (editing ? "Edit Customer" : "Customer Details") : "New Customer"}
         subtitle="Internal customer IDs/codes are generated automatically and are not shown to the owner."
         onRequestClose={requestClose}

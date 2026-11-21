@@ -10,8 +10,10 @@ function MasterEditorModal({
   children,
   footer,
   size = "lg",
+  invalidFields = {},
 }) {
   const dialogRef = useRef(null);
+  const lastInvalidKeysRef = useRef(new Set());
   const closeHandlerRef = useRef(onRequestClose);
   const { active: workspaceTabActive } = useWorkspaceTab();
 
@@ -53,6 +55,29 @@ function MasterEditorModal({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [open, workspaceTabActive]);
+
+  // Highlight the exact invalid master-data inputs, leaving unrelated fields unchanged.
+  useEffect(() => {
+    if (!open || !workspaceTabActive || !dialogRef.current) return;
+    const fields = dialogRef.current.querySelectorAll(".master-modal-body [name]");
+    for (const field of fields) {
+      const isInvalid = Boolean(invalidFields[field.name]);
+      field.classList.toggle("is-invalid", isInvalid);
+      if (isInvalid) field.setAttribute("aria-invalid", "true");
+      else field.removeAttribute("aria-invalid");
+    }
+    const invalidKeys = new Set(Object.keys(invalidFields).filter((key) => invalidFields[key]));
+    const hasNewErrors = [...invalidKeys].some((key) => !lastInvalidKeysRef.current.has(key));
+    lastInvalidKeysRef.current = invalidKeys;
+    // Focus on save failure, not every time a user clears a red field.
+    if (hasNewErrors) {
+      const firstInvalid = Array.from(fields).find((field) => invalidFields[field.name]);
+      if (firstInvalid) {
+        firstInvalid.scrollIntoView({ block: "center", behavior: "smooth" });
+        firstInvalid.focus({ preventScroll: true });
+      }
+    }
+  }, [invalidFields, open, workspaceTabActive]);
 
   if (!open || !workspaceTabActive || typeof document === "undefined") return null;
 

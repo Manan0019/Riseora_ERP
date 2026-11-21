@@ -94,6 +94,8 @@ export default function SmartDateInput({
   title,
   "aria-label": ariaLabel,
   "aria-describedby": ariaDescribedBy,
+  fieldId,
+  validationError = false,
 }) {
   const initial = partsFromIso(value);
   const [day, setDay] = useState(initial.day);
@@ -277,12 +279,13 @@ export default function SmartDateInput({
     <div
       ref={rootRef}
       id={id}
-      className={`${className || ""} smart-date-input${invalid ? " is-invalid" : ""}${disabled ? " is-disabled" : ""}`.trim()}
+      data-entry-field={fieldId}
+      className={`${className || ""} smart-date-input${invalid || validationError ? " is-invalid" : ""}${disabled ? " is-disabled" : ""}`.trim()}
       style={style}
       title={title}
       aria-label={ariaLabel || "Date"}
       aria-describedby={ariaDescribedBy}
-      aria-invalid={invalid ? "true" : undefined}
+      aria-invalid={invalid || validationError ? "true" : undefined}
       aria-disabled={disabled ? "true" : undefined}
     >
       <input

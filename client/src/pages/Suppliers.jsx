@@ -6,6 +6,7 @@ import { useUi } from "../context/UiContext";
 import IndiaLocationFields from "../components/IndiaLocationFields";
 import MasterEditorModal from "../components/MasterEditorModal";
 import { normalizeTitleCaseFields, sameForm, toTitleCase } from "../utils/textFormat";
+import { clearInvalidField } from "../utils/entryValidation";
 
 const emptyForm = {
   name: "",
@@ -52,6 +53,7 @@ function Suppliers() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
+  const [invalidFields, setInvalidFields] = useState({});
 
   useEffect(() => { loadSuppliers(); }, [showInactive]);
 
@@ -71,6 +73,7 @@ function Suppliers() {
     setOriginalForm(mapped);
     setEditing(false);
     setModalOpen(true);
+    setInvalidFields({});
     setError("");
   }, [suppliers, searchParams, selectedId, showInactive]);
 
@@ -111,6 +114,7 @@ function Suppliers() {
     setOriginalForm(emptyForm);
     setEditing(true);
     setModalOpen(true);
+    setInvalidFields({});
     setError("");
   }
 
@@ -122,6 +126,7 @@ function Suppliers() {
     setOriginalForm(mapped);
     setEditing(false);
     setModalOpen(true);
+    setInvalidFields({});
     setError("");
   }
 
@@ -144,6 +149,7 @@ function Suppliers() {
 
   function handleChange(event) {
     const { name, value } = event.target;
+    clearInvalidField(setInvalidFields, name);
     setForm((current) => ({ ...current, [name]: name === "gstin" ? value.toUpperCase() : value }));
   }
 
@@ -154,8 +160,17 @@ function Suppliers() {
   async function save(closeAfter) {
     setError("");
     const payload = normalizeTitleCaseFields(form, ["name", "contactPerson", "city", "state"]);
-    if (!payload.name.trim()) { setError("Supplier name is required."); return; }
-    if (Number(payload.paymentTermsDays) < 0) { setError("Payment terms cannot be negative."); return; }
+    const issues = [];
+    const fail = (field, message) => issues.push({ field, message });
+    if (!payload.name.trim()) fail("name", "Supplier name is required.");
+    if (!Number.isFinite(Number(payload.paymentTermsDays)) || Number(payload.paymentTermsDays) < 0) fail("paymentTermsDays", "Payment terms cannot be negative.");
+    if (issues.length) {
+      setInvalidFields(Object.fromEntries(issues.map(({ field }) => [field, true])));
+      setError(issues[0].message);
+      toastError(issues[0].message, "Check supplier details");
+      return;
+    }
+    setInvalidFields({});
 
     try {
       setSaving(true);
@@ -261,6 +276,7 @@ function Suppliers() {
 
       <MasterEditorModal
         open={modalOpen}
+        invalidFields={invalidFields}
         title={selectedId ? (editing ? "Edit Supplier" : "Supplier Details") : "New Supplier"}
         subtitle="Internal supplier codes are created automatically and are not shown to the owner."
         onRequestClose={requestClose}

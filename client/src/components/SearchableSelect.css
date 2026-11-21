@@ -111,3 +111,9 @@
   border-top: 1px solid #eee4de;
   margin-top: 4px;
 }
+
+/* The owner's darker legibility preference also applies to lookup controls. */
+.searchable-select-search-icon { color: #525252; }
+.searchable-select-option-meta,
+.searchable-select-empty,
+.searchable-select-more { color: #535760; }

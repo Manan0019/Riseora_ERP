@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import api from "../api/api";
 import SearchableSelect from "../components/SearchableSelect";
 import { useUi } from "../context/UiContext";
 import { useWorkspaceTab } from "../context/WorkspaceTabContext";
 import SmartDateInput from "../components/SmartDateInput";
+import AutoWidthEntryInput from "../components/AutoWidthEntryInput";
+import { clearInvalidField, focusInvalidEntryField } from "../utils/entryValidation";
 
 const createEmptyLine = () => ({
   itemId: "",
@@ -45,6 +47,10 @@ function Sales() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [invalidFields, setInvalidFields] = useState({});
+  const pageRef = useRef(null);
+  const invalid = (field) => Boolean(invalidFields[field]);
+  const clear = (field) => clearInvalidField(setInvalidFields, field);
 
   useEffect(() => {
     if (workspaceTabActive) loadData();
@@ -97,6 +103,7 @@ function Sales() {
 
   const handleFormChange = (event) => {
     const { name, value } = event.target;
+    clear(name);
 
     setForm((current) => ({
       ...current,
@@ -109,6 +116,7 @@ function Sales() {
   field,
   value) =>
   {
+    clear(`lines.${index}.${field}`);
     setLines((current) =>
     current.map((line, lineIndex) =>
     lineIndex === index ?
@@ -125,6 +133,8 @@ function Sales() {
   index,
   value) =>
   {
+    clear(`lines.${index}.itemId`);
+    clear(`lines.${index}.rate`);
     const selectedProduct =
     items.find(
       (item) =>
@@ -165,6 +175,7 @@ function Sales() {
       (customer) => customer.id === Number(value)
     );
 
+    clear("customerId");
     setForm((current) => ({
       ...current,
       customerId: value,
@@ -174,11 +185,24 @@ function Sales() {
   };
 
   const addLine = () => {
-    setLines((current) => [
-    ...current,
-    createEmptyLine()]
-    );
+    setLines((current) => [...current, createEmptyLine()]);
+    window.requestAnimationFrame(() => {
+      const lookups = pageRef.current?.querySelectorAll('input[aria-label^="Sales product row"]');
+      lookups?.[lookups.length - 1]?.focus();
+    });
   };
+
+  useEffect(() => {
+    if (!workspaceTabActive || saving) return undefined;
+    const onKeyDown = (event) => {
+      if (event.defaultPrevented || event.repeat || !event.ctrlKey || event.altKey || event.shiftKey || event.key.toLowerCase() !== "n") return;
+      event.preventDefault();
+      event.stopPropagation();
+      addLine();
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  }, [workspaceTabActive, saving]);
 
   const removeLine = (index) => {
     if (lines.length === 1) {
@@ -320,119 +344,48 @@ function Sales() {
   "PARTIAL";
 
   const validate = () => {
-    if (!form.invoiceDate) {
-      return "Invoice date is required.";
-    }
-
-    if (!form.customerId) {
-      return "Customer is required.";
-    }
-
-    for (
-    let index = 0;
-    index < lines.length;
-    index++)
-    {
-      const line =
-      lines[index];
-
-      if (!line.itemId) {
-        return `Item is required in row ${
-        index + 1}.`;
-
-      }
-
-      const quantity =
-      Number(line.quantity);
-
-      if (quantity <= 0) {
-        return `Quantity must be greater than zero in row ${
-        index + 1}.`;
-
-      }
-
-      if (
-      Number(line.rate) < 0)
-      {
-        return `Rate cannot be negative in row ${
-        index + 1}.`;
-
-      }
-
-      const available =
-      getStock(
-        line.itemId
-      );
-
-      if (
-      quantity >
-      available)
-      {
-        const item =
-        getItem(
-          line.itemId
-        );
-
-        return `${
-        item?.name ||
-        `Row ${index + 1}`}: only ${
-        available.toFixed(
-          3
-        )} available in stock.`;
-      }
-
-      const values =
-      calculateLine(line);
-
-      if (
-      Number(
-        line.discountAmount ||
-        0
-      ) >
-      values.gross)
-      {
-        return `Line discount cannot exceed line amount in row ${
-        index + 1}.`;
-
+    const issues = [];
+    const fail = (field, message) => issues.push({ field, message });
+    if (!form.invoiceDate) fail("invoiceDate", "Invoice date is required.");
+    if (!form.customerId) fail("customerId", "Customer is required.");
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index];
+      const key = (field) => `lines.${index}.${field}`;
+      if (!line.itemId || !getItem(line.itemId)) fail(key("itemId"), `Item is required in row ${index + 1}.`);
+      const qty = Number(line.quantity);
+      if (!line.quantity || !Number.isFinite(qty) || qty <= 0) fail(key("quantity"), `Quantity must be greater than zero in row ${index + 1}.`);
+      const rate = Number(line.rate);
+      if (line.rate === "" || !Number.isFinite(rate) || rate < 0) fail(key("rate"), `Enter a valid rate in row ${index + 1}.`);
+      const discount = Number(line.discountAmount || 0);
+      if (!Number.isFinite(discount) || discount < 0 || discount > calculateLine(line).gross) fail(key("discountAmount"), `Line discount cannot exceed line amount in row ${index + 1}.`);
+      const gst = Number(line.gstRate);
+      if (!Number.isFinite(gst) || gst < 0 || gst > 100) fail(key("gstRate"), `Enter a valid GST percentage in row ${index + 1}.`);
+      if (line.itemId && Number.isFinite(qty) && qty > getStock(line.itemId)) {
+        fail(key("quantity"), `${getItem(line.itemId)?.name || `Row ${index + 1}`}: only ${getStock(line.itemId).toFixed(3)} available in stock.`);
       }
     }
-
-    if (
-    Number(
-      form.discountAmount ||
-      0
-    ) >
-    totals.subtotal)
-    {
-      return "Invoice discount cannot exceed subtotal.";
-    }
-
-    if (
-    Number(
-      form.amountPaid ||
-      0
-    ) >
-    totals.grandTotal)
-    {
-      return "Amount paid cannot exceed grand total.";
-    }
-
-    return null;
+    const invoiceDiscount = Number(form.discountAmount || 0);
+    if (!Number.isFinite(invoiceDiscount) || invoiceDiscount < 0 || invoiceDiscount > totals.subtotal) fail("discountAmount", "Invoice discount cannot exceed subtotal.");
+    const charges = Number(form.otherCharges || 0);
+    if (!Number.isFinite(charges) || charges < 0) fail("otherCharges", "Other charges must be a valid non-negative amount.");
+    const paid = Number(form.amountPaid || 0);
+    if (!Number.isFinite(paid) || paid < 0 || paid > totals.grandTotal) fail("amountPaid", "Amount paid cannot exceed grand total.");
+    return issues;
   };
 
   const handleSave = async () => {
     setMessage("");
     setError("");
 
-    const validationError =
-    validate();
-
-    if (validationError) {
-      setError(
-        validationError
-      );
+    const issues = validate();
+    if (issues.length) {
+      setInvalidFields(Object.fromEntries(issues.map(({ field }) => [field, true])));
+      setError(issues[0].message);
+      toastError(issues[0].message, "Invoice not saved");
+      window.requestAnimationFrame(() => focusInvalidEntryField(pageRef.current, issues[0].field));
       return;
     }
+    setInvalidFields({});
 
     try {
       setSaving(true);
@@ -543,6 +496,7 @@ function Sales() {
       createEmptyLine()]
       );
 
+      setInvalidFields({});
       markWorkspaceTabClean();
       await loadData();
     } catch (err) {
@@ -557,7 +511,7 @@ function Sales() {
   };
 
   return (
-    <div className="transaction-page sales-entry-page">
+    <div ref={pageRef} className="transaction-page sales-entry-page">
       <div className="transaction-intro mb-4">
         <h2 className="mb-1">
           Sales Invoice
@@ -594,6 +548,8 @@ function Sales() {
               <SmartDateInput
 
                 className="form-control"
+                validationError={invalid("invoiceDate")}
+                fieldId="invoiceDate"
                 name="invoiceDate"
                 value={
                 form.invoiceDate
@@ -611,6 +567,8 @@ function Sales() {
 
               <SearchableSelect
                 value={form.customerId}
+                invalid={invalid("customerId")}
+                fieldId="customerId"
                 onChange={(value) =>
                 handleCustomerChange({ target: { value } })
                 }
@@ -694,16 +652,17 @@ function Sales() {
             <button
               type="button"
               className="btn btn-sm btn-primary"
-              onClick={addLine}>
-              
-              + Add Item
+              onClick={addLine}
+              title="Add item (Ctrl+N)">
+
+              + Add Item <span className="entry-shortcut-hint">Ctrl+N</span>
             </button>
           </div>
 
           <div className="table-responsive">
-            <table className="table table-bordered align-middle entry-table">
+            <table className="table table-bordered align-middle entry-table compact-entry-table">
               <thead className="table-light"><tr>
-                <th style={{ minWidth: 240 }}>Product / Name</th><th>HSN</th><th>Qty</th><th>Unit</th><th>Rate</th>
+                <th className="sales-product-name">Product / Name</th><th>HSN</th><th>Qty</th><th>Unit</th><th>Rate</th>
                 <th>Discount</th><th>Taxable</th><th>GST %</th><th>GST Amount</th><th>Total</th><th>Available</th><th>Lot</th><th>Action</th>
               </tr></thead>
 
@@ -744,6 +703,8 @@ function Sales() {
                         <td>
                           <SearchableSelect
                             value={line.itemId}
+                            invalid={invalid(`lines.${index}.itemId`)}
+                            fieldId={`lines.${index}.itemId`}
                             onChange={(value) =>
                             handleProductChange(index, value)
                             }
@@ -770,11 +731,14 @@ function Sales() {
 
 
                         <td>
-                          <input
+                          <AutoWidthEntryInput
                             type="number"
                             min="0"
                             step="0.001"
-                            className="form-control"
+                            className="sales-quantity"
+                            invalid={invalid(`lines.${index}.quantity`)}
+                            data-entry-field={`lines.${index}.quantity`}
+                            minChars={5} maxChars={14}
                             value={
                             line.quantity
                             }
@@ -797,11 +761,14 @@ function Sales() {
                         </td>
 
                         <td>
-                          <input
+                          <AutoWidthEntryInput
                             type="number"
                             min="0"
                             step="0.01"
-                            className="form-control"
+                            className="sales-rate"
+                            invalid={invalid(`lines.${index}.rate`)}
+                            data-entry-field={`lines.${index}.rate`}
+                            minChars={6} maxChars={17}
                             value={
                             line.rate
                             }
@@ -819,11 +786,14 @@ function Sales() {
                         </td>
 
                         <td>
-                          <input
+                          <AutoWidthEntryInput
                             type="number"
                             min="0"
                             step="0.01"
-                            className="form-control"
+                            className="sales-discount-amount"
+                            invalid={invalid(`lines.${index}.discountAmount`)}
+                            data-entry-field={`lines.${index}.discountAmount`}
+                            minChars={6} maxChars={16}
                             value={
                             line.discountAmount
                             }
@@ -850,11 +820,14 @@ function Sales() {
                         </td>
 
                         <td>
-                          <input
+                          <AutoWidthEntryInput
                             type="number"
                             min="0"
                             step="0.01"
-                            className="form-control"
+                            className="sales-gstRate"
+                            invalid={invalid(`lines.${index}.gstRate`)}
+                            data-entry-field={`lines.${index}.gstRate`}
+                            minChars={3} maxChars={6}
                             value={
                             line.gstRate
                             }
@@ -894,9 +867,10 @@ function Sales() {
                         </td>
 
                         <td>
-                          <input
+                          <AutoWidthEntryInput
                             type="text"
-                            className="form-control"
+                            className="sales-lot"
+                            minChars={8} maxChars={20}
                             value={
                             line.lotNo
                             }
@@ -974,7 +948,8 @@ function Sales() {
                     type="number"
                     min="0"
                     step="0.01"
-                    className="form-control"
+                    className={`form-control ${invalid("discountAmount") ? "is-invalid" : ""}`}
+                data-entry-field="discountAmount"
                     name="discountAmount"
                     value={
                     form.discountAmount
@@ -994,7 +969,8 @@ function Sales() {
                     type="number"
                     min="0"
                     step="0.01"
-                    className="form-control"
+                    className={`form-control ${invalid("otherCharges") ? "is-invalid" : ""}`}
+                data-entry-field="otherCharges"
                     name="otherCharges"
                     value={
                     form.otherCharges
@@ -1014,7 +990,8 @@ function Sales() {
                     type="number"
                     min="0"
                     step="0.01"
-                    className="form-control"
+                    className={`form-control ${invalid("amountPaid") ? "is-invalid" : ""}`}
+                data-entry-field="amountPaid"
                     name="amountPaid"
                     value={
                     form.amountPaid

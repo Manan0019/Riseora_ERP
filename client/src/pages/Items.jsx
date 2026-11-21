@@ -6,6 +6,7 @@ import { useWorkspaceTab } from "../context/WorkspaceTabContext";
 import MasterEditorModal from "../components/MasterEditorModal";
 import SortableTh, { useSortableRows } from "../components/SortableTh";
 import { sameForm, toTitleCase } from "../utils/textFormat";
+import { clearInvalidField } from "../utils/entryValidation";
 
 const emptyForm = {
   code: "",
@@ -59,6 +60,7 @@ function Items() {
   const [saving, setSaving] = useState(false);
   const [customCode, setCustomCode] = useState(false);
   const [error, setError] = useState("");
+  const [invalidFields, setInvalidFields] = useState({});
 
   useEffect(() => { if (workspaceTabActive) loadItems(); }, [showInactive, workspaceTabActive]);
   useEffect(() => { if (workspaceTabActive) loadLookups(); }, [workspaceTabActive]);
@@ -79,6 +81,7 @@ function Items() {
     setOriginalForm(mapped);
     setEditing(false);
     setModalOpen(true);
+    setInvalidFields({});
     setError("");
   }, [items, searchParams, selectedId, showInactive]);
 
@@ -153,6 +156,7 @@ function Items() {
     setOriginalForm(emptyForm);
     setEditing(true);
     setModalOpen(true);
+    setInvalidFields({});
     setError("");
   }
 
@@ -165,6 +169,7 @@ function Items() {
     setOriginalForm(mapped);
     setEditing(false);
     setModalOpen(true);
+    setInvalidFields({});
     setError("");
   }
 
@@ -188,6 +193,7 @@ function Items() {
 
   function handleChange(event) {
     const { name, value, type, checked } = event.target;
+    clearInvalidField(setInvalidFields, name);
     if (name === "code") setCustomCode(Boolean(value.trim()));
     if (name === "categoryId" && !selectedId) setCustomCode(false);
     setForm((current) => ({
@@ -197,23 +203,31 @@ function Items() {
   }
 
   function validate(payload) {
-    if (!payload.code.trim() && selectedId) return "Item code is required.";
-    if (!payload.name.trim()) return "Item name is required.";
-    if (!payload.categoryId) return "Category is required.";
-    if (!payload.baseUnitId) return "Base unit is required.";
-    if (Number(payload.reorderLevel) < 0) return "Reorder level cannot be negative.";
-    if (payload.density && Number(payload.density) <= 0) return "Density must be greater than zero.";
-    if (Number(payload.defaultSellingPrice || 0) < 0) return "Default selling price cannot be negative.";
-    if (Number(payload.targetMarginPercent || 0) < 0 || Number(payload.targetMarginPercent || 0) >= 100) return "Target margin must be between 0 and less than 100 percent.";
-    if (Number(payload.defaultGstRate || 0) < 0 || Number(payload.defaultGstRate || 0) > 100) return "Default GST rate must be between 0 and 100 percent.";
-    return null;
+    const issues = [];
+    const fail = (field, message) => issues.push({ field, message });
+    if (!payload.code.trim() && selectedId) fail("code", "Item code is required.");
+    if (!payload.name.trim()) fail("name", "Item name is required.");
+    if (!payload.categoryId) fail("categoryId", "Category is required.");
+    if (!payload.baseUnitId) fail("baseUnitId", "Base unit is required.");
+    if (Number(payload.reorderLevel) < 0) fail("reorderLevel", "Reorder level cannot be negative.");
+    if (payload.density && Number(payload.density) <= 0) fail("density", "Density must be greater than zero.");
+    if (Number(payload.defaultSellingPrice || 0) < 0) fail("defaultSellingPrice", "Default selling price cannot be negative.");
+    if (Number(payload.targetMarginPercent || 0) < 0 || Number(payload.targetMarginPercent || 0) >= 100) fail("targetMarginPercent", "Target margin must be between 0 and less than 100 percent.");
+    if (Number(payload.defaultGstRate || 0) < 0 || Number(payload.defaultGstRate || 0) > 100) fail("defaultGstRate", "Default GST rate must be between 0 and 100 percent.");
+    return issues;
   }
 
   async function save(closeAfter) {
     setError("");
     const payload = { ...form, name: toTitleCase(form.name) };
-    const validationError = validate(payload);
-    if (validationError) { setError(validationError); toastError(validationError, "Check item details"); return; }
+    const issues = validate(payload);
+    if (issues.length) {
+      setInvalidFields(Object.fromEntries(issues.map(({ field }) => [field, true])));
+      setError(issues[0].message);
+      toastError(issues[0].message, "Check item details");
+      return;
+    }
+    setInvalidFields({});
 
     try {
       setSaving(true);
@@ -232,6 +246,7 @@ function Items() {
       setEditing(!closeAfter);
       await loadItems();
       markWorkspaceTabClean();
+      setInvalidFields({});
       toastSuccess(selectedId ? "Item updated successfully." : "Item created successfully.", "Item saved");
       if (closeAfter) {
         setModalOpen(false);
@@ -266,6 +281,7 @@ function Items() {
       setModalOpen(false);
       clearRecordQuery();
       markWorkspaceTabClean();
+      setInvalidFields({});
       toastSuccess(`Item ${activating ? "activated" : "deactivated"} successfully.`);
     } catch (err) {
       const message = err.response?.data?.message || "Unable to update item status.";
@@ -332,6 +348,7 @@ function Items() {
 
       <MasterEditorModal
         open={modalOpen}
+        invalidFields={invalidFields}
         size="xl"
         title={selectedId ? (editing ? `Edit Item — ${selectedItem?.name || form.name}` : `Item Details — ${selectedItem?.name || form.name}`) : "New Item"}
         subtitle="Right-click a misspelled word for suggestions. Item names are normalized to title case when saved."

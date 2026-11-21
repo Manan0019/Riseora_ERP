@@ -820,3 +820,115 @@ input[type="number"] {
   .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .sidebar-heading { height: 20px; min-height: 20px; padding: 0; }
 }
 @media (max-width: 991.98px) { .topbar-collapse-button { display: none; } }
+
+/* ---------- Owner refinement: compact value-sized transaction columns ---------- */
+/* An entry begins narrow; its cell and column grow only as its content grows. */
+.purchase-entry-page .entry-table.compact-entry-table,
+.sales-entry-page .entry-table.compact-entry-table {
+  width: max-content;
+  min-width: 0;
+  max-width: none;
+  table-layout: auto;
+}
+.purchase-entry-page .compact-entry-table th,
+.purchase-entry-page .compact-entry-table td,
+.sales-entry-page .compact-entry-table th,
+.sales-entry-page .compact-entry-table td {
+  width: 1%;
+  min-width: 0;
+  white-space: nowrap;
+  padding: 5px 6px;
+}
+.purchase-entry-page .compact-entry-table th:first-child,
+.purchase-entry-page .compact-entry-table td:first-child,
+.sales-entry-page .compact-entry-table th:first-child,
+.sales-entry-page .compact-entry-table td:first-child {
+  width: 232px;
+  min-width: 220px;
+}
+.purchase-entry-page .compact-entry-table .searchable-select,
+.sales-entry-page .compact-entry-table .searchable-select {
+  width: 220px;
+  min-width: 220px;
+}
+.purchase-entry-page .compact-entry-table input.auto-width-entry-input,
+.sales-entry-page .compact-entry-table input.auto-width-entry-input,
+.master-modal-body .purchase-editor-embedded .compact-entry-table input.auto-width-entry-input {
+  min-width: 0 !important;
+  max-width: none;
+  min-height: 30px;
+  padding: 3px 5px;
+  font-size: 12px;
+  flex: 0 0 auto;
+}
+.purchase-entry-page .compact-entry-table input.auto-width-entry-input[type="number"],
+.sales-entry-page .compact-entry-table input.auto-width-entry-input[type="number"] {
+  text-align: right;
+}
+.purchase-entry-page .compact-entry-table .purchase-qty,
+.purchase-entry-page .compact-entry-table .purchase-money,
+.purchase-entry-page .compact-entry-table .purchase-gst,
+.purchase-entry-page .compact-entry-table .purchase-lot,
+.sales-entry-page .compact-entry-table input.auto-width-entry-input {
+  /* Replaces the previous 65/75/95px fixed minimums. */
+  min-width: 0 !important;
+}
+.purchase-entry-page .compact-entry-table .purchase-unit { width: 64px; min-width: 64px; }
+.purchase-entry-page .compact-entry-table .smart-date-input { min-width: 117px; width: 117px; }
+.entry-shortcut-hint { margin-left: 6px; padding-left: 6px; border-left: 1px solid currentColor; font-size: 10px; font-weight: 600; opacity: .85; }
+
+/* ---------- Owner refinement: darker accessible text, without recoloring action buttons ---------- */
+:root {
+  --riseora-text: #242424;
+  --riseora-muted: #4b4f56;
+  --bs-body-color: #242424;
+  --bs-secondary-color: #4b4f56;
+  --bs-tertiary-color: #50535b;
+}
+body, .content-area, .master-modal-body, .ui-dialog-card { color: var(--riseora-text); }
+.content-area :is(.form-label, .transaction-mini-title, .table th, .table td, .transaction-intro h2),
+.master-modal-body :is(.form-label, .table th, .table td) { color: #282828; }
+.content-area :is(.form-control, .form-select),
+.master-modal-body :is(.form-control, .form-select) { color: #222831; }
+.content-area :is(.text-muted, small.text-muted, .transaction-intro p, .transaction-section-heading p),
+.master-modal-body :is(.text-muted, small.text-muted) { color: #4b4f56 !important; }
+.content-area :is(input, textarea)::placeholder,
+.master-modal-body :is(input, textarea)::placeholder { color: #555e66; opacity: 1; }
+/* Disabled fields stay visually disabled, but their labels should remain legible. */
+.content-area :is(.form-control, .form-select):disabled { color: #555e66; }
+
+/* ---------- Owner refinement: first invalid field in red, plus existing toast ---------- */
+.content-area :is(input.form-control, select.form-select, textarea.form-control).is-invalid,
+.master-modal-body :is(input.form-control, select.form-select, textarea.form-control).is-invalid,
+.content-area :is(input.form-control, select.form-select, textarea.form-control)[aria-invalid="true"],
+.master-modal-body :is(input.form-control, select.form-select, textarea.form-control)[aria-invalid="true"],
+.content-area .smart-date-input.is-invalid,
+.master-modal-body .smart-date-input.is-invalid,
+.content-area .searchable-select.is-invalid input.searchable-select-input,
+.master-modal-body .searchable-select.is-invalid input.searchable-select-input {
+  border: 2px solid #cf303c !important;
+  background-color: #fff6f7;
+  box-shadow: 0 0 0 2px rgba(207,48,60,.10);
+}
+.content-area :is(input.form-control, select.form-select, textarea.form-control):user-invalid,
+.master-modal-body :is(input.form-control, select.form-select, textarea.form-control):user-invalid {
+  border-color: #cf303c;
+}
+
+/* ---------- Owner refinement: collapsed sidebar shows the logo mark, not letter R ---------- */
+.brand-logo-mark { display: none; }
+@media (min-width: 992px) {
+  .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .brand-link::after { content: none; display: none; }
+  .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .brand-logo-mark {
+    display: block;
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+    object-position: center;
+    border-radius: 9px;
+  }
+}
+/* Header/nav/helper labels should be as legible as the form labels. */
+.sidebar-heading { color: #423a37; }
+.sidebar-link, .sidebar-label, .workspace-tab, .topbar-tool-button, .topbar-logout { color: #353535; }
+.user-copy small, .transaction-section-heading p, .transaction-intro p { color: #4b4f56; }
