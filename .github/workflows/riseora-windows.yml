@@ -18,10 +18,10 @@ jobs:
 
     steps:
       - name: Checkout Riseora ERP
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
 
@@ -59,7 +59,7 @@ jobs:
           Get-FileHash -LiteralPath $installer -Algorithm SHA256 | Format-List
 
       - name: Upload installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Riseora-ERP-Windows-${{ github.run_number }}
           path: desktop/release/Riseora-ERP-Setup-*.exe
