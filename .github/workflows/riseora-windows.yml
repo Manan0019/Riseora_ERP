@@ -22,6 +22,20 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Synchronize and validate application version
+        id: version
+        shell: pwsh
+        run: |
+          node scripts/version.mjs
+          if ($LASTEXITCODE -ne 0) { throw "Version synchronization failed" }
+          node scripts/version.mjs --check
+          if ($LASTEXITCODE -ne 0) { throw "Version validation failed" }
+          $version = node scripts/version.mjs --print
+          if ($LASTEXITCODE -ne 0) { throw "Unable to read version" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          node --test scripts/version.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw "Version tests failed" }
+
       - name: Install backend dependencies
         working-directory: server
         run: npm ci
@@ -49,20 +63,17 @@ jobs:
       - name: Verify output and print SHA256
         shell: pwsh
         run: |
-          $version = (Get-Content 'desktop/package.json' -Raw | ConvertFrom-Json).version
+          $version = node scripts/version.mjs --print
+          if ($LASTEXITCODE -ne 0) { throw "Unable to read version" }
           $installer = "desktop/release/Riseora-ERP-Setup-$version.exe"
-          if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) {
-            throw "Installer not found: $installer"
-          }
-          if ((Get-Item -LiteralPath $installer).Length -lt 10MB) {
-            throw "Installer unexpectedly small: $installer"
-          }
+          node scripts/version.mjs --verify-installer $installer
+          if ($LASTEXITCODE -ne 0) { throw "Installer version verification failed" }
           Get-FileHash -LiteralPath $installer -Algorithm SHA256 | Format-List
 
       - name: Upload installer
         uses: actions/upload-artifact@v7
         with:
-          name: Riseora-ERP-Windows-${{ github.run_number }}
-          path: desktop/release/Riseora-ERP-Setup-*.exe
+          name: Riseora-ERP-Windows-${{ steps.version.outputs.version }}-${{ github.run_number }}
+          path: desktop/release/Riseora-ERP-Setup-${{ steps.version.outputs.version }}.exe
           if-no-files-found: error
           retention-days: 7

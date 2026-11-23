@@ -99,8 +99,12 @@ npm run build:win
 
 Expected installer:
 
+The version comes from root `version.json`. Desktop preparation automatically
+synchronizes package and lockfile metadata before building. Edit only that file
+for a release; see the root README for version validation commands.
+
 ```text
-desktop\release\Riseora-ERP-Setup-1.0.0.exe
+desktop\release\Riseora-ERP-Setup-<version>.exe
 ```
 
 Give that installer to the owner.

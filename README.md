@@ -340,7 +340,7 @@ The business owner does **not** need to install or run:
 A Windows installer can be generated as:
 
 ```text
-Riseora-ERP-Setup-1.0.0.exe
+Riseora-ERP-Setup-<version>.exe
 ```
 
 The current unsigned trial installer may display a Windows **Unknown Publisher / SmartScreen** warning.
@@ -517,7 +517,7 @@ From the project root:
 Expected installer output:
 
 ```text
-desktop\release\Riseora-ERP-Setup-1.0.0.exe
+desktop\release\Riseora-ERP-Setup-<version>.exe
 ```
 
 The installer build intentionally excludes:
@@ -527,6 +527,54 @@ The installer build intentionally excludes:
 - `.dev-user-data`
 - local session secrets
 - SMTP credentials
+
+### Application version (single source of truth)
+
+Edit only the root `version.json` for a release:
+
+```json
+{
+  "version": "1.1.4"
+}
+```
+
+Changing this to `1.1.5` makes the sidebar show `Version 1.1.5 · Local business system`,
+the health API return `version: "1.1.5"`, Electron report `1.1.5`, and the installer
+use `Riseora-ERP-Setup-1.1.5.exe`. These numbers are examples; read `version.json`
+for the current release. Do not manually maintain package or lockfile versions.
+
+Synchronization runs automatically before frontend `npm run dev` / `npm run build`,
+backend `npm run dev` / `npm start`, and desktop `npm start`, `npm run prepare:app`,
+`npm run build:dir`, and `npm run build:win`. Restart running backend/Electron
+processes and rebuild production assets after changing the version. `npm run preview`
+serves the last frontend build, so rebuild first. Invoke the npm workflows instead of
+calling `node src/app.js`, `electron .`, or Electron Builder directly.
+
+From the repository root, these dependency-free commands are also available:
+
+```bash
+node scripts/version.mjs                    # synchronize package/lock root versions
+node scripts/version.mjs --check            # fail on inconsistency without writing
+node --test scripts/version.test.mjs        # isolated version-management tests
+node scripts/version.mjs --verify-installer # check expected EXE filename and size
+```
+
+Run synchronization before manual `npm ci` installs. GitHub Actions and the Windows
+build script already do this. Commit the synchronized metadata with the central
+version change; it is derived output, not another version to edit manually.
+The synchronizer preserves dependencies, scripts, app identity, and other metadata.
+
+Vite bundles the root JSON import into React; the installed frontend does not fetch
+a repository file. The health API reads `server/package.json`, which desktop
+preparation copies into the packaged backend. Electron Builder and the About dialog
+use the synchronized desktop package version. Historical release notes, migration
+names, and regression-test names retain their original release references.
+
+GitHub Actions synchronizes and validates before dependency installation, retains
+both business regression suites, builds the installer, verifies its name and size,
+and uploads only the EXE for the selected version. `npm run build:win` also verifies
+the output automatically. Installer verification checks naming/existence/size;
+it does not replace installing and testing the application on a Windows test user.
 
 ---
 

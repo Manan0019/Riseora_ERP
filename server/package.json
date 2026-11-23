@@ -5,7 +5,9 @@
   "description": "Riseora ERP local API",
   "main": "index.js",
   "scripts": {
+    "predev": "node ../scripts/version.mjs",
     "dev": "nodemon src/app.js",
+    "prestart": "node ../scripts/version.mjs",
     "start": "node src/app.js",
     "test:regression": "node scripts/regressionTest.js",
     "prepare:production": "node scripts/prepareProduction.js",

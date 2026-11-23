@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { syncVersion } from "../../scripts/version.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,6 +16,9 @@ const generatedAppDir = path.join(desktopDir, "app");
 const generatedServerDir = path.join(generatedAppDir, "server");
 const generatedClientDir = path.join(generatedAppDir, "client");
 const buildDir = path.join(desktopDir, "build");
+
+// All desktop start/build commands pass through this preparation step.
+const appVersion = syncVersion();
 
 function fail(message) {
   console.error(`\nPREPARE FAILED: ${message}\n`);
@@ -77,6 +81,9 @@ fs.rmSync(generatedAppDir, {
 fs.mkdirSync(generatedServerDir, { recursive: true });
 fs.mkdirSync(generatedClientDir, { recursive: true });
 fs.mkdirSync(buildDir, { recursive: true });
+
+// Preserve the backend's ESM scope and synchronized runtime version metadata.
+fs.copyFileSync(path.join(serverDir, "package.json"), path.join(generatedServerDir, "package.json"));
 
 fs.cpSync(
   path.join(serverDir, "src"),
@@ -232,6 +239,8 @@ if (copiedDbFiles.length > 0) {
 }
 
 console.log("\nDesktop payload ready.");
+syncVersion({ check: true });
+console.log(`Application version: ${appVersion}`);
 console.log(`Server copied from: ${path.join(serverDir, "src")}`);
 console.log(`Client copied from: ${clientDist}`);
 console.log("Database copied: NO");

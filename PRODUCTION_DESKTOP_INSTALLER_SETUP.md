@@ -5,7 +5,7 @@
 Produce one normal Windows installer:
 
 ```text
-Riseora-ERP-Setup-1.0.0.exe
+Riseora-ERP-Setup-<version>.exe
 ```
 
 The owner installs Riseora ERP and starts it from a Desktop/Start Menu shortcut. They do not need Node.js, Vite, PowerShell, or separate backend/frontend terminals.
@@ -145,14 +145,14 @@ npm run build:win
 Expected:
 
 ```text
-D:\Manan\Website\Riseora Herbals\Riseora ERP\desktop\release\Riseora-ERP-Setup-1.0.0.exe
+D:\Manan\Website\Riseora Herbals\Riseora ERP\desktop\release\Riseora-ERP-Setup-<version>.exe
 ```
 
 ## Step 5 — test the real installer
 
 Preferably use another Windows user profile or another Windows PC.
 
-1. Run `Riseora-ERP-Setup-1.0.0.exe`.
+1. Run `Riseora-ERP-Setup-<version>.exe` (`<version>` comes from root `version.json`).
 2. Complete installer.
 3. Launch from Desktop shortcut.
 4. First-run setup should appear.

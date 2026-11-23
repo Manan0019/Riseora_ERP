@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { version as appVersion } from "../../../version.json";
 import { NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import AppIcon from "../components/AppIcon";
@@ -792,7 +793,7 @@ function MainLayout() {
 
         <div className="sidebar-footer">
           <div className="sidebar-footer-dot" />
-          <div><strong>Riseora ERP</strong><small>Version 1.1.3 · Local business system</small></div>
+          <div><strong>Riseora ERP</strong><small>Version {appVersion} · Local business system</small></div>
         </div>
       </aside>
 

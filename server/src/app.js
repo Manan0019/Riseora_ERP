@@ -38,6 +38,9 @@ import { initDatabase } from "./db/initDatabase.js";
 
 dotenv.config();
 
+// Included in the desktop payload; no repository-root dependency at runtime.
+const appVersion = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
+
 const app = express();
 const PORT = Number(process.env.PORT || 5000);
 const isProduction = process.env.NODE_ENV === "production";
@@ -86,7 +89,7 @@ app.use('/api', (req, res, next) => {
 });
 
 app.get("/api/health", (_req, res) => {
-  res.status(200).json({ success: true, message: "Riseora ERP API is running", version: "1.1.4" });
+  res.status(200).json({ success: true, message: "Riseora ERP API is running", version: appVersion });
 });
 
 app.use("/api/auth", authRoutes);
