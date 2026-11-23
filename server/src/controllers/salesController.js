@@ -1,5 +1,6 @@
 import {
   createSale,
+  replaceUnpaidSale,
   getSalesInvoices,
   getSalesInvoiceById,
   addSalesPayment,
@@ -434,5 +435,18 @@ export function salesCreditNoteDetails(
         message:
           "Unable to load sales credit note.",
       });
+  }
+}
+
+export function replaceSalesInvoice(req, res) {
+  try {
+    const result = replaceUnpaidSale(req.params.id, req.body || {});
+    return res.status(201).json({
+      success: true,
+      message: `${result.correctedInvoiceNo} was cancelled and replaced by ${result.invoiceNo}. Both entries remain in the register for audit.`,
+      sale: result,
+    });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error?.message || 'Unable to correct invoice.' });
   }
 }

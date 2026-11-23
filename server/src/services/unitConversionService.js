@@ -287,7 +287,8 @@ export function convertToItemBaseUnit(
     );
 
   const quantityInBaseUnit =
-    convertQuantityByUnitIds(
+    convertItemQuantityByUnitIds(
+      itemId,
       quantity,
       fromUnitId,
       itemBaseUnit.unitId
@@ -315,9 +316,46 @@ export function convertFromItemBaseUnit(
       itemId
     );
 
-  return convertQuantityByUnitIds(
+  return convertItemQuantityByUnitIds(
+    itemId,
     quantity,
     itemBaseUnit.unitId,
     toUnitId
   );
+}
+/**
+ * Explicit per-material density bridges weight and volume.
+ * Density is grams per mL, numerically equal to kg per L.
+ * No cross-family fallback to 1:1 is permitted.
+ */
+export function convertQuantityWithDensity(quantity, fromUnitCode, toUnitCode, density, itemName = 'Item') {
+  const fromCode = normalizeUnitCode(fromUnitCode);
+  const toCode = normalizeUnitCode(toUnitCode);
+  const from = UNIT_DEFINITIONS[fromCode];
+  const to = UNIT_DEFINITIONS[toCode];
+  if (fromCode === toCode || (from && to && from.family === to.family)) {
+    return convertQuantity(quantity, fromCode, toCode);
+  }
+  if (!from || !to || !['WEIGHT', 'VOLUME'].includes(from.family) || !['WEIGHT', 'VOLUME'].includes(to.family)) {
+    throw new Error(`${itemName}: ${fromCode} cannot be converted to ${toCode}.`);
+  }
+  // Do not let null or blank turn into density 0 or 1.
+  const numericDensity = density == null || String(density).trim() === '' ? NaN : Number(density);
+  if (!Number.isFinite(numericDensity) || numericDensity <= 0) {
+    throw new Error(`${itemName}: enter actual density (g/mL) in Item Master to convert ${fromCode} to ${toCode}.`);
+  }
+  const qty = Number(quantity);
+  if (!Number.isFinite(qty)) throw new Error(`${itemName}: invalid quantity.`);
+  const canonical = qty * from.factorToBase;
+  return from.family === 'WEIGHT'
+    ? (canonical / numericDensity) / to.factorToBase
+    : (canonical * numericDensity) / to.factorToBase;
+}
+
+export function convertItemQuantityByUnitIds(itemId, quantity, fromUnitId, toUnitId) {
+  const material = db.prepare('SELECT name, density FROM items WHERE id = ?').get(Number(itemId));
+  if (!material) throw new Error(`Item not found: ${itemId}`);
+  const fromUnit = getUnitById(fromUnitId);
+  const toUnit = getUnitById(toUnitId);
+  return convertQuantityWithDensity(quantity, fromUnit.code, toUnit.code, material.density, material.name);
 }

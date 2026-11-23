@@ -1,4 +1,4 @@
-import {
+import { backupFileForDownload, stageDatabaseRestore,
   createDatabaseBackup,
   getBackupDirectory,
   listDatabaseBackups,
@@ -65,5 +65,29 @@ export async function createBackup(
           error?.message ||
           "Unable to create database backup.",
       });
+  }
+}
+
+
+export function downloadBackup(req, res) {
+  try {
+    const full = backupFileForDownload(req.params.fileName);
+    res.download(full, req.params.fileName);
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+}
+
+export async function requestDatabaseRestore(req, res) {
+  try {
+    const result = await stageDatabaseRestore(req.body);
+    return res.status(202).json({
+      success: true,
+      message: 'Backup validated and restore scheduled. Close and reopen Riseora ERP to apply it. Do not enter new transactions until restart.',
+      ...result,
+    });
+  } catch (error) {
+    console.error('Database restore staging:', error);
+    return res.status(400).json({ success: false, message: error?.message || 'Unable to stage database restore.' });
   }
 }

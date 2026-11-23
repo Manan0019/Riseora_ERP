@@ -138,7 +138,8 @@ function Formulas() {
       if (unit.code === baseUnit.code) return true;
       const a = STANDARD_UNITS[String(unit.code || "").toUpperCase()];
       const b = STANDARD_UNITS[String(baseUnit.code || "").toUpperCase()];
-      return Boolean(a && b && a.family === b.family);
+      const hasDensity = item.density != null && item.density !== "" && Number(item.density) > 0;
+      return Boolean(a && b && (a.family === b.family || (hasDensity && [a.family, b.family].every((family) => ["WEIGHT", "VOLUME"].includes(family)))));
     });
   };
 
@@ -148,6 +149,8 @@ function Formulas() {
     return compatibleUnitsForItem(finished);
   }, [finishedItems, units, form.finishedItemId]);
 
+  // Mixing a 100 g composition with ingredients measured in mL requires each
+  // liquid ingredient's actual g/mL density in Item Master; no water-only 1:1 guess.
   const compositionUnits = useMemo(
     () => units.filter((unit) => ["G", "KG", "ML", "L"].includes(String(unit.code || "").toUpperCase())),
     [units],

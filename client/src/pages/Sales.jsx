@@ -13,10 +13,11 @@ const createEmptyLine = () => ({
   rate: "",
   discountAmount: "0",
   gstRate: "0",
+  hsnCode: "",
   lotNo: ""
 });
 
-function Sales() {
+function Sales({ initialSale = null, onSaved = null }) {
   const { success: toastSuccess, error: toastError } = useUi();
   const { active: workspaceTabActive, markClean: markWorkspaceTabClean } = useWorkspaceTab();
   const today = new Date().toISOString().slice(0, 10);
@@ -27,22 +28,26 @@ function Sales() {
   const [company, setCompany] = useState(null);
 
   const [form, setForm] = useState({
-    invoiceDate: today,
-    customerId: "",
-    customerReference: "",
-    discountAmount: "0",
-    otherCharges: "0",
+    invoiceDate: initialSale?.invoice_date || today,
+    customerId: String(initialSale?.customer_id || ""),
+    customerReference: initialSale?.customer_reference || "",
+    discountAmount: String(initialSale?.discount_amount ?? 0),
+    otherCharges: String(initialSale?.other_charges ?? 0),
     amountPaid: "0",
     paymentMode: "CASH",
     paymentReference: "",
-    notes: "",
-    placeOfSupply: "",
-    taxType: "AUTO"
+    notes: initialSale?.notes || "",
+    placeOfSupply: initialSale?.place_of_supply || "",
+    taxType: initialSale?.tax_type || "AUTO"
   });
 
-  const [lines, setLines] = useState([
-  createEmptyLine()]
-  );
+  const [lines, setLines] = useState(() => initialSale?.items?.length
+    ? initialSale.items.map((item) => ({
+      itemId: String(item.item_id), quantity: String(item.quantity), rate: String(item.rate),
+      discountAmount: String(item.discount_amount ?? 0), gstRate: String(item.gst_rate ?? 0),
+      hsnCode: String(item.hsn_code || ""), lotNo: item.lot_no || "",
+    }))
+    : [createEmptyLine()]);
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -155,6 +160,7 @@ function Sales() {
         )
       ) :
       "",
+      hsnCode: String(selectedProduct?.hsn_code || ""),
       gstRate: selectedProduct ?
       String(
         Number(
@@ -234,9 +240,8 @@ function Sales() {
       item.id === Number(itemId)
     );
 
-    return Number(
-      result?.current_stock || 0
-    );
+    const alreadySold = initialSale?.items?.find((item) => Number(item.item_id) === Number(itemId));
+    return Number(result?.current_stock || 0) + Number(alreadySold?.quantity || 0);
   };
 
   const calculateLine = (line) => {
@@ -391,8 +396,8 @@ function Sales() {
       setSaving(true);
 
       const response =
-      await api.post(
-        "/sales",
+      await api[initialSale ? "put" : "post"](
+        initialSale ? `/sales/${initialSale.id}/replace` : "/sales",
         {
           invoiceDate:
           form.invoiceDate,
@@ -461,6 +466,7 @@ function Sales() {
                 0
               ),
 
+              hsnCode: String(line.hsnCode || "").trim(),
               gstRate:
               Number(
                 line.gstRate ||
@@ -474,7 +480,10 @@ function Sales() {
         }
       );
 
-      const successMessage = `Invoice ${response.data.sale.invoiceNo} saved successfully.`;
+      const successMessage = initialSale
+        ? `Invoice ${initialSale.invoice_no} replaced by ${response.data.sale.invoiceNo}. Original remains cancelled for audit.`
+        : `Invoice ${response.data.sale.invoiceNo} saved successfully.`;
+      if (initialSale && onSaved) { toastSuccess(successMessage, "Invoice corrected"); onSaved(response.data.sale); return; }
       setMessage(successMessage);
       toastSuccess(successMessage, "Sales invoice posted");
 
@@ -514,11 +523,11 @@ function Sales() {
     <div ref={pageRef} className="transaction-page sales-entry-page">
       <div className="transaction-intro mb-4">
         <h2 className="mb-1">
-          Sales Invoice
+          {initialSale ? `Correct ${initialSale.invoice_no}` : "Sales Invoice"}
         </h2>
 
         <p className="text-muted mb-0">
-          Create customer invoices and deduct finished goods stock.
+          {initialSale ? "This posts a corrected invoice with a NEW number and retains the original as cancelled. Only unpaid invoices without later stock movements can be corrected." : "Create customer invoices and deduct finished goods stock."}
         </p>
       </div>
 
@@ -725,7 +734,7 @@ function Sales() {
                         </td>
 
                         <td>
-                          {item?.hsn_code || "-"}
+                          <input type="text" aria-label={`HSN row ${index + 1}`} className="form-control entry-hsn-input" maxLength={16} value={line.hsnCode} onChange={(event) => handleLineChange(index, "hsnCode", event.target.value.toUpperCase())} />
                         </td>
 
 

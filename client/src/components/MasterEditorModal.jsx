@@ -15,6 +15,7 @@ function MasterEditorModal({
   const dialogRef = useRef(null);
   const lastInvalidKeysRef = useRef(new Set());
   const closeHandlerRef = useRef(onRequestClose);
+  const focusBeforeModal = useRef(null);
   const { active: workspaceTabActive } = useWorkspaceTab();
 
   /* Keep the newest close callback without restarting the focus effect. */
@@ -26,6 +27,7 @@ function MasterEditorModal({
     if (!open || !workspaceTabActive) return undefined;
 
     const previousOverflow = document.body.style.overflow;
+    focusBeforeModal.current = document.activeElement;
     document.body.style.overflow = "hidden";
 
     /*
@@ -41,6 +43,22 @@ function MasterEditorModal({
     }, 30);
 
     const handleKeyDown = (event) => {
+      if (event.key === "Tab" && dialogRef.current) {
+        const candidates = [...dialogRef.current.querySelectorAll(
+          'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',
+        )].filter((element) => element.getClientRects().length > 0);
+        if (candidates.length) {
+          const first = candidates[0];
+          const last = candidates[candidates.length - 1];
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault(); last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault(); first.focus();
+          } else if (!dialogRef.current.contains(document.activeElement)) {
+            event.preventDefault(); first.focus();
+          }
+        }
+      }
       if (event.key === "Escape") {
         event.preventDefault();
         closeHandlerRef.current?.();
@@ -53,6 +71,7 @@ function MasterEditorModal({
       window.clearTimeout(focusTimer);
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
+      if (focusBeforeModal.current?.isConnected) focusBeforeModal.current.focus({preventScroll: true});
     };
   }, [open, workspaceTabActive]);
 

@@ -1,6 +1,6 @@
 {
   "name": "server",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "type": "module",
   "description": "Riseora ERP local API",
   "main": "index.js",
@@ -8,7 +8,8 @@
     "dev": "nodemon src/app.js",
     "start": "node src/app.js",
     "test:regression": "node scripts/regressionTest.js",
-    "prepare:production": "node scripts/prepareProduction.js"
+    "prepare:production": "node scripts/prepareProduction.js",
+    "test:v114": "node scripts/testV114OwnerCorrections.js"
   },
   "keywords": [],
   "author": "",

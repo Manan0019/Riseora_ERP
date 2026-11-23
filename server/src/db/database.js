@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
+import { applyPendingDatabaseRestore } from "./pendingRestore.js";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -16,6 +17,8 @@ const dataDir = path.dirname(dbPath);
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
+
+await applyPendingDatabaseRestore(dbPath, String(process.env.RISEORA_BACKUP_DIR || path.join(dataDir, "backups")));
 
 const db = new Database(dbPath);
 

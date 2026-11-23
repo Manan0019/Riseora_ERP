@@ -227,7 +227,7 @@ export function createSale(data) {
         itemCode: masterItem.code,
         itemName: masterItem.name,
         unitCode: masterItem.unit_code,
-        hsnCode: masterItem.hsn_code || null,
+        hsnCode: String(item.hsnCode ?? masterItem.hsn_code ?? "").trim().toUpperCase() || null,
       };
     });
 
@@ -738,5 +738,49 @@ export function cancelSale(invoiceId) {
     return { invoiceId: invoice.id, invoiceNo: invoice.invoice_no, status: "CANCELLED" };
   });
 
+  return transaction();
+}
+
+/**
+ * Preserve an audit trail when correcting a posted, unpaid invoice.
+ * A replacement receives a new invoice number; the original is retained as CANCELLED.
+ * The entire cancellation-and-repost uses one database transaction, so failures
+ * roll back stock, costing, customer exposure and both invoice records.
+ */
+export function replaceUnpaidSale(invoiceId, data) {
+  const transaction = db.transaction(() => {
+    const existing = getSalesInvoiceById(invoiceId);
+    if (!existing) throw new Error('Sales invoice not found.');
+    if (existing.status !== 'POSTED') throw new Error('Only posted invoices can be corrected.');
+    if (Number(existing.amount_paid || 0) > EPSILON || (existing.payments || []).length) {
+      throw new Error('Payments are recorded against this invoice. Use the payment/refund correction workflow instead.');
+    }
+    if ((existing.credit_notes || []).length || (existing.refunds || []).length) {
+      throw new Error('A return, credit note or refund exists for this invoice. Direct correction is blocked.');
+    }
+    if (Number(data.amountPaid || 0) > EPSILON) {
+      throw new Error('Post a corrected invoice unpaid, then record payment separately.');
+    }
+    // Never recost a historical sale after later stock activity for its items.
+    for (const item of existing.items) {
+      const original = db.prepare(`
+        SELECT id FROM stock_transactions
+        WHERE reference_type = 'SALE' AND reference_id = ? AND item_id = ?
+          AND transaction_type = 'SALE' ORDER BY id DESC LIMIT 1
+      `).get(existing.id, item.item_id);
+      if (!original) throw new Error('Original stock movement is missing; correction is blocked.');
+      const later = db.prepare('SELECT id FROM stock_transactions WHERE item_id = ? AND id > ? LIMIT 1')
+        .get(item.item_id, original.id);
+      if (later) throw new Error(`${item.item_name}: stock moved after this sale. Use an auditable return/credit note instead.`);
+    }
+    const originalNo = existing.invoice_no;
+    cancelSale(existing.id);
+    const replacement = createSale({
+      ...data,
+      amountPaid: 0,
+      notes: [`Correction of ${originalNo}`, String(data.notes || '').trim()].filter(Boolean).join(' | '),
+    });
+    return {...replacement, correctedInvoiceNo: originalNo};
+  });
   return transaction();
 }

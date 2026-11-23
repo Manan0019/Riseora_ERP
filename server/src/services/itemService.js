@@ -153,6 +153,24 @@ export function updateItem(id, data) {
     }
   }
 
+  // Existing production plans/consumption were calculated using the previous density.
+  // Changing it afterward could silently reinterpret historical g/mL conversions.
+  const previousDensity = existingItem.density == null ? null : Number(existingItem.density);
+  if (previousDensity !== inventory.density) {
+    const productionUsesItem = db.prepare(`
+      SELECT 1 AS used FROM production_batches pb
+      WHERE pb.status <> 'CANCELLED'
+        AND (pb.finished_item_id = ? OR EXISTS (
+          SELECT 1 FROM formula_items fi
+          WHERE fi.formula_id = pb.formula_id AND fi.ingredient_item_id = ?
+        ))
+      LIMIT 1
+    `).get(itemId, itemId);
+    if (productionUsesItem) {
+      throw new Error('Density is locked after this item is used in production. Create a new item/version to change its conversion basis.');
+    }
+  }
+
   db.prepare(`
     UPDATE items
     SET code = ?, name = ?, category_id = ?, base_unit_id = ?, reorder_level = ?,

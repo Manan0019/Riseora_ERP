@@ -1,10 +1,18 @@
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 import Database from "better-sqlite3";
 
 import db from "../db/database.js";
+import {
+  RESTORE_STAGE_FILE,
+  RESTORE_MARKER_FILE,
+  validateRiseoraDatabase,
+  sha256File,
+} from '../db/pendingRestore.js';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -338,4 +346,49 @@ export function cleanupOldBackups(
   }
 
   return removed;
+}
+
+// Cross-PC restore: only stage a verified .db, never alter the active DB.
+
+export function backupFileForDownload(fileName) {
+  const safeName = String(fileName || '');
+  if (!/^[A-Za-z0-9_.-]+\.db$/i.test(safeName) || path.basename(safeName) !== safeName) {
+    throw new Error('Invalid backup filename.');
+  }
+  const full = path.join(getBackupDirectory(), safeName);
+  verifyBackupFile(full);
+  return full;
+}
+
+export async function stageDatabaseRestore(bytes) {
+  if (!Buffer.isBuffer(bytes) || bytes.length < 4096) throw new Error('Select a valid .db backup file.');
+  if (bytes.length > 250 * 1024 * 1024) throw new Error('Backup exceeds 250 MB transfer limit.');
+  const dataDir = path.dirname(getDatabasePath());
+  const stagePath = path.join(dataDir, RESTORE_STAGE_FILE);
+  const markerPath = path.join(dataDir, RESTORE_MARKER_FILE);
+  if (fs.existsSync(markerPath)) {
+    throw new Error('A restore is already scheduled. Close and reopen Riseora ERP before scheduling another restore.');
+  }
+  const tmpPath = path.join(dataDir, `.riseora-upload-${crypto.randomBytes(8).toString('hex')}.db`);
+  try {
+    fs.writeFileSync(tmpPath, bytes, {flag: 'wx', mode: 0o600});
+    const summary = validateRiseoraDatabase(tmpPath);
+    // Save a complete verified safety backup before scheduling the replacement.
+    const safety = await createNamedBackup('before_restore_request');
+    fs.renameSync(tmpPath, stagePath);
+    try {
+      fs.writeFileSync(markerPath, JSON.stringify({
+        stageFile: RESTORE_STAGE_FILE,
+        sha256: sha256File(stagePath),
+        scheduledAt: new Date().toISOString(),
+        safetyBackup: safety.fileName,
+      }), {flag: 'wx', mode: 0o600});
+    } catch (error) {
+      fs.rmSync(stagePath, {force: true});
+      throw error;
+    }
+    return { summary, safetyBackup: safety.fileName, requiresRestart: true };
+  } finally {
+    fs.rmSync(tmpPath, {force: true});
+  }
 }

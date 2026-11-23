@@ -4,6 +4,7 @@ import {
   addSale,
   listSales,
   salesDetails,
+  replaceSalesInvoice,
   receiveSalesPayment,
   recordSalesRefund,
   cancelSalesInvoice,
@@ -21,6 +22,7 @@ router.get("/credit-notes/:id", salesCreditNoteDetails);
 router.get("/", listSales);
 router.post("/", addSale);
 
+router.put("/:id/replace", replaceSalesInvoice);
 router.get("/:id/returnable", returnableSaleDetails);
 router.post("/:id/credit-note", addSalesCreditNote);
 router.post("/:id/payments", receiveSalesPayment);

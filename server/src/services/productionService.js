@@ -14,8 +14,7 @@ import {
 } from "./costService.js";
 
 import {
-  convertQuantity,
-  convertQuantityByUnitIds,
+  convertItemQuantityByUnitIds,
   getItemBaseUnit,
   getUnitById,
 } from "./unitConversionService.js";
@@ -132,7 +131,7 @@ function calculateRequirementsFromFormula(formula, requiredBatchSize) {
   for (const ingredient of formula.ingredients || []) {
     const itemBaseUnit = getItemBaseUnit(ingredient.ingredient_item_id);
     const scaledQuantity = Number(ingredient.quantity) * scaleFactor;
-    const scaledBaseQuantity = convertQuantityByUnitIds(
+    const scaledBaseQuantity = convertItemQuantityByUnitIds(ingredient.ingredient_item_id,
       scaledQuantity,
       ingredient.unit_id,
       itemBaseUnit.unitId,
@@ -174,19 +173,19 @@ function calculateRequirementsFromFormula(formula, requiredBatchSize) {
 
   const ingredients = Array.from(grouped.values()).map((row) => {
     const requiredBaseQuantity = row.formulaBaseQuantity + row.processExtraBaseQuantity;
-    const formulaQuantity = convertQuantityByUnitIds(
+    const formulaQuantity = convertItemQuantityByUnitIds(row.ingredientItemId,
       row.formulaBaseQuantity,
       row.baseUnitId,
       row.unitId,
     );
-    const processExtraQuantity = convertQuantityByUnitIds(
+    const processExtraQuantity = convertItemQuantityByUnitIds(row.ingredientItemId,
       row.processExtraBaseQuantity,
       row.baseUnitId,
       row.unitId,
     );
     const requiredQuantity = formulaQuantity + processExtraQuantity;
     const currentStockBase = Number(getItemStock(row.ingredientItemId));
-    const currentStock = convertQuantityByUnitIds(
+    const currentStock = convertItemQuantityByUnitIds(row.ingredientItemId,
       currentStockBase,
       row.baseUnitId,
       row.unitId,
@@ -569,7 +568,7 @@ function issuePlannedMaterials(batch, { correction = false } = {}) {
     const plannedBaseQuantity =
       Number(row.planned_base_quantity || 0) > EPSILON
         ? Number(row.planned_base_quantity)
-        : convertQuantityByUnitIds(
+        : convertItemQuantityByUnitIds(row.item_id,
             Number(row.planned_quantity || 0),
             Number(row.unit_id),
             itemBaseUnit.unitId,
@@ -577,7 +576,7 @@ function issuePlannedMaterials(batch, { correction = false } = {}) {
 
     const availableBase = Number(getItemStock(row.item_id));
     if (plannedBaseQuantity > availableBase + EPSILON) {
-      const availableDisplay = convertQuantityByUnitIds(
+      const availableDisplay = convertItemQuantityByUnitIds(row.item_id,
         availableBase,
         itemBaseUnit.unitId,
         row.unit_id,
@@ -601,7 +600,7 @@ function issuePlannedMaterials(batch, { correction = false } = {}) {
     const plannedBaseQuantity =
       Number(row.planned_base_quantity || 0) > EPSILON
         ? Number(row.planned_base_quantity)
-        : convertQuantityByUnitIds(
+        : convertItemQuantityByUnitIds(row.item_id,
             plannedQuantity,
             Number(row.unit_id),
             itemBaseUnit.unitId,
@@ -811,7 +810,7 @@ function applyCompletion(batch, data, { correction = false } = {}) {
     }
 
     const itemBaseUnit = getItemBaseUnit(row.item_id);
-    const actualBaseQuantity = convertQuantityByUnitIds(
+    const actualBaseQuantity = convertItemQuantityByUnitIds(row.item_id,
       actualQuantity,
       row.unit_id,
       itemBaseUnit.unitId,
@@ -826,12 +825,12 @@ function applyCompletion(batch, data, { correction = false } = {}) {
     if (extraBaseQuantity > EPSILON) {
       const availableBase = Number(getItemStock(row.item_id));
       if (extraBaseQuantity > availableBase + EPSILON) {
-        const availableDisplay = convertQuantityByUnitIds(
+        const availableDisplay = convertItemQuantityByUnitIds(row.item_id,
           availableBase,
           itemBaseUnit.unitId,
           row.unit_id,
         );
-        const extraDisplay = convertQuantityByUnitIds(
+        const extraDisplay = convertItemQuantityByUnitIds(row.item_id,
           extraBaseQuantity,
           itemBaseUnit.unitId,
           row.unit_id,
@@ -857,12 +856,12 @@ function applyCompletion(batch, data, { correction = false } = {}) {
     const wasteQuantity = Number(line.wasteQuantity || 0);
     const itemBaseUnit = getItemBaseUnit(row.item_id);
 
-    const actualBaseQuantity = convertQuantityByUnitIds(
+    const actualBaseQuantity = convertItemQuantityByUnitIds(row.item_id,
       actualQuantity,
       row.unit_id,
       itemBaseUnit.unitId,
     );
-    const wasteBaseQuantity = convertQuantityByUnitIds(
+    const wasteBaseQuantity = convertItemQuantityByUnitIds(row.item_id,
       wasteQuantity,
       row.unit_id,
       itemBaseUnit.unitId,
@@ -882,7 +881,7 @@ function applyCompletion(batch, data, { correction = false } = {}) {
     let extraCost = 0;
 
     if (returnedBaseQuantity > EPSILON) {
-      returnedQuantity = convertQuantityByUnitIds(
+      returnedQuantity = convertItemQuantityByUnitIds(row.item_id,
         returnedBaseQuantity,
         itemBaseUnit.unitId,
         row.unit_id,
@@ -909,7 +908,7 @@ function applyCompletion(batch, data, { correction = false } = {}) {
     }
 
     if (extraBaseQuantity > EPSILON) {
-      extraQuantity = convertQuantityByUnitIds(
+      extraQuantity = convertItemQuantityByUnitIds(row.item_id,
         extraBaseQuantity,
         itemBaseUnit.unitId,
         row.unit_id,
@@ -940,12 +939,8 @@ function applyCompletion(batch, data, { correction = false } = {}) {
       actualBaseQuantity > EPSILON ? totalCost / actualBaseQuantity : 0;
     materialCost += totalCost;
 
-    const displayUnit = getUnitById(row.unit_id);
-    const baseUnit = getUnitById(itemBaseUnit.unitId);
-    const oneDisplayUnitInBase = convertQuantity(
-      1,
-      displayUnit.code,
-      baseUnit.code,
+    const oneDisplayUnitInBase = convertItemQuantityByUnitIds(
+      row.item_id, 1, row.unit_id, itemBaseUnit.unitId,
     );
     const displayUnitCost = effectiveBaseUnitCost * oneDisplayUnitInBase;
 
@@ -1025,7 +1020,7 @@ function applyCompletion(batch, data, { correction = false } = {}) {
   const finishedBaseUnit = getItemBaseUnit(batch.finished_item_id);
   const goodOutputBaseQty =
     outcome.goodOutputQty > EPSILON
-      ? convertQuantityByUnitIds(
+      ? convertItemQuantityByUnitIds(batch.finished_item_id,
           outcome.goodOutputQty,
           batch.batch_unit_id,
           finishedBaseUnit.unitId,
@@ -1336,7 +1331,7 @@ function reverseCompletedMovements(batch, { strictCorrection = false } = {}) {
   const finishedBaseUnit = getItemBaseUnit(batch.finished_item_id);
   const goodOutputBaseQty =
     goodOutputQty > EPSILON
-      ? convertQuantityByUnitIds(
+      ? convertItemQuantityByUnitIds(batch.finished_item_id,
           goodOutputQty,
           batch.batch_unit_id,
           finishedBaseUnit.unitId,
@@ -1728,13 +1723,13 @@ export function getProductionBatchById(id) {
     const plannedBaseQuantity =
       Number(row.planned_base_quantity || 0) > EPSILON
         ? Number(row.planned_base_quantity)
-        : convertQuantityByUnitIds(
+        : convertItemQuantityByUnitIds(row.item_id,
             Number(row.planned_quantity || 0),
             Number(row.unit_id),
             itemBaseUnit.unitId,
           );
     const currentStockBase = Number(getItemStock(row.item_id));
-    const currentStockDisplay = convertQuantityByUnitIds(
+    const currentStockDisplay = convertItemQuantityByUnitIds(row.item_id,
       currentStockBase,
       itemBaseUnit.unitId,
       row.unit_id,

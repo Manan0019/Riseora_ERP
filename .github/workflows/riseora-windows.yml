@@ -1,0 +1,68 @@
+name: Riseora ERP Windows Installer
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+    steps:
+      - name: Checkout Riseora ERP
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Install backend dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Run business regression tests
+        working-directory: server
+        run: npm run test:regression
+
+      - name: Test owner corrections (isolated database)
+        working-directory: server
+        run: npm run test:v114
+
+      - name: Install frontend dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Install Electron dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Build Windows setup EXE
+        working-directory: desktop
+        run: npm run build:win
+
+      - name: Verify output and print SHA256
+        shell: pwsh
+        run: |
+          $version = (Get-Content 'desktop/package.json' -Raw | ConvertFrom-Json).version
+          $installer = "desktop/release/Riseora-ERP-Setup-$version.exe"
+          if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) {
+            throw "Installer not found: $installer"
+          }
+          if ((Get-Item -LiteralPath $installer).Length -lt 10MB) {
+            throw "Installer unexpectedly small: $installer"
+          }
+          Get-FileHash -LiteralPath $installer -Algorithm SHA256 | Format-List
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: Riseora-ERP-Windows-${{ github.run_number }}
+          path: desktop/release/Riseora-ERP-Setup-*.exe
+          if-no-files-found: error
+          retention-days: 7

@@ -38,6 +38,7 @@ function Purchases({ initialPurchase = null, onSaved = null, embedded = false })
     taxableAmount: String(line.taxable_amount ?? 0),
     pricingBasis: "TAXABLE", // retain the posted invoice taxable amount exactly
     gstRate: String(line.gst_rate ?? 0),
+    hsnCode: String(line.hsn_code ?? ""),
     lotNo: line.lot_no || "", mfgDate: line.mfg_date || "", expiryDate: line.expiry_date || "",
   })) : [blankPurchaseLine()]);
   const [saving, setSaving] = useState(false);
@@ -105,12 +106,12 @@ function Purchases({ initialPurchase = null, onSaved = null, embedded = false })
       if (i !== index) return line;
       if (field === "itemId") {
         const item = getItem(value);
-        return { ...blankPurchaseLine(), itemId: value, unitId: String(item?.base_unit_id || ""), gstRate: String(item?.default_gst_rate ?? 0) };
+        return { ...blankPurchaseLine(), itemId: value, unitId: String(item?.base_unit_id || ""), gstRate: String(item?.default_gst_rate ?? 0), hsnCode: String(item?.hsn_code || "") };
       }
       if (field === "unitId") {
         const oldUnit = units.find((unit) => Number(unit.id) === Number(line.unitId));
         const newUnit = units.find((unit) => Number(unit.id) === Number(value));
-        const converted = line.quantity && oldUnit && newUnit ? convertEntryQuantity(line.quantity, oldUnit.code, newUnit.code) : null;
+        const converted = line.quantity && oldUnit && newUnit ? convertEntryQuantity(line.quantity, oldUnit.code, newUnit.code, getItem(line.itemId)?.density) : null;
         const taxable = purchaseLineValues(line).taxable;
         return { ...line, unitId: value, quantity: converted == null ? line.quantity : String(Number(converted.toPrecision(12))), taxableAmount: String(taxable), pricingBasis: "TAXABLE" };
       }
@@ -179,7 +180,7 @@ function Purchases({ initialPurchase = null, onSaved = null, embedded = false })
         items: lines.map((line) => ({
           itemId: Number(line.itemId), quantity: Number(line.quantity), unitId: Number(line.unitId || getItem(line.itemId)?.base_unit_id),
           rate: purchaseLineValues(line).rate, taxableAmount: purchaseLineValues(line).taxable,
-          gstRate: Number(line.gstRate || 0), lotNo: line.lotNo, mfgDate: line.mfgDate, expiryDate: line.expiryDate,
+          gstRate: Number(line.gstRate || 0), hsnCode: String(line.hsnCode || "").trim(), lotNo: line.lotNo, mfgDate: line.mfgDate, expiryDate: line.expiryDate,
         })),
       };
       const response = initialPurchase
@@ -220,10 +221,10 @@ function Purchases({ initialPurchase = null, onSaved = null, embedded = false })
           <tbody>{lines.map((line, index) => {
             const item = getItem(line.itemId);
             const amounts = purchaseLineValues(line);
-            const compatibleUnits = matchingUnits(item?.unit_code, units);
+            const compatibleUnits = matchingUnits(item?.unit_code, units, item?.density);
             return <tr key={index}>
               <td><SearchableSelect value={line.itemId} invalid={invalid(`lines.${index}.itemId`)} fieldId={`lines.${index}.itemId`} onChange={(value) => changeLine(index, "itemId", value)} options={items} placeholder="Search item..." ariaLabel={`Purchase item row ${index + 1}`} getOptionLabel={(option) => `${option.code} - ${option.name}`} getOptionMeta={(option) => `${option.category_name || ""} · ${option.unit_code || ""}`} getOptionSearchText={(option) => option.hsn_code || ""} /></td>
-              <td>{item?.hsn_code || "–"}</td>
+              <td><input type="text" aria-label={`HSN row ${index + 1}`} className="form-control entry-hsn-input" maxLength={16} value={line.hsnCode} onChange={(event) => changeLine(index, "hsnCode", event.target.value.toUpperCase())} /></td>
               <td><AutoWidthEntryInput aria-label={`Quantity row ${index + 1}`} data-entry-field={`lines.${index}.quantity`} invalid={invalid(`lines.${index}.quantity`)} minChars={5} maxChars={15} min="0" step="any" className="purchase-qty" value={line.quantity} onChange={(e) => changeLine(index, "quantity", e.target.value)} /></td>
               <td><select aria-label={`Unit row ${index + 1}`} data-entry-field={`lines.${index}.unitId`} aria-invalid={invalid(`lines.${index}.unitId`)} className={`form-select purchase-unit ${invalid(`lines.${index}.unitId`) ? "is-invalid" : ""}`} value={line.unitId || item?.base_unit_id || ""} onChange={(e) => changeLine(index, "unitId", e.target.value)}><option value="">–</option>{compatibleUnits.map((unit) => <option key={unit.id} value={unit.id}>{unit.code}</option>)}</select></td>
               <td><AutoWidthEntryInput aria-label={`Rate row ${index + 1}`} data-entry-field={`lines.${index}.rate`} invalid={invalid(`lines.${index}.rate`)} minChars={6} maxChars={17} min="0" step="any" className="purchase-money" value={line.pricingBasis === "TAXABLE" ? (line.quantity ? Number(amounts.rate.toPrecision(12)) : "") : line.rate} onChange={(e) => changeLine(index, "rate", e.target.value)} /></td>

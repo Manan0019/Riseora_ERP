@@ -1,7 +1,7 @@
 import db from "../db/database.js";
 import { addStockTransaction } from "./stockService.js";
 import { addInventoryValue, reverseInventoryReceipt } from "./costService.js";
-import { convertQuantityByUnitIds } from "./unitConversionService.js";
+import { convertItemQuantityByUnitIds } from "./unitConversionService.js";
 
 function addDaysToDate(dateText, days) {
   const date = new Date(`${dateText}T00:00:00Z`);
@@ -80,7 +80,7 @@ function savePurchaseWithinTransaction(data, previous = null) {
       if (mfgDate && expiryDate && expiryDate < mfgDate) throw new Error(`${masterItem.name}: expiry date cannot be earlier than manufacturing date.`);
 
       const entryUnitId = Number(item.unitId || masterItem.base_unit_id);
-      const quantity = convertQuantityByUnitIds(entryQuantity, entryUnitId, masterItem.base_unit_id);
+      const quantity = convertItemQuantityByUnitIds(itemId, entryQuantity, entryUnitId, masterItem.base_unit_id);
       if (!Number.isFinite(quantity) || quantity <= 0) throw new Error(`Invalid converted quantity in row ${index + 1}.`);
       const taxableAmount = item.taxableAmount == null ? entryQuantity * entryRate : Number(item.taxableAmount);
       if (!Number.isFinite(taxableAmount) || taxableAmount < 0 || Math.abs(entryQuantity * entryRate - taxableAmount) > 0.01) {
@@ -99,7 +99,7 @@ function savePurchaseWithinTransaction(data, previous = null) {
         entryQuantity,
         entryRate,
         entryUnitId,
-        hsnCode: String(masterItem.hsn_code || "").trim().toUpperCase() || null,
+        hsnCode: String(item.hsnCode ?? masterItem.hsn_code ?? "").trim().toUpperCase() || null,
         gstRate,
         taxableAmount,
         gstAmount: lineGst,

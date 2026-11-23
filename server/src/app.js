@@ -2,6 +2,10 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import session from "express-session";
+import fs from "node:fs";
+import path from "node:path";
+import db from "./db/database.js";
+import { RESTORE_MARKER_FILE } from "./db/pendingRestore.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import passwordResetRoutes from "./routes/passwordResetRoutes.js";
@@ -68,8 +72,21 @@ app.use(session({
 await initDatabase();
 if (isProduction) await runStartupBackup();
 
+// Once a restore is scheduled, prevent any additional transactions on the
+// old database; otherwise those transactions would disappear after restart.
+const pendingRestorePath = path.join(path.dirname(db.name), RESTORE_MARKER_FILE);
+app.use('/api', (req, res, next) => {
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && fs.existsSync(pendingRestorePath)) {
+    return res.status(423).json({
+      success: false,
+      message: 'Database restore is pending. Close and reopen Riseora ERP before posting or editing any records.',
+    });
+  }
+  next();
+});
+
 app.get("/api/health", (_req, res) => {
-  res.status(200).json({ success: true, message: "Riseora ERP API is running", version: "1.1.0" });
+  res.status(200).json({ success: true, message: "Riseora ERP API is running", version: "1.1.4" });
 });
 
 app.use("/api/auth", authRoutes);

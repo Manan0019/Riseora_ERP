@@ -5,6 +5,7 @@ import { useUi } from "../context/UiContext";
 import SmartDateInput from "../components/SmartDateInput";
 import MasterEditorModal from "../components/MasterEditorModal";
 import SortableTh, { useSortableRows } from "../components/SortableTh";
+import Sales from "./Sales";
 
 function SalesRegister() {
   const { confirm: confirmAction, success: toastSuccess, error: toastError } = useUi();
@@ -13,6 +14,7 @@ function SalesRegister() {
   const [invoices, setInvoices] = useState([]);
 
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [correctingSale, setCorrectingSale] = useState(null);
 
   const [search, setSearch] = useState("");
 
@@ -736,6 +738,10 @@ function SalesRegister() {
         </div>
       </div>
 
+      <MasterEditorModal open={Boolean(correctingSale)} size="xl" title={correctingSale ? `Edit / Correct ${correctingSale.invoice_no}` : "Correct Invoice"} onRequestClose={() => setCorrectingSale(null)}>
+        {correctingSale && <Sales key={correctingSale.id} initialSale={correctingSale} onSaved={async () => { setCorrectingSale(null); await loadInvoices(); }} />}
+      </MasterEditorModal>
+
       {/* INVOICE DETAILS */}
       <MasterEditorModal open={Boolean(selectedInvoice)} size="xl" title={selectedInvoice ? `Invoice Details — ${selectedInvoice.invoice_no}` : "Invoice Details"} onRequestClose={() => setSelectedInvoice(null)}>
       {selectedInvoice &&
@@ -770,6 +776,8 @@ function SalesRegister() {
                   </button>
               }
 
+                {selectedInvoice.status === "POSTED" && Number(selectedInvoice.amount_paid || 0) === 0 && (selectedInvoice.payments || []).length === 0 && (selectedInvoice.credit_notes || []).length === 0 &&
+                  <button type="button" className="btn btn-outline-primary" onClick={() => { setCorrectingSale(selectedInvoice); setSelectedInvoice(null); }}>Edit / Correct Invoice</button>}
                 {selectedInvoice.status !== "CANCELLED" &&
               Number(selectedInvoice.amount_paid || 0) === 0 &&
               <button

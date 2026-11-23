@@ -295,7 +295,7 @@ function Items() {
       <div className="d-flex justify-content-between align-items-start mb-4">
         <div>
           <h2 className="mb-1">Item Master</h2>
-          <p className="text-muted mb-0">Search the full item list and edit an item in a popup without losing your scroll position.</p>
+          <p className="text-muted mb-0">Edit any item, including the preloaded Excel catalogue. Item code, name, price, HSN, GST and density are editable; base unit/category remain locked after business transactions.</p>
         </div>
         <button type="button" className="btn btn-primary" onClick={openNew}>+ New Item</button>
       </div>
@@ -336,12 +336,13 @@ function Items() {
         </div>
 
         <div className="table-responsive"><table className="table table-bordered table-hover align-middle">
-          <thead className="table-light"><tr><SortableTh field="code" sort={itemSort} onSort={sortItems}>Code</SortableTh><SortableTh field="name" sort={itemSort} onSort={sortItems}>Name</SortableTh><SortableTh field="category_name" sort={itemSort} onSort={sortItems}>Category</SortableTh><SortableTh field="unit_code" sort={itemSort} onSort={sortItems}>Unit</SortableTh><SortableTh field="hsn_code" sort={itemSort} onSort={sortItems}>HSN</SortableTh><SortableTh field="default_gst_rate" sort={itemSort} onSort={sortItems}>GST %</SortableTh><SortableTh field="reorder_level" sort={itemSort} onSort={sortItems}>Reorder</SortableTh><SortableTh field="default_selling_price" sort={itemSort} onSort={sortItems}>Sale Price</SortableTh><SortableTh field="target_margin_percent" sort={itemSort} onSort={sortItems}>Target Margin</SortableTh><SortableTh field="track_lot" sort={itemSort} onSort={sortItems}>Lot</SortableTh><SortableTh field="track_expiry" sort={itemSort} onSort={sortItems}>Expiry</SortableTh><SortableTh field="is_active" sort={itemSort} onSort={sortItems}>Status</SortableTh></tr></thead>
+          <thead className="table-light"><tr><SortableTh field="code" sort={itemSort} onSort={sortItems}>Code</SortableTh><SortableTh field="name" sort={itemSort} onSort={sortItems}>Name</SortableTh><SortableTh field="category_name" sort={itemSort} onSort={sortItems}>Category</SortableTh><SortableTh field="unit_code" sort={itemSort} onSort={sortItems}>Unit</SortableTh><SortableTh field="hsn_code" sort={itemSort} onSort={sortItems}>HSN</SortableTh><SortableTh field="default_gst_rate" sort={itemSort} onSort={sortItems}>GST %</SortableTh><SortableTh field="reorder_level" sort={itemSort} onSort={sortItems}>Reorder</SortableTh><SortableTh field="default_selling_price" sort={itemSort} onSort={sortItems}>Sale Price</SortableTh><SortableTh field="target_margin_percent" sort={itemSort} onSort={sortItems}>Target Margin</SortableTh><SortableTh field="track_lot" sort={itemSort} onSort={sortItems}>Lot</SortableTh><SortableTh field="track_expiry" sort={itemSort} onSort={sortItems}>Expiry</SortableTh><SortableTh field="is_active" sort={itemSort} onSort={sortItems}>Status</SortableTh><th>Action</th></tr></thead>
           <tbody>
             {sortedItems.map((item) => <tr key={item.id} className="row-clickable" data-workspace-path={`/items?record=${item.id}`} data-workspace-title={item.name} onClick={() => openItem(item)}>
               <td>{item.code}</td><td><strong>{item.name}</strong></td><td>{item.category_name}</td><td>{item.unit_code}</td><td>{item.hsn_code || "-"}</td><td>{Number(item.default_gst_rate || 0).toFixed(2)}%</td><td>{item.reorder_level}</td><td>₹{Number(item.default_selling_price || 0).toFixed(2)}</td><td>{Number(item.target_margin_percent || 0).toFixed(2)}%</td><td>{item.track_lot ? "Yes" : "No"}</td><td>{item.track_expiry ? "Yes" : "No"}</td><td>{item.is_active ? <span className="badge text-bg-success">Active</span> : <span className="badge text-bg-secondary">Inactive</span>}</td>
+              <td><button type="button" className="btn btn-sm btn-outline-primary" onClick={(event) => { event.stopPropagation(); openItem(item); setEditing(true); }} aria-label={`Edit ${item.name}`}>Edit</button></td>
             </tr>)}
-            {filteredItems.length === 0 && <tr><td colSpan={12} className="text-center text-muted">No items found.</td></tr>}
+            {filteredItems.length === 0 && <tr><td colSpan={13} className="text-center text-muted">No items found.</td></tr>}
           </tbody>
         </table></div>
       </div></div>

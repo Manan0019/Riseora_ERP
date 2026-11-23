@@ -1,5 +1,5 @@
 import db from "../db/database.js";
-import { convertQuantityByUnitIds } from "./unitConversionService.js";
+import { convertQuantityByUnitIds, convertQuantityWithDensity } from "./unitConversionService.js";
 
 const ENTRY_MODES = new Set(["QUANTITY", "PERCENTAGE"]);
 const PERCENT_TOLERANCE = 0.01;
@@ -118,9 +118,10 @@ function validateFinishedProduct(data) {
   }
 
   try {
-    convertQuantityByUnitIds(1, batchUnitId, Number(finishedItem.base_unit_id));
-  } catch {
-    throw new Error("Formula batch unit must be compatible with the finished product base unit.");
+    const baseUnit = getUnit(Number(finishedItem.base_unit_id));
+    convertQuantityWithDensity(1, batchUnit.code, baseUnit?.code, finishedItem.density, finishedItem.name);
+  } catch (error) {
+    throw new Error(error.message || "Formula batch unit must be compatible with the finished product base unit.");
   }
 
   return { finishedItem, batchSize, batchUnitId };
@@ -224,11 +225,9 @@ function normalizeFormulaData(data) {
     if (!unit || Number(unit.is_active) !== 1) {
       throw new Error(`${item.name}: select an active component unit.`);
     }
-    try {
-      convertQuantityByUnitIds(1, unitId, Number(item.base_unit_id));
-    } catch {
-      throw new Error(`${item.name}: component unit is not compatible with the item's base unit.`);
-    }
+    const baseUnit = getUnit(Number(item.base_unit_id));
+    // Verify the same density-aware conversion that is used for production posting.
+    convertQuantityWithDensity(1, unit.code, baseUnit?.code, item.density, item.name);
 
     return { ingredientItemId, item, unitId, unit };
   };
@@ -532,6 +531,7 @@ export function getFormulaById(id) {
       fi.extra_reason,
       i.code AS ingredient_code,
       i.name AS ingredient_name,
+      i.density AS density,
       c.code AS category_code,
       c.name AS category_name,
       c.inventory_role AS category_role,

@@ -1,11 +1,14 @@
 import {
   useEffect,
   useState,
+  useRef,
 } from "react";
 
 import api from "../api/api";
 
 function Settings() {
+  const restoreFileRef = useRef(null);
+  const [restoring, setRestoring] = useState(false);
   const [backups, setBackups] =
     useState([]);
 
@@ -77,6 +80,45 @@ function Settings() {
     } finally {
       setBackingUp(false);
     }
+  };
+
+  const handleDownload = async (fileName) => {
+    try {
+      setError("");
+      const response = await api.get(`/backups/${encodeURIComponent(fileName)}/download`, {responseType: "blob"});
+      const url = window.URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = url; link.download = fileName; document.body.appendChild(link); link.click(); link.remove();
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to download backup.");
+    }
+  };
+
+  const handleRestoreFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".db")) { setError("Select a Riseora ERP .db backup."); return; }
+    if (file.size > 250 * 1024 * 1024) { setError("Backup must be 250 MB or smaller."); return; }
+    const accepted = window.confirm(
+      `Restore the database from ${file.name}?\n\nThis REPLACES the CURRENT laptop's business records after restarting Riseora ERP. A safety backup will be saved. Existing transactions on this laptop will NOT be merged. Continue?`
+    );
+    if (!accepted) return;
+    try {
+      setRestoring(true); setMessage(""); setError("");
+      const buffer = await file.arrayBuffer();
+      const result = await api.post("/backups/restore", buffer, {
+        headers: { "Content-Type": "application/octet-stream" },
+        timeout: 120000,
+      });
+      setMessage(`${result.data.message} Safety backup: ${result.data.safetyBackup}. Imported database contains ${result.data.summary.itemCount} items, ${result.data.summary.purchaseCount} purchases, and ${result.data.summary.salesCount} sales.`);
+      await loadBackups();
+    } catch (err) {
+      let detail = err.response?.data?.message;
+      if (!detail && err.response?.data instanceof Blob) detail = null;
+      setError(detail || "Backup validation or restore preparation failed. Existing data has not been changed.");
+    } finally { setRestoring(false); }
   };
 
   const handlePasswordChange = (event) => {
@@ -216,6 +258,14 @@ function Settings() {
               ? "Creating Backup..."
               : "Backup Now"}
           </button>
+          <hr />
+          <h5>Restore a backup from this PC or another PC</h5>
+          <p className="text-muted">Download a .db backup from the old PC, copy it to this PC and select it here. The backup is checked before restore. Your current database is preserved in Backup History.</p>
+          <input ref={restoreFileRef} type="file" accept=".db,application/vnd.sqlite3,application/octet-stream" className="visually-hidden" aria-label="Choose Riseora ERP database backup" onChange={handleRestoreFile} />
+          <button type="button" className="btn btn-outline-danger" onClick={() => restoreFileRef.current?.click()} disabled={restoring}>
+            {restoring ? "Checking backup..." : "Restore Backup (.db)"}
+          </button>
+          <p className="small mt-2 mb-0">Restore is applied only after closing and reopening the application. It replaces rather than merges the current laptop's database; keep both backups until checked.</p>
         </div>
       </div>
 
@@ -242,9 +292,8 @@ function Settings() {
                       Created
                     </th>
 
-                    <th>
-                      Size
-                    </th>
+                    <th>Size</th>
+                    <th>Transfer</th>
                   </tr>
                 </thead>
 
@@ -273,6 +322,7 @@ function Settings() {
                             backup.sizeBytes
                           )}
                         </td>
+                        <td><button type="button" className="btn btn-sm btn-outline-primary" onClick={() => handleDownload(backup.fileName)}>Download .db</button></td>
                       </tr>
                     )
                   )}
@@ -281,7 +331,7 @@ function Settings() {
                     0 && (
                     <tr>
                       <td
-                        colSpan={3}
+                        colSpan={4}
                         className="text-center text-muted"
                       >
                         No backups
