@@ -37,7 +37,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Version tests failed" }
 
       - name: Test shared v1.1.5 utilities and audit schema
-        run: node --test scripts/pro115.test.mjs scripts/pro115-management.test.mjs scripts/pro115-inventory.test.mjs scripts/pro115-shared.test.mjs scripts/report-export.test.mjs scripts/report-workspace.test.mjs
+        run: node --test scripts/pro115.test.mjs scripts/pro115-management.test.mjs scripts/pro115-inventory.test.mjs scripts/pro115-shared.test.mjs scripts/report-export.test.mjs scripts/report-workspace.test.mjs scripts/productivity.test.mjs
 
       - name: Install backend dependencies
         working-directory: server

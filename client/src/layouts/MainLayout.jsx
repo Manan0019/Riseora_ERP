@@ -249,6 +249,13 @@ function MainLayout() {
     catch { /* Preferences are optional. */ }
   }, [sidebarCondensed]);
   const [collapsed, setCollapsed] = useState({});
+  const favoriteKey=`favorites.${user?.id}.${user?.username}`;
+  const [favorites,setFavorites]=useState(()=>{const stored=readPreference(favoriteKey,[]);return Array.isArray(stored)?stored:[];});
+  const allNav=navGroups.flatMap(group=>group.items);
+  const favoriteItems=allNav.filter(item=>favorites.includes(item.to));
+  const currentFavorite=allNav.find(item=>item.to===location.pathname);
+  function toggleFavorite(){if(!currentFavorite)return;setFavorites(previous=>{const next=previous.includes(currentFavorite.to)?previous.filter(path=>path!==currentFavorite.to):[...previous,currentFavorite.to];writePreference(favoriteKey,next);return next;});}
+
   const [initialWorkspace] = useState(() => loadWorkspace(currentLocationPath));
   const [tabs, setTabs] = useState(initialWorkspace.tabs);
   const [activeTabId, setActiveTabId] = useState(initialWorkspace.activeTabId);
@@ -798,7 +805,7 @@ function MainLayout() {
 
         <div className="sidebar-scroll">
           <nav className="sidebar-nav" aria-label="Main navigation">
-            {navGroups.map((group) => {
+            {(favoriteItems.length ? [{label:"Favorites",key:"favorites",items:favoriteItems},...navGroups] : navGroups).map((group) => {
               const isCollapsed = collapsed[group.key];
               return (
                 <section className="nav-group" key={group.key}>
@@ -874,6 +881,7 @@ function MainLayout() {
           <WorkspaceSearch pages={navGroups.flatMap(g => g.items)} open={palette === "search"} onActivate={() => setPalette("search")} onClose={() => setPalette("")} onOpen={openPathInNewTab} />
           <div className="topbar-user">
             <div className="topbar-workspace-tools" aria-label="Workspace controls">
+              {currentFavorite && <button type="button" className="favorite-toggle" aria-pressed={favorites.includes(currentFavorite.to)} aria-label={favorites.includes(currentFavorite.to)?"Remove from favorites":"Add current module to favorites"} title={favorites.includes(currentFavorite.to)?"Remove from favorites":"Add current module to favorites"} onClick={toggleFavorite}>{favorites.includes(currentFavorite.to)?"★":"☆"}</button>}
               <button type="button" onClick={() => setCompact(v => !v)} aria-pressed={compact} aria-label="Toggle compact tables" title="Toggle compact tables">{compact ? "Comfortable" : "Compact"}</button>
               <button type="button" onClick={() => setPalette("help")} aria-label="Keyboard shortcuts" title="Keyboard shortcuts (F1)">?</button>
               <button type="button" aria-label="New tab" title="New tab" onClick={() => openPathInNewTab("/dashboard")}>

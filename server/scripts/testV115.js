@@ -76,7 +76,17 @@ try {
   assert.ok(management.lotSuggestion(raw.id,1,'FEFO').verified);
   // Exercise the real business posting services, not just the allocation fixture.
   const {inventoryOperations:inv}=await import('../src/services/advancedInventoryService.js');
-  const {createItem}=await import('../src/services/itemService.js');
+  const {createItem,bulkEditItems}=await import('../src/services/itemService.js');
+  // Real better-sqlite3 transaction, with authenticated history attribution.
+  const bulkRows=db.prepare('SELECT id,default_gst_rate FROM items WHERE is_active=1 ORDER BY id LIMIT 2').all();
+  assert.equal(bulkRows.length,2);
+  const newGst=Number(bulkRows[0].default_gst_rate)===17?16:17;
+  assert.throws(()=>bulkEditItems({field:'defaultGstRate',value:newGst,items:bulkRows.map((row,index)=>({id:row.id,expected:index?999:row.default_gst_rate}))}));
+  assert.equal(db.prepare('SELECT default_gst_rate FROM items WHERE id=?').get(bulkRows[0].id).default_gst_rate,bulkRows[0].default_gst_rate);
+  assert.equal(await withAuditActor(admin,()=>bulkEditItems({field:'defaultGstRate',value:newGst,items:bulkRows.map(row=>({id:row.id,expected:row.default_gst_rate}))})),2);
+  assert.equal(db.prepare('SELECT default_gst_rate FROM items WHERE id=?').get(bulkRows[0].id).default_gst_rate,newGst);
+  assert.equal(recordHistory('items',bulkRows[0].id)[0].actor_id,admin.id);
+
   const {createSupplier}=await import('../src/services/supplierService.js');
   const {createPurchase}=await import('../src/services/purchaseService.js');
   const {createStockAdjustment}=await import('../src/services/stockAdjustmentService.js');

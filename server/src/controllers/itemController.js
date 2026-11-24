@@ -1,5 +1,6 @@
 import {
   getItems,
+  bulkEditItems,
   getNextItemCode,
   createItem,
   updateItem,
@@ -163,4 +164,8 @@ export function restoreItem(req, res) {
         "Unable to activate item",
     });
   }
+}
+export function editItemsBulk(req,res){
+  try {const updated=bulkEditItems(req.body);return res.json({success:true,updated});}
+  catch(error){return res.status(400).json({success:false,message:error.message});}
 }

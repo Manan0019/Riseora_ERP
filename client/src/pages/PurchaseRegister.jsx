@@ -12,6 +12,7 @@ function PurchaseRegister() {
   const [purchases, setPurchases] = useState([]);
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [duplicating,setDuplicating] = useState(null);
   const { search: routeSearch } = useLocation();
   const [search, setSearch] = useState(() => new URLSearchParams(routeSearch).get("find") || "");
   useEffect(() => { const value = new URLSearchParams(routeSearch).get("find"); if(value !== null) setSearch(value); }, [routeSearch]);
@@ -109,6 +110,9 @@ function PurchaseRegister() {
         </table></div>
       </div></div>
 
+      <MasterEditorModal open={Boolean(duplicating)} size="xl" title="Duplicate purchase — new entry" onRequestClose={()=>setDuplicating(null)}>
+        {duplicating && <Purchases key={`copy-${duplicating.id}`} embedded copyFrom={duplicating} onSaved={async()=>{setDuplicating(null);await loadPurchases();}}/>}
+      </MasterEditorModal>
       <MasterEditorModal
         open={Boolean(selectedPurchase)}
         size="xl"
@@ -116,6 +120,7 @@ function PurchaseRegister() {
         onRequestClose={closeDetails}
         footer={<div className="d-flex justify-content-end gap-2 w-100">
           {editing ? <button type="button" className="btn btn-outline-secondary" onClick={closeDetails}>Back to Details</button> : <>
+            {selectedPurchase?.status === "POSTED" && <button type="button" className="btn btn-outline-primary" onClick={()=>{setDuplicating(selectedPurchase);setSelectedPurchase(null);}}>Duplicate as New</button>}
             {selectedPurchase?.status === "POSTED" && Number(selectedPurchase.amount_paid || 0) === 0 && <button type="button" className="btn btn-outline-primary" onClick={() => setEditing(true)}>Edit Purchase</button>}
             {selectedPurchase?.status === "POSTED" && <button type="button" className="btn btn-outline-danger" onClick={handleCancelPurchase}>Cancel Purchase</button>}
             <button type="button" className="btn btn-primary" onClick={() => setSelectedPurchase(null)}>Close</button>

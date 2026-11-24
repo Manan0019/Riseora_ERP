@@ -1,6 +1,7 @@
 import { useLocation } from "react-router-dom";
 import SortableTh, { useSortableRows } from "../components/SortableTh";
 import { useEffect, useMemo, useState } from "react";
+import EntryDraft, { useEntryDraft } from "../components/EntryDraft";
 import api from "../api/api";
 import SearchableSelect from "../components/SearchableSelect";
 import { useWorkspaceTab } from "../context/WorkspaceTabContext";
@@ -103,6 +104,8 @@ function Formulas() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  // Only new formulas (including duplicates). Never replay a historical edit or revision.
+  const draft = useEntryDraft({kind:"formula",enabled:mode===null||mode==="NEW",payload:{form,ingredients,processExtras},meaningful:mode==="NEW" && JSON.stringify({form,ingredients,processExtras})!==JSON.stringify({form:emptyForm(),ingredients:[emptyIngredient()],processExtras:[]}),restore:(data)=>{setMode("NEW");setSelectedId(null);setSourceFormulaId(null);setSelectedFormulaInfo(null);setShowForm(true);setForm(data.form);setIngredients(data.ingredients);setProcessExtras(data.processExtras);},reset:()=>resetEditor()});
 
   useEffect(() => {
     loadFormulas();
@@ -250,7 +253,9 @@ function Formulas() {
     setScaleBatchSize("");
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
+    if (mode === "NEW" && draft.meaningful && !await confirmAction({title:"Discard unfinished formula?",message:"This removes the local draft, not any posted formula.",confirmLabel:"Discard draft",variant:"warning"})) return;
+    if (mode === "NEW") draft.clear();
     resetEditor();
     setMessage("");
     setError("");
@@ -652,6 +657,7 @@ function Formulas() {
       return;
     }
 
+    if (saving || (mode === "NEW" && !draft.beginPost())) return;
     try {
       setSaving(true);
       const payload = buildPayload();
@@ -660,12 +666,14 @@ function Formulas() {
       else if (mode === "EDIT") response = await api.put(`/formulas/${selectedId}`, payload);
       else response = await api.post(`/formulas/${sourceFormulaId}/new-version`, payload);
 
+      if (mode === "NEW") draft.clear();
       setMessage(response.data.message || "Formula saved successfully.");
       resetEditor();
       markWorkspaceTabClean();
       await loadFormulas();
     } catch (err) {
       console.error(err);
+      if (mode === "NEW") draft.failed(err);
       setError(err.response?.data?.message || "Unable to save formula.");
     } finally {
       setSaving(false);
@@ -755,6 +763,7 @@ function Formulas() {
       {message && <div className="alert alert-success">{message}</div>}
       {error && <div className="alert alert-danger">{error}</div>}
 
+      {(mode===null || mode==="NEW") && <EntryDraft draft={draft} saving={saving}/>}
       {showForm && (
         <>
           <div className="card mb-4">
@@ -786,7 +795,7 @@ function Formulas() {
                     onChange={(value) =>
                       handleFormChange({ target: { name: "finishedItemId", value } })
                     }
-                    options={finishedItems}
+                    options={finishedItems} recentGroup="items"
                     placeholder="Search finished product..."
                     ariaLabel="Finished Product"
                     disabled={isReadOnly}
@@ -923,7 +932,7 @@ function Formulas() {
                               onChange={(value) =>
                                 handleIngredientChange(index, "ingredientItemId", value)
                               }
-                              options={componentItems}
+                              options={componentItems} recentGroup="items"
                               placeholder="Search component..."
                               ariaLabel={`Formula component row ${index + 1}`}
                               disabled={isReadOnly}
@@ -1039,7 +1048,7 @@ function Formulas() {
                                 onChange={(value) =>
                                   handleProcessExtraChange(index, "ingredientItemId", value)
                                 }
-                                options={rawMaterialItems}
+                                options={rawMaterialItems} recentGroup="items"
                                 placeholder="Search raw material..."
                                 ariaLabel={`Process extra ingredient row ${index + 1}`}
                                 disabled={isReadOnly}
@@ -1176,7 +1185,7 @@ function Formulas() {
 
           <div className="d-flex gap-2 mb-4 flex-wrap">
             {!isReadOnly && (
-              <button type="button" className="btn btn-success" data-pro-action="save" onClick={handleSave} disabled={saving || percentageOver}>
+              <button type="button" className="btn btn-success" data-pro-action="save" onClick={handleSave} disabled={saving || percentageOver || (mode==="NEW" && draft.status!=="draft")}>
                 {saving ? "Saving..." : isNewVersion ? `Create V${form.versionNo}` : mode === "EDIT" ? "Update Formula" : "Save Formula"}
               </button>
             )}

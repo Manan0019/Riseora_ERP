@@ -969,3 +969,16 @@ body, .content-area, .master-modal-body, .ui-dialog-card { color: var(--riseora-
     box-shadow: none !important;
   }
 }
+
+/* v1.1.5 productivity: compact, low-distraction recovery and selection controls. */
+.entry-draft-panel { padding: 10px 13px; border: 1px solid #cbbbad; border-radius: 10px; background: #fffaf5; color:#332b26; }
+.entry-draft-heading,.entry-draft-record,.bulk-toolbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 12px; }
+.entry-draft-heading small,.entry-draft-record small { display:block; color:#51443a; font-size: .8rem; }
+.entry-draft-record { padding:8px 0; border-top:1px solid #dbcec2; margin-top:8px; }
+.entry-draft-panel > button { margin-top:7px; }
+.bulk-toolbar { justify-content:flex-end; padding:8px 0; color:#51443a; font-size:.85rem; }
+.bulk-toolbar span { margin-right:auto; }
+.bulk-preview { max-height:48vh; overflow:auto; }
+.lookup-recent-label { display:inline-block; margin-left:6px; padding:1px 5px; border-radius:4px; color:#604d3c; background:#eae0d6; font-weight:600; font-size:.68rem; }
+.topbar-workspace-tools .favorite-toggle { font-size:1.1rem; line-height:1; }
+.topbar-workspace-tools .favorite-toggle[aria-pressed="true"] { color:#8d5328; background:#f5e2cb; }

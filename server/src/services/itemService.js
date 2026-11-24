@@ -1,3 +1,4 @@
+import {runBulkEdit} from "../utils/bulkItemEdit.js";
 import db from "../db/database.js";
 import { toTitleCase } from "../utils/textFormat.js";
 
@@ -236,3 +237,5 @@ export function activateItem(id) {
   db.prepare(`UPDATE items SET is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(itemId);
   return getItemById(itemId);
 }
+
+export function bulkEditItems(body){return db.transaction(()=>runBulkEdit(db,body)).immediate();}

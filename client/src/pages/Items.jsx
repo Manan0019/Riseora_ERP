@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import BulkItemEditor from "../components/BulkItemEditor";
 import api from "../api/api";
 import { useUi } from "../context/UiContext";
 import { useWorkspaceTab } from "../context/WorkspaceTabContext";
@@ -61,6 +62,8 @@ function Items() {
   const [customCode, setCustomCode] = useState(false);
   const [error, setError] = useState("");
   const [invalidFields, setInvalidFields] = useState({});
+  const [bulkIds,setBulkIds]=useState([]);
+  const [bulkOpen,setBulkOpen]=useState(false);
 
   useEffect(() => { if (workspaceTabActive) loadItems(); }, [showInactive, workspaceTabActive]);
   useEffect(() => { if (workspaceTabActive) loadLookups(); }, [workspaceTabActive]);
@@ -135,6 +138,9 @@ function Items() {
     });
   }, [items, search, categoryFilter]);
 
+  const eligible=filteredItems.filter(item=>Number(item.is_active)===1);
+  const bulkItems=eligible.filter(item=>bulkIds.includes(item.id));
+  const allSelected=eligible.length>0 && eligible.every(item=>bulkIds.includes(item.id));
   const { sortedRows: sortedItems, sort: itemSort, toggle: sortItems } = useSortableRows(filteredItems, "name");
 
   const selectedFilterCategory = categoryFilter
@@ -335,18 +341,20 @@ function Items() {
           {search.trim() ? ` matching “${search.trim()}”` : ""}.
         </div>
 
+        <div className="bulk-toolbar"><span>{bulkItems.length} selected in current results</span><button type="button" className="btn btn-sm btn-outline-secondary" disabled={!bulkIds.length} onClick={()=>setBulkIds([])}>Clear selection</button><button type="button" className="btn btn-sm btn-outline-primary" disabled={!bulkItems.length || bulkItems.length>500} onClick={()=>setBulkOpen(true)}>Bulk edit</button></div>
         <div className="table-responsive"><table className="table table-bordered table-hover align-middle">
-          <thead className="table-light"><tr><SortableTh field="code" sort={itemSort} onSort={sortItems}>Code</SortableTh><SortableTh field="name" sort={itemSort} onSort={sortItems}>Name</SortableTh><SortableTh field="category_name" sort={itemSort} onSort={sortItems}>Category</SortableTh><SortableTh field="unit_code" sort={itemSort} onSort={sortItems}>Unit</SortableTh><SortableTh field="hsn_code" sort={itemSort} onSort={sortItems}>HSN</SortableTh><SortableTh field="default_gst_rate" sort={itemSort} onSort={sortItems}>GST %</SortableTh><SortableTh field="reorder_level" sort={itemSort} onSort={sortItems}>Reorder</SortableTh><SortableTh field="default_selling_price" sort={itemSort} onSort={sortItems}>Sale Price</SortableTh><SortableTh field="target_margin_percent" sort={itemSort} onSort={sortItems}>Target Margin</SortableTh><SortableTh field="track_lot" sort={itemSort} onSort={sortItems}>Lot</SortableTh><SortableTh field="track_expiry" sort={itemSort} onSort={sortItems}>Expiry</SortableTh><SortableTh field="is_active" sort={itemSort} onSort={sortItems}>Status</SortableTh><th>Action</th></tr></thead>
+          <thead className="table-light"><tr><th><input className="form-check-input" type="checkbox" aria-label="Select all visible active items" checked={allSelected} onChange={()=>setBulkIds(previous=>allSelected?previous.filter(id=>!eligible.some(item=>item.id===id)):[...new Set([...previous,...eligible.map(item=>item.id)])])}/></th><SortableTh field="code" sort={itemSort} onSort={sortItems}>Code</SortableTh><SortableTh field="name" sort={itemSort} onSort={sortItems}>Name</SortableTh><SortableTh field="category_name" sort={itemSort} onSort={sortItems}>Category</SortableTh><SortableTh field="unit_code" sort={itemSort} onSort={sortItems}>Unit</SortableTh><SortableTh field="hsn_code" sort={itemSort} onSort={sortItems}>HSN</SortableTh><SortableTh field="default_gst_rate" sort={itemSort} onSort={sortItems}>GST %</SortableTh><SortableTh field="reorder_level" sort={itemSort} onSort={sortItems}>Reorder</SortableTh><SortableTh field="default_selling_price" sort={itemSort} onSort={sortItems}>Sale Price</SortableTh><SortableTh field="target_margin_percent" sort={itemSort} onSort={sortItems}>Target Margin</SortableTh><SortableTh field="track_lot" sort={itemSort} onSort={sortItems}>Lot</SortableTh><SortableTh field="track_expiry" sort={itemSort} onSort={sortItems}>Expiry</SortableTh><SortableTh field="is_active" sort={itemSort} onSort={sortItems}>Status</SortableTh><th>Action</th></tr></thead>
           <tbody>
             {sortedItems.map((item) => <tr key={item.id} className="row-clickable" data-workspace-path={`/items?record=${item.id}`} data-workspace-title={item.name} onClick={() => openItem(item)}>
-              <td>{item.code}</td><td><strong>{item.name}</strong></td><td>{item.category_name}</td><td>{item.unit_code}</td><td>{item.hsn_code || "-"}</td><td>{Number(item.default_gst_rate || 0).toFixed(2)}%</td><td>{item.reorder_level}</td><td>₹{Number(item.default_selling_price || 0).toFixed(2)}</td><td>{Number(item.target_margin_percent || 0).toFixed(2)}%</td><td>{item.track_lot ? "Yes" : "No"}</td><td>{item.track_expiry ? "Yes" : "No"}</td><td>{item.is_active ? <span className="badge text-bg-success">Active</span> : <span className="badge text-bg-secondary">Inactive</span>}</td>
+              <td onClick={event=>event.stopPropagation()}><input className="form-check-input" type="checkbox" aria-label={`Select ${item.name}`} disabled={Number(item.is_active)!==1} checked={bulkIds.includes(item.id)} onChange={()=>setBulkIds(previous=>previous.includes(item.id)?previous.filter(id=>id!==item.id):[...previous,item.id])}/></td><td>{item.code}</td><td><strong>{item.name}</strong></td><td>{item.category_name}</td><td>{item.unit_code}</td><td>{item.hsn_code || "-"}</td><td>{Number(item.default_gst_rate || 0).toFixed(2)}%</td><td>{item.reorder_level}</td><td>₹{Number(item.default_selling_price || 0).toFixed(2)}</td><td>{Number(item.target_margin_percent || 0).toFixed(2)}%</td><td>{item.track_lot ? "Yes" : "No"}</td><td>{item.track_expiry ? "Yes" : "No"}</td><td>{item.is_active ? <span className="badge text-bg-success">Active</span> : <span className="badge text-bg-secondary">Inactive</span>}</td>
               <td><button type="button" className="btn btn-sm btn-outline-primary" onClick={(event) => { event.stopPropagation(); openItem(item); setEditing(true); }} aria-label={`Edit ${item.name}`}>Edit</button></td>
             </tr>)}
-            {filteredItems.length === 0 && <tr><td colSpan={13} className="text-center text-muted">No items found.</td></tr>}
+            {filteredItems.length === 0 && <tr><td colSpan={14} className="text-center text-muted">No items found.</td></tr>}
           </tbody>
         </table></div>
       </div></div>
 
+      {bulkOpen && <BulkItemEditor items={bulkItems} onClose={()=>setBulkOpen(false)} onSaved={()=>{setBulkOpen(false);setBulkIds([]);loadItems();}}/>}
       <MasterEditorModal
         open={modalOpen}
         invalidFields={invalidFields}

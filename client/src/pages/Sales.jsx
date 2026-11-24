@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import EntryDraft, { useEntryDraft } from "../components/EntryDraft";
+import { duplicateSale } from "../utils/entryProductivity";
 import api from "../api/api";
 import SearchableSelect from "../components/SearchableSelect";
 import { useUi } from "../context/UiContext";
@@ -17,7 +19,7 @@ const createEmptyLine = () => ({
   lotNo: ""
 });
 
-function Sales({ initialSale = null, onSaved = null }) {
+function Sales({ initialSale = null, copyFrom = null, onSaved = null }) {
   const { success: toastSuccess, error: toastError } = useUi();
   const { active: workspaceTabActive, markClean: markWorkspaceTabClean } = useWorkspaceTab();
   const today = new Date().toISOString().slice(0, 10);
@@ -27,7 +29,8 @@ function Sales({ initialSale = null, onSaved = null }) {
   const [stock, setStock] = useState([]);
   const [company, setCompany] = useState(null);
 
-  const [form, setForm] = useState({
+  const blankForm = () => ({ invoiceDate:today, customerId:"", customerReference:"", discountAmount:"0", otherCharges:"0", amountPaid:"0", paymentMode:"CASH", paymentReference:"", notes:"", placeOfSupply:"", taxType:"AUTO" });
+  const [form, setForm] = useState(() => copyFrom ? duplicateSale(copyFrom,today).form : ({
     invoiceDate: initialSale?.invoice_date || today,
     customerId: String(initialSale?.customer_id || ""),
     customerReference: initialSale?.customer_reference || "",
@@ -39,7 +42,7 @@ function Sales({ initialSale = null, onSaved = null }) {
     notes: initialSale?.notes || "",
     placeOfSupply: initialSale?.place_of_supply || "",
     taxType: initialSale?.tax_type || "AUTO"
-  });
+  }));
 
   const [lines, setLines] = useState(() => initialSale?.items?.length
     ? initialSale.items.map((item) => ({
@@ -47,13 +50,14 @@ function Sales({ initialSale = null, onSaved = null }) {
       discountAmount: String(item.discount_amount ?? 0), gstRate: String(item.gst_rate ?? 0),
       hsnCode: String(item.hsn_code || ""), lotNo: item.lot_no || "",
     }))
-    : [createEmptyLine()]);
+    : copyFrom?.items?.length ? duplicateSale(copyFrom,today).lines : [createEmptyLine()]);
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [invalidFields, setInvalidFields] = useState({});
   const pageRef = useRef(null);
+  const draft = useEntryDraft({kind:"sale",enabled:!initialSale,payload:{form,lines}, meaningful:JSON.stringify({form,lines})!==JSON.stringify({form:blankForm(),lines:[createEmptyLine()]}), restore:(data)=>{setForm(data.form);setLines(data.lines);setInvalidFields({});},reset:()=>{setForm(blankForm());setLines([createEmptyLine()]);setInvalidFields({});setError("");}});
   const invalid = (field) => Boolean(invalidFields[field]);
   const clear = (field) => clearInvalidField(setInvalidFields, field);
 
@@ -392,6 +396,7 @@ function Sales({ initialSale = null, onSaved = null }) {
     }
     setInvalidFields({});
 
+    if (saving || (!initialSale && !draft.beginPost())) return;
     try {
       setSaving(true);
 
@@ -480,10 +485,11 @@ function Sales({ initialSale = null, onSaved = null }) {
         }
       );
 
+      if (!initialSale) draft.clear();
       const successMessage = initialSale
         ? `Invoice ${initialSale.invoice_no} replaced by ${response.data.sale.invoiceNo}. Original remains cancelled for audit.`
         : `Invoice ${response.data.sale.invoiceNo} saved successfully.`;
-      if (initialSale && onSaved) { toastSuccess(successMessage, "Invoice corrected"); onSaved(response.data.sale); return; }
+      if (onSaved) { toastSuccess(successMessage, initialSale ? "Invoice corrected" : "Invoice posted"); onSaved(response.data.sale); return; }
       setMessage(successMessage);
       toastSuccess(successMessage, "Sales invoice posted");
 
@@ -511,6 +517,7 @@ function Sales({ initialSale = null, onSaved = null }) {
     } catch (err) {
       console.error(err);
 
+      if (!initialSale) draft.failed(err);
       const errorMessage = err.response?.data?.message || "Unable to save sales invoice.";
       setError(errorMessage);
       toastError(errorMessage, "Invoice not saved");
@@ -531,6 +538,8 @@ function Sales({ initialSale = null, onSaved = null }) {
         </p>
       </div>
 
+      {copyFrom && <div className="alert alert-info">New invoice copied from {copyFrom.invoice_no}. Verify stock, prices and taxes; previous payments and references are not copied.</div>}
+      {!initialSale && <EntryDraft draft={draft} saving={saving}/>}
       {message &&
       <div className="alert alert-success">
           {message}
@@ -717,7 +726,7 @@ function Sales({ initialSale = null, onSaved = null }) {
                             onChange={(value) =>
                             handleProductChange(index, value)
                             }
-                            options={items}
+                            options={items} recentGroup="items"
                             placeholder="Search product..."
                             ariaLabel={`Sales product row ${index + 1}`}
                             getOptionLabel={(itemOption) =>
@@ -1197,7 +1206,7 @@ function Sales({ initialSale = null, onSaved = null }) {
           type="button"
           className="btn btn-success btn-lg"
           data-pro-action="save" data-pro-confirm-post="true" onClick={handleSave}
-          disabled={saving}>
+          disabled={saving || (!initialSale && draft.status!=="draft")}>
           
           {saving ? "Saving Invoice..." : "Post Sales Invoice"}
         </button>

@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import "./SearchableSelect.css";
+import {useAuth} from "../context/AuthContext";
+import {readPreference,writePreference} from "../utils/proPreferences";
+import {rankRecent,rememberRecent} from "../utils/entryProductivity";
 
 function asText(value) {
   return String(value ?? "");
@@ -49,7 +52,11 @@ export default function SearchableSelect({
   inputClassName = "",
   invalid = false,
   fieldId,
+  recentGroup,
 }) {
+  const {user}=useAuth();
+  const recentKey=recentGroup && user?.id ? `recent.${user.id}.${user.username}.${recentGroup}` : "";
+  const [recent,setRecent]=useState([]);
   const rootRef = useRef(null);
   const inputRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -95,9 +102,9 @@ export default function SearchableSelect({
   };
 
   const filteredOptions = useMemo(() => {
-    if (!effectiveSearch) return options.slice(0, maxResults);
+    if (!effectiveSearch) return (recentKey ? rankRecent(options,recent,getOptionValue) : options).slice(0, maxResults);
     return options.filter(matchesOption).slice(0, maxResults);
-  }, [options, effectiveSearch, maxResults, getOptionLabel, getOptionMeta, getOptionSearchText]);
+  }, [options, effectiveSearch, maxResults, getOptionLabel, getOptionMeta, getOptionSearchText,recent,recentKey,getOptionValue]);
 
   const moreCount = useMemo(() => {
     if (!effectiveSearch) return Math.max(0, options.length - filteredOptions.length);
@@ -141,6 +148,7 @@ export default function SearchableSelect({
 
   const choose = (option) => {
     const nextValue = option ? asText(getOptionValue(option)) : "";
+    if (recentKey && nextValue) { const previous=readPreference(recentKey,[]); const next=rememberRecent(Array.isArray(previous)?previous:[],nextValue); writePreference(recentKey,next); setRecent(next); }
     onChange?.(nextValue, option || null);
     setQuery(option ? displayLabel(option) : "");
     setOpen(false);
@@ -149,6 +157,7 @@ export default function SearchableSelect({
 
   const openMenu = (event) => {
     if (disabled) return;
+    if(recentKey){const stored=readPreference(recentKey,[]);setRecent(Array.isArray(stored)?stored:[]);}
     setOpen(true);
     setHighlightedIndex(0);
     window.requestAnimationFrame(updateMenuPosition);
@@ -229,7 +238,7 @@ export default function SearchableSelect({
               role="option"
               aria-selected={selected}
             >
-              <span className="searchable-select-option-label">{displayLabel(option)}</span>
+              <span className="searchable-select-option-label">{displayLabel(option)} {!effectiveSearch && recentKey && recent.includes(optionValue) && <small className="lookup-recent-label">Recent</small>}</span>
               {meta ? <span className="searchable-select-option-meta">{meta}</span> : null}
             </button>
           );

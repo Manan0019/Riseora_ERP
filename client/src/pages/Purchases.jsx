@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import EntryDraft, { useEntryDraft } from "../components/EntryDraft";
+import { duplicatePurchase } from "../utils/entryProductivity";
 import api from "../api/api";
 import SearchableSelect from "../components/SearchableSelect";
 import SmartDateInput from "../components/SmartDateInput";
@@ -13,7 +15,7 @@ const todayLocal = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 };
 
-function Purchases({ initialPurchase = null, onSaved = null, embedded = false }) {
+function Purchases({ initialPurchase = null, copyFrom = null, onSaved = null, embedded = false }) {
   const { success: toastSuccess, error: toastError } = useUi();
   const { active: workspaceTabActive, markClean: markWorkspaceTabClean } = useWorkspaceTab();
   const [suppliers, setSuppliers] = useState([]);
@@ -29,7 +31,7 @@ function Purchases({ initialPurchase = null, onSaved = null, embedded = false })
     freightAmount: String(initialPurchase.freight_amount ?? 0),
     otherCharges: String(initialPurchase.other_charges ?? 0),
     notes: initialPurchase.notes || "",
-  } : blankPurchaseForm(todayLocal()));
+  } : copyFrom ? duplicatePurchase(copyFrom,todayLocal()).form : blankPurchaseForm(todayLocal()));
   const [lines, setLines] = useState(() => initialPurchase?.items?.length ? initialPurchase.items.map((line) => ({
     itemId: String(line.item_id),
     quantity: String(line.entry_quantity ?? line.quantity),
@@ -40,12 +42,14 @@ function Purchases({ initialPurchase = null, onSaved = null, embedded = false })
     gstRate: String(line.gst_rate ?? 0),
     hsnCode: String(line.hsn_code ?? ""),
     lotNo: line.lot_no || "", mfgDate: line.mfg_date || "", expiryDate: line.expiry_date || "",
-  })) : [blankPurchaseLine()]);
+  })) : copyFrom?.items?.length ? duplicatePurchase(copyFrom,todayLocal()).lines : [blankPurchaseLine()]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [invalidFields, setInvalidFields] = useState({});
   const pageRef = useRef(null);
+  const draft = useEntryDraft({ kind:"purchase", enabled:!initialPurchase, payload:{form,lines}, meaningful:JSON.stringify({form,lines})!==JSON.stringify({form:blankPurchaseForm(form.purchaseDate),lines:[blankPurchaseLine()]}) || form.purchaseDate!==todayLocal(), restore:(data)=>{setForm(data.form);setLines(data.lines);setInvalidFields({});}, reset:()=>{setForm(blankPurchaseForm(todayLocal()));setLines([blankPurchaseLine()]);setInvalidFields({});setError("");} });
+
   const invalid = (field) => Boolean(invalidFields[field]);
   const clear = (field) => clearInvalidField(setInvalidFields, field);
 
@@ -172,6 +176,7 @@ function Purchases({ initialPurchase = null, onSaved = null, embedded = false })
       return;
     }
     setInvalidFields({});
+    if (saving || (!initialPurchase && !draft.beginPost())) return;
     try {
       setSaving(true);
       const payload = {
@@ -186,12 +191,14 @@ function Purchases({ initialPurchase = null, onSaved = null, embedded = false })
       const response = initialPurchase
         ? await api.put(`/purchases/${initialPurchase.id}`, payload)
         : await api.post("/purchases", payload);
+      if (!initialPurchase) draft.clear();
       const note = `Purchase ${response.data.purchase.purchaseNo} ${initialPurchase ? "corrected" : "posted"} successfully.`;
       toastSuccess(note, "Purchase saved");
       markWorkspaceTabClean();
       if (onSaved) onSaved(response.data.purchase);
       else { setMessage(note); setForm(blankPurchaseForm(todayLocal())); setLines([blankPurchaseLine()]); setInvalidFields({}); await loadLookups(); }
     } catch (err) {
+      if (!initialPurchase) draft.failed(err);
       notifyError(err.response?.data?.message || "Unable to save purchase.");
     } finally { setSaving(false); }
   }
@@ -200,6 +207,8 @@ function Purchases({ initialPurchase = null, onSaved = null, embedded = false })
   return (
     <div ref={pageRef} className={`transaction-page purchase-entry-page ${embedded ? "purchase-editor-embedded" : ""}`}>
       {!embedded && <div className="transaction-intro mb-3"><div><h2 className="mb-1">Purchase Entry</h2><p className="text-muted mb-0">Record supplier invoices, GST and purchased stock.</p></div></div>}
+      {copyFrom && <div className="alert alert-info">New purchase copied from {copyFrom.purchase_no}. Verify prices, taxes, supplier invoice and fresh lot details before posting.</div>}
+      {!initialPurchase && <EntryDraft draft={draft} saving={saving}/>}
       {message && <div className="alert alert-success">{message}</div>}
       {error && <div className="alert alert-danger" role="alert">{error}</div>}
       <div className="card mb-3 transaction-card"><div className="card-body">
@@ -223,7 +232,7 @@ function Purchases({ initialPurchase = null, onSaved = null, embedded = false })
             const amounts = purchaseLineValues(line);
             const compatibleUnits = matchingUnits(item?.unit_code, units, item?.density);
             return <tr key={index}>
-              <td><SearchableSelect value={line.itemId} invalid={invalid(`lines.${index}.itemId`)} fieldId={`lines.${index}.itemId`} onChange={(value) => changeLine(index, "itemId", value)} options={items} placeholder="Search item..." ariaLabel={`Purchase item row ${index + 1}`} getOptionLabel={(option) => `${option.code} - ${option.name}`} getOptionMeta={(option) => `${option.category_name || ""} · ${option.unit_code || ""}`} getOptionSearchText={(option) => option.hsn_code || ""} /></td>
+              <td><SearchableSelect value={line.itemId} invalid={invalid(`lines.${index}.itemId`)} fieldId={`lines.${index}.itemId`} onChange={(value) => changeLine(index, "itemId", value)} options={items} recentGroup="items" placeholder="Search item..." ariaLabel={`Purchase item row ${index + 1}`} getOptionLabel={(option) => `${option.code} - ${option.name}`} getOptionMeta={(option) => `${option.category_name || ""} · ${option.unit_code || ""}`} getOptionSearchText={(option) => option.hsn_code || ""} /></td>
               <td><input type="text" aria-label={`HSN row ${index + 1}`} className="form-control entry-hsn-input" maxLength={16} value={line.hsnCode} onChange={(event) => changeLine(index, "hsnCode", event.target.value.toUpperCase())} /></td>
               <td><AutoWidthEntryInput aria-label={`Quantity row ${index + 1}`} data-entry-field={`lines.${index}.quantity`} invalid={invalid(`lines.${index}.quantity`)} minChars={5} maxChars={15} min="0" step="any" className="purchase-qty" value={line.quantity} onChange={(e) => changeLine(index, "quantity", e.target.value)} /></td>
               <td><select aria-label={`Unit row ${index + 1}`} data-entry-field={`lines.${index}.unitId`} aria-invalid={invalid(`lines.${index}.unitId`)} className={`form-select purchase-unit ${invalid(`lines.${index}.unitId`) ? "is-invalid" : ""}`} value={line.unitId || item?.base_unit_id || ""} onChange={(e) => changeLine(index, "unitId", e.target.value)}><option value="">–</option>{compatibleUnits.map((unit) => <option key={unit.id} value={unit.id}>{unit.code}</option>)}</select></td>
@@ -248,7 +257,7 @@ function Purchases({ initialPurchase = null, onSaved = null, embedded = false })
           <div className="col-sm-6 col-md-8 d-flex justify-content-end gap-3 flex-wrap purchase-total-summary"><span>Taxable <strong>{money(totals.subtotal)}</strong></span><span>GST <strong>{money(totals.gst)}</strong></span><span>Grand Total <strong>{money(totals.grandTotal)}</strong></span></div>
         </div>
       </div></div>
-      <div className="transaction-action-bar"><div className="transaction-action-copy"><span>{initialPurchase ? `Correct ${initialPurchase.purchase_no}` : "Purchase total"}</span><strong>{money(totals.grandTotal)}</strong></div><button type="button" className="btn btn-success" data-pro-action="save" data-pro-confirm-post="true" onClick={savePurchase} disabled={saving}>{saving ? "Saving..." : initialPurchase ? "Save Purchase Corrections" : "Post Purchase"}</button></div>
+      <div className="transaction-action-bar"><div className="transaction-action-copy"><span>{initialPurchase ? `Correct ${initialPurchase.purchase_no}` : "Purchase total"}</span><strong>{money(totals.grandTotal)}</strong></div><button type="button" className="btn btn-success" data-pro-action="save" data-pro-confirm-post="true" onClick={savePurchase} disabled={saving || (!initialPurchase && draft.status!=="draft")}>{saving ? "Saving..." : initialPurchase ? "Save Purchase Corrections" : "Post Purchase"}</button></div>
     </div>
   );
 }

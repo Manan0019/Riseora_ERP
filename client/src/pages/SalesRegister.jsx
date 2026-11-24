@@ -17,6 +17,7 @@ function SalesRegister() {
 
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [correctingSale, setCorrectingSale] = useState(null);
+  const [duplicating,setDuplicating] = useState(null);
 
   const { search: routeSearch } = useLocation();
   const [search, setSearch] = useState(() => new URLSearchParams(routeSearch).get("find") || "");
@@ -742,6 +743,9 @@ function SalesRegister() {
         </div>
       </div>
 
+      <MasterEditorModal open={Boolean(duplicating)} size="xl" title="Duplicate invoice — new entry" onRequestClose={()=>setDuplicating(null)}>
+        {duplicating && <Sales key={`copy-${duplicating.id}`} copyFrom={duplicating} onSaved={async()=>{setDuplicating(null);await loadInvoices();}}/>}
+      </MasterEditorModal>
       <MasterEditorModal open={Boolean(correctingSale)} size="xl" title={correctingSale ? `Edit / Correct ${correctingSale.invoice_no}` : "Correct Invoice"} onRequestClose={() => setCorrectingSale(null)}>
         {correctingSale && <Sales key={correctingSale.id} initialSale={correctingSale} onSaved={async () => { setCorrectingSale(null); await loadInvoices(); }} />}
       </MasterEditorModal>
@@ -780,6 +784,7 @@ function SalesRegister() {
                   </button>
               }
 
+                {selectedInvoice.status === "POSTED" && <button type="button" className="btn btn-outline-primary" onClick={()=>{setDuplicating(selectedInvoice);setSelectedInvoice(null);}}>Duplicate as New</button>}
                 {selectedInvoice.status === "POSTED" && Number(selectedInvoice.amount_paid || 0) === 0 && (selectedInvoice.payments || []).length === 0 && (selectedInvoice.credit_notes || []).length === 0 &&
                   <button type="button" className="btn btn-outline-primary" onClick={() => { setCorrectingSale(selectedInvoice); setSelectedInvoice(null); }}>Edit / Correct Invoice</button>}
                 {selectedInvoice.status !== "CANCELLED" &&
