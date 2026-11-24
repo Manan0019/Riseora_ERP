@@ -32,7 +32,7 @@ function normalizeInventoryFields(data) {
   if (!Number.isFinite(reorderLevel) || reorderLevel < 0) throw new Error("Reorder level cannot be negative.");
   if (density != null && (!Number.isFinite(density) || density <= 0)) throw new Error("Density must be greater than zero when entered.");
 
-  const category = db.prepare(`SELECT id, code, name, is_active FROM item_categories WHERE id = ?`).get(categoryId);
+  const category = db.prepare(`SELECT id, code, name, is_active, inventory_role FROM item_categories WHERE id = ?`).get(categoryId);
   const unit = db.prepare(`SELECT id, code, name, is_active FROM units WHERE id = ?`).get(baseUnitId);
   if (!category || Number(category.is_active) !== 1) throw new Error("Please select an active item category.");
   if (!unit || Number(unit.is_active) !== 1) throw new Error("Please select an active base unit.");
@@ -43,7 +43,7 @@ function normalizeInventoryFields(data) {
     if (!preferred || Number(preferred.is_active)!==1) throw new Error('Select an active preferred entry unit.');
     convertQuantityWithDensity(1, preferred.code, unit.code, density, data.name || 'Item');
   }
-  return { categoryId, baseUnitId, baseUnitCode:unit.code, reorderLevel, density, preferredEntryUnitId };
+  return { categoryId, categoryRole:String(category.inventory_role || category.code || "").toUpperCase(), baseUnitId, baseUnitCode:unit.code, reorderLevel, density, preferredEntryUnitId };
 }
 
 export function getItems(includeInactive = false, includeEditPolicy = false) {
@@ -145,7 +145,9 @@ function updateItemAtomic(id, data) {
   const pricing = normalizePricing(data);
   const inventory = normalizeInventoryFields({...data, preferredEntryUnitId: Object.hasOwn(data,"preferredEntryUnitId") ? data.preferredEntryUnitId : existingItem.preferred_entry_unit_id});
 
-  validateUnitCorrection(itemUnitPolicy(db,itemId), existingItem, inventory, convertQuantityWithDensity);
+  const currentCategory = db.prepare("SELECT inventory_role, code FROM item_categories WHERE id=?").get(existingItem.category_id);
+  const oldRole = String(currentCategory?.inventory_role || currentCategory?.code || "").toUpperCase();
+  validateUnitCorrection(itemUnitPolicy(db,itemId), {...existingItem, category_role:oldRole}, inventory, convertQuantityWithDensity);
 
   db.prepare(`
     UPDATE items

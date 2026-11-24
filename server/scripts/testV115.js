@@ -114,6 +114,14 @@ try {
   assert.deepEqual(db.prepare('SELECT * FROM stock_transactions WHERE item_id=?').all(corrected.id),stockBefore);
   assert.deepEqual(db.prepare('SELECT * FROM purchase_items WHERE item_id=?').all(corrected.id),purchasesBefore);
   assert.equal(getItems(false,true).find(x=>x.id===corrected.id).base_unit_locked,true);
+  const alternateRaw=db.prepare("SELECT id FROM item_categories WHERE inventory_role='RAW' AND is_active=1 AND id<>? LIMIT 1").get(category).id;
+  const finishedCategory=db.prepare("SELECT id FROM item_categories WHERE inventory_role='FG' AND is_active=1 LIMIT 1").get().id;
+  const recategorized=updateItem(corrected.id,{...sameBase,density:1.25,categoryId:alternateRaw,name:'Fixture corrected name'});
+  assert.equal(recategorized.category_id,alternateRaw);
+  assert.throws(()=>updateItem(corrected.id,{...sameBase,density:1.25,categoryId:finishedCategory}),/same inventory role/);
+  assert.deepEqual(db.prepare('SELECT * FROM stock_transactions WHERE item_id=?').all(corrected.id),stockBefore);
+  assert.deepEqual(db.prepare('SELECT * FROM purchase_items WHERE item_id=?').all(corrected.id),purchasesBefore);
+
   createPurchase({purchaseDate:day,supplierId:supplier.id,supplierInvoiceNo:'V115-UNIT-AFTER',items:[{itemId:corrected.id,quantity:2.5,unitId:kg,rate:8,gstRate:0}]});
   const newLine=db.prepare('SELECT * FROM purchase_items WHERE item_id=? ORDER BY id DESC LIMIT 1').get(corrected.id);
   assert.equal(newLine.entry_quantity,2.5);assert.equal(newLine.entry_unit_id,kg);assert.equal(newLine.quantity,2);assert.equal(newLine.taxable_amount,20);

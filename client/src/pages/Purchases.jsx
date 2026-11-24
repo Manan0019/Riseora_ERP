@@ -8,6 +8,7 @@ import AutoWidthEntryInput from "../components/AutoWidthEntryInput";
 import { clearInvalidField, focusInvalidEntryField } from "../utils/entryValidation";
 import { useUi } from "../context/UiContext";
 import { useWorkspaceTab } from "../context/WorkspaceTabContext";
+import { canRunEntryShortcut } from "../utils/editorFocus";
 import { blankPurchaseForm, blankPurchaseLine, convertEntryQuantity, matchingUnits, purchaseLineValues } from "../utils/purchaseEntry";
 
 const todayLocal = () => {
@@ -66,6 +67,7 @@ function Purchases({ initialPurchase = null, copyFrom = null, onSaved = null, em
     if (!workspaceTabActive || saving) return undefined;
     const onKeyDown = (event) => {
       if (event.defaultPrevented || event.repeat || !event.ctrlKey || event.altKey || event.shiftKey || event.key.toLowerCase() !== "n") return;
+      if (!canRunEntryShortcut(event, pageRef.current)) return;
       event.preventDefault();
       event.stopPropagation();
       addNewLine();

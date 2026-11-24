@@ -85,7 +85,7 @@ function Items() {
     setSelectedId(item.id);
     setForm(mapped);
     setOriginalForm(mapped);
-    setEditing(false);
+    setEditing(true);
     setModalOpen(true);
     setInvalidFields({});
     setError("");
@@ -128,6 +128,9 @@ function Items() {
   const selectedItem = items.find((item) => item.id === selectedId);
   const baseLocked = Boolean(selectedItem?.base_unit_locked);
   const categoryLocked = Boolean(selectedItem?.category_locked);
+  const originalCategory = categories.find(category=>String(category.id)===originalForm.categoryId);
+  const categoryRole = category=>String(category?.inventory_role || category?.code || "").toUpperCase();
+  const editableCategories = categories.filter(category=>!categoryLocked || String(category.id)===originalForm.categoryId || (categoryRole(originalCategory) && categoryRole(category)===categoryRole(originalCategory)));
   const densityLocked = Boolean(selectedItem?.density_locked);
   const baseCode = units.find(unit=>String(unit.id)===form.baseUnitId)?.code;
   const preferredUnits = matchingUnits(baseCode,units,form.density);
@@ -181,7 +184,7 @@ function Items() {
     setForm(mapped);
     setCustomCode(true);
     setOriginalForm(mapped);
-    setEditing(false);
+    setEditing(true);
     setModalOpen(true);
     setInvalidFields({});
     setError("");
@@ -381,12 +384,13 @@ function Items() {
       >
         {error && <div className="alert alert-danger">{error}</div>}
         {selectedId && baseLocked && <div className="alert alert-info" role="status"><strong>Stock unit protected:</strong> {selectedItem?.unit_lock_reasons?.join(", ")}. Other item details remain editable. To enter in a different compatible unit, set Preferred Entry Unit below.{densityLocked && " Density is protected by production history."}</div>}
+        {selectedId && categoryLocked && <div className="form-text mb-2">Category can be corrected within the same inventory role ({categoryRole(originalCategory) || "existing role"}). Changing its operational role would alter historical business meaning.</div>}
         {selectedId && !baseLocked && selectedItem?.formula_unit_codes?.length>0 && <div className="alert alert-info">This item has formula references but no posted or production history. Base-unit corrections must remain compatible with existing formula units ({selectedItem.formula_unit_codes.join(", ")}). Formula quantities will not be rewritten.</div>}
         {editing && selectedId && form.baseUnitId !== originalForm.baseUnitId && <div className="alert alert-warning">Review reorder level and selling price: these are expressed per new stock base unit. Existing formula quantities stay in their original units.</div>}
         <div className="row">
           <div className="col-md-3 mb-3"><label className="form-label">Item Code (Auto / Editable)</label><input className="form-control" name="code" value={form.code} onChange={handleChange} disabled={!editing} maxLength={30} /></div>
           <div className="col-md-5 mb-3"><label className="form-label">Item Name *</label><input spellCheck className="form-control" name="name" value={form.name} onChange={handleChange} onBlur={() => setForm((current) => ({ ...current, name: toTitleCase(current.name) }))} disabled={!editing} autoFocus={editing} /></div>
-          <div className="col-md-4 mb-3"><label className="form-label">Category *</label><select className="form-select" name="categoryId" value={form.categoryId} onChange={handleChange} disabled={!editing || categoryLocked}><option value="">Select Category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name} [{category.inventory_role || "CONS"}]</option>)}</select></div>
+          <div className="col-md-4 mb-3"><label className="form-label">Category *</label><select className="form-select" name="categoryId" value={form.categoryId} onChange={handleChange} disabled={!editing}><option value="">Select Category</option>{editableCategories.map((category) => <option key={category.id} value={category.id}>{category.name} [{category.inventory_role || "CONS"}]</option>)}</select></div>
           <div className="col-md-4 mb-3"><label className="form-label">Base Unit *</label><select className="form-select" name="baseUnitId" value={form.baseUnitId} onChange={handleChange} disabled={!editing || baseLocked}><option value="">Select Unit</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.code} - {unit.name}</option>)}</select></div>
           <div className="col-md-4 mb-3"><label className="form-label">Reorder Level</label><input type="number" min="0" step="0.001" className="form-control" name="reorderLevel" value={form.reorderLevel} onChange={handleChange} disabled={!editing} /></div>
           <div className="col-md-4 mb-3"><label className="form-label">Density (g/mL)</label><input type="number" min="0" step="0.0001" className="form-control" name="density" value={form.density} onChange={handleChange} disabled={!editing || densityLocked} placeholder="Optional" /></div>

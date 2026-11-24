@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { topEditorDialog, focusableControls, restoreEditorFocus, lockEditorScroll } from "../utils/editorFocus";
 import { useWorkspaceTab } from "../context/WorkspaceTabContext";
 
 function MasterEditorModal({
@@ -26,9 +27,8 @@ function MasterEditorModal({
   useEffect(() => {
     if (!open || !workspaceTabActive) return undefined;
 
-    const previousOverflow = document.body.style.overflow;
+    const unlockScroll = lockEditorScroll();
     focusBeforeModal.current = document.activeElement;
-    document.body.style.overflow = "hidden";
 
     /*
      * Focus only once when the popup opens. The old implementation depended on
@@ -39,14 +39,14 @@ function MasterEditorModal({
       const firstEditable = dialogRef.current?.querySelector(
         '.master-modal-body input:not([disabled]):not([type="hidden"]), .master-modal-body select:not([disabled]), .master-modal-body textarea:not([disabled])',
       );
-      firstEditable?.focus?.();
+      const dialog = dialogRef.current;
+      if (dialog && topEditorDialog() === dialog && !dialog.contains(document.activeElement)) firstEditable?.focus?.({preventScroll:true});
     }, 30);
 
     const handleKeyDown = (event) => {
+      if (event.defaultPrevented || event.isComposing || event.keyCode === 229 || topEditorDialog() !== dialogRef.current) return;
       if (event.key === "Tab" && dialogRef.current) {
-        const candidates = [...dialogRef.current.querySelectorAll(
-          'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',
-        )].filter((element) => element.getClientRects().length > 0);
+        const candidates = focusableControls(dialogRef.current);
         if (candidates.length) {
           const first = candidates[0];
           const last = candidates[candidates.length - 1];
@@ -69,9 +69,10 @@ function MasterEditorModal({
 
     return () => {
       window.clearTimeout(focusTimer);
-      document.body.style.overflow = previousOverflow;
+      unlockScroll();
       document.removeEventListener("keydown", handleKeyDown);
-      if (focusBeforeModal.current?.isConnected) focusBeforeModal.current.focus({preventScroll: true});
+      const previous = focusBeforeModal.current;
+      window.requestAnimationFrame(() => restoreEditorFocus(previous));
     };
   }, [open, workspaceTabActive]);
 
@@ -91,7 +92,7 @@ function MasterEditorModal({
     // Focus on save failure, not every time a user clears a red field.
     if (hasNewErrors) {
       const firstInvalid = Array.from(fields).find((field) => invalidFields[field.name]);
-      if (firstInvalid) {
+      if (firstInvalid && topEditorDialog() === dialogRef.current && !firstInvalid.matches(":disabled")) {
         firstInvalid.scrollIntoView({ block: "center", behavior: "smooth" });
         firstInvalid.focus({ preventScroll: true });
       }

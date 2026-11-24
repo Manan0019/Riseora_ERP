@@ -27,7 +27,7 @@ export function validateUnitCorrection(policy,existing,inventory,convert) {
     if(policy.base_unit_locked) throw new Error(`Stock base unit is locked (${policy.unit_lock_reasons.join(', ')}). Keep the stock unit and choose a preferred entry unit instead.`);
     for(const code of policy.formula_unit_codes) convert(1,code,inventory.baseUnitCode,inventory.density,existing.name);
   }
-  if(Number(existing.category_id)!==inventory.categoryId && policy.category_locked) throw new Error('Category is locked because this item has business or formula history.');
+  if(Number(existing.category_id)!==inventory.categoryId && policy.category_locked && (!existing.category_role || existing.category_role!==inventory.categoryRole)) throw new Error('Items with business or formula history can only move to a category with the same inventory role.');
   const oldDensity=existing.density==null?null:Number(existing.density);
   if(oldDensity!==inventory.density && policy.density_locked) throw new Error('Density is locked after production use. Use the verified existing density or contact support for a traceable conversion.');
 }

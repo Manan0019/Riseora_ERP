@@ -59,9 +59,7 @@ function UiSession({ children }) {
   );
 
   const confirm = useCallback((options = {}) => {
-    if (confirmationResolver.current) {
-      confirmationResolver.current(false);
-    }
+    if (confirmationResolver.current) return Promise.resolve(false);
 
     return new Promise((resolve) => {
       confirmationResolver.current = resolve;

@@ -5,6 +5,7 @@ import api from "../api/api";
 import SearchableSelect from "../components/SearchableSelect";
 import { useUi } from "../context/UiContext";
 import { useWorkspaceTab } from "../context/WorkspaceTabContext";
+import { canRunEntryShortcut } from "../utils/editorFocus";
 import SmartDateInput from "../components/SmartDateInput";
 import AutoWidthEntryInput from "../components/AutoWidthEntryInput";
 import { clearInvalidField, focusInvalidEntryField } from "../utils/entryValidation";
@@ -206,6 +207,7 @@ function Sales({ initialSale = null, copyFrom = null, onSaved = null }) {
     if (!workspaceTabActive || saving) return undefined;
     const onKeyDown = (event) => {
       if (event.defaultPrevented || event.repeat || !event.ctrlKey || event.altKey || event.shiftKey || event.key.toLowerCase() !== "n") return;
+      if (!canRunEntryShortcut(event, pageRef.current)) return;
       event.preventDefault();
       event.stopPropagation();
       addLine();

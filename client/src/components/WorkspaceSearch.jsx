@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import api from "../api/api";
 import AppIcon from "./AppIcon";
+import {restoreEditorFocus} from "../utils/editorFocus";
 
 export default function WorkspaceSearch({ pages, onOpen, onClose, open, onActivate }) {
   const ref = useRef(null), input = useRef(null), list = useRef(null), id = useId();
@@ -42,6 +43,6 @@ export default function WorkspaceSearch({ pages, onOpen, onClose, open, onActiva
 }
 export function ShortcutHelp({onClose}) {
   const ref=useRef(null);
-  useEffect(()=>{const d=ref.current;d.showModal();return()=>d.close();},[]);
+  useEffect(()=>{const d=ref.current,previous=document.activeElement;d.showModal();return()=>{if(d.open)d.close();window.requestAnimationFrame(()=>restoreEditorFocus(previous));};},[]);
   return <dialog ref={ref} className="pro-dialog" onCancel={e=>{e.preventDefault();onClose();}}><header><h2>Keyboard shortcuts</h2><button className="btn btn-outline-secondary" onClick={onClose} type="button">Close</button></header><dl className="pro-shortcuts">{[["Ctrl+K","Search pages and records"],["Ctrl+F","Focus the visible search field"],["Ctrl+N","New record / row on supported forms"],["Ctrl+S","Save supported forms; focus Post for financial entries"],["F2","Focus an explicitly marked edit action"],["Tab / Shift+Tab","Move through controls"],["Esc","Close search or existing dialogs"],["F1","Keyboard help"]].map(([k,v])=><div key={k}><dt><kbd>{k}</kbd></dt><dd>{v}</dd></div>)}</dl></dialog>;
 }

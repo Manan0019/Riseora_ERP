@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 import AppIcon from "../AppIcon";
+import { createPortal } from "react-dom";
+import { topEditorDialog, restoreEditorFocus, lockEditorScroll } from "../../utils/editorFocus";
 
 function ConfirmDialog({
   open,
@@ -20,10 +22,10 @@ function ConfirmDialog({
   useEffect(() => {
     if (!open) return undefined;
     const previousFocus=document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const timer=window.setTimeout(() => cancelRef.current?.focus(), 0);
+    const unlockScroll = lockEditorScroll();
+    const timer=window.setTimeout(() => { if (topEditorDialog() === dialogRef.current) cancelRef.current?.focus({preventScroll:true}); }, 0);
     const handleKeyDown = (event) => {
+      if (event.defaultPrevented || event.isComposing || event.keyCode === 229 || topEditorDialog() !== dialogRef.current) return;
       if (event.key === "Escape") {
         event.preventDefault();event.stopPropagation();cancelHandler.current?.();return;
       }
@@ -37,9 +39,9 @@ function ConfirmDialog({
     document.addEventListener("keydown", handleKeyDown, true);
     return () => {
       window.clearTimeout(timer);
-      document.body.style.overflow = previousOverflow;
+      unlockScroll();
       document.removeEventListener("keydown", handleKeyDown, true);
-      if(previousFocus?.isConnected && previousFocus.getClientRects().length)previousFocus.focus({preventScroll:true});
+      window.requestAnimationFrame(() => restoreEditorFocus(previousFocus));
     };
   }, [open]);
 
@@ -49,7 +51,7 @@ function ConfirmDialog({
   const warning = variant === "warning";
   const iconName = danger ? "warning" : warning ? "warning" : "check";
 
-  return (
+  return createPortal(
     <div className="ui-dialog-layer" role="presentation" onMouseDown={onCancel}>
       <section
         className="ui-dialog-card"
@@ -88,7 +90,7 @@ function ConfirmDialog({
           </button>
         </div>
       </section>
-    </div>
+    </div>, document.body
   );
 }
 

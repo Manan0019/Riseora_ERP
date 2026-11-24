@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { version as appVersion } from "../../../version.json";
 import { NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useUi } from "../context/UiContext";
+import { topEditorDialog } from "../utils/editorFocus";
 import { AppearanceDialog, NotificationControl, TableViewer, captureVisibleTables } from "../components/ui/WorkspaceEnhancements";
 import { normalizeAppearance } from "../utils/workspaceAppearance";
 import WorkspaceSearch, { ShortcutHelp } from "../components/WorkspaceSearch";
@@ -237,6 +239,8 @@ function loadWorkspace(initialPath) {
 
 function MainLayout() {
   const { user, logout } = useAuth();
+  const { confirm: confirmAction } = useUi();
+  const confirmLeave = (title, confirmLabel) => confirmAction({title, message: "Unsaved changes may be lost.", confirmLabel, cancelLabel: "Continue editing", variant: "warning"});
   const navigate = useNavigate();
   const location = useLocation();
   const currentLocationPath = safeWorkspacePath(`${location.pathname}${location.search}`);
@@ -441,7 +445,7 @@ function MainLayout() {
 
   const blurCurrentEditor = () => {
     const focused = document.activeElement;
-    if (focused instanceof HTMLElement) {
+    if (focused instanceof HTMLElement && focused.closest(".workspace-page-host.is-active, .master-modal")) {
       focused.blur();
     }
   };
@@ -459,11 +463,9 @@ function MainLayout() {
   };
 
   const markTabDirty = (tabId) => {
-    setTabs((current) => current.map((tab) =>
-      tab.id === tabId && !tab.dirty
-        ? { ...tab, dirty: true }
-        : tab,
-    ));
+    setTabs((current) => current.some(tab => tab.id === tabId && !tab.dirty)
+      ? current.map(tab => tab.id === tabId ? {...tab, dirty:true} : tab)
+      : current);
   };
 
   const markTabClean = (tabId) => {
@@ -507,11 +509,11 @@ function MainLayout() {
     };
   }, []);
 
-  const navigateInActiveTab = (path) => {
+  const navigateInActiveTab = async (path) => {
     const targetPath = safeWorkspacePath(path);
     const tabId = activeTabIdRef.current;
     const now = getCurrentTime();
-    if (tabs.find(t => t.id === tabId)?.dirty && activeTab?.path !== targetPath && !window.confirm("Leave this page? Unsaved changes may be lost.")) return;
+    if (tabs.find(t => t.id === tabId)?.dirty && activeTab?.path !== targetPath && !await confirmLeave("Leave this page?", "Leave page")) return;
 
     blurCurrentEditor();
 
@@ -605,12 +607,13 @@ function MainLayout() {
     syncBrowserLocation(targetId, tab.path || "/dashboard");
   };
 
-  const closeTab = (event, id) => {
+  const closeTab = async (event, id) => {
     event.stopPropagation();
 
     const tabId = Number(id);
     const currentTabs = tabs;
-    if (currentTabs.find(t => t.id === tabId)?.dirty && !window.confirm("Close this tab? Unsaved changes may be lost.")) return;
+    setContextMenu(null);
+    if (currentTabs.find(t => t.id === tabId)?.dirty && !await confirmLeave("Close this tab?", "Close tab")) return;
 
     if (currentTabs.length === 1) {
       const now = getCurrentTime();
@@ -660,11 +663,12 @@ function MainLayout() {
     setContextMenu(null);
   };
 
-  const reloadTab = (tabId = activeTabIdRef.current) => {
+  const reloadTab = async (tabId = activeTabIdRef.current) => {
     const targetId = Number(tabId);
     const target = tabs.find((tab) => tab.id === targetId) || activeTab;
     if (!target) return;
-    if (target.dirty && !window.confirm("Reload this tab? Unsaved changes may be lost.")) return;
+    setContextMenu(null);
+    if (target.dirty && !await confirmLeave("Reload this tab?", "Reload tab")) return;
 
     const previousActiveId = activeTabIdRef.current;
     const now = getCurrentTime();
@@ -733,7 +737,7 @@ function MainLayout() {
   };
 
   const handleLogout = async () => {
-    if (tabs.some(t => t.dirty) && !window.confirm("Sign out? Unsaved changes may be lost.")) return;
+    if (tabs.some(t => t.dirty) && !await confirmLeave("Sign out?", "Sign out")) return;
     try {
       window.sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
     } catch {
@@ -750,11 +754,11 @@ function MainLayout() {
   }, [tabs]);
   useEffect(() => {
     const handler = e => {
-      if (e.defaultPrevented || e.repeat || e.altKey || e.shiftKey || e.metaKey) return;
+      if (e.defaultPrevented || e.repeat || e.isComposing || e.keyCode === 229 || e.altKey || e.shiftKey || e.metaKey) return;
       const key = e.key.toLowerCase();
       if (palette || document.querySelector(".ui-dialog-layer, dialog[open]")) return;
       const visible = el => el && !el.disabled && el.getClientRects().length > 0;
-      const modal = [...document.querySelectorAll('.master-modal[role="dialog"]')].filter(visible).at(-1);
+      const modal = topEditorDialog();
       const scope = modal || document.querySelector(".workspace-page-host.is-active");
       if (key === "f1" && !e.ctrlKey && !modal) { e.preventDefault(); setPalette("help"); return; }
       if (!scope) return;
@@ -984,6 +988,7 @@ function MainLayout() {
                 data-workspace-page-tab-id={tab.id}
                 className={`page-transition workspace-page-host ${isActive ? "is-active" : ""}${tab.sleeping ? " is-sleeping" : ""}`}
                 aria-hidden={!isActive}
+                inert={!isActive}
               >
                 {shouldMount ? (
                   <WorkspaceTabProvider

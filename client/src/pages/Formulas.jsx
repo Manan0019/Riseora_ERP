@@ -552,8 +552,9 @@ function Formulas() {
       const response = await api.get(`/formulas/${id}`);
       const formula = response.data.formula;
       if (requestedMode === "EDIT" && Number(formula.is_locked || 0) === 1) {
-        applyFormulaToEditor(formula, "VIEW");
-        setError(`Version ${formula.version_no} has already been used in production and is locked. Use Create New Version to change the recipe.`);
+        const latestActive = Boolean(formula.is_active) && isLatestFormulaVersion(formula);
+        applyFormulaToEditor(formula, latestActive ? "NEW_VERSION" : "VIEW");
+        setMessage(latestActive ? `Editing a new revision of V${formula.version_no}. Previous production records remain unchanged.` : `Historical V${formula.version_no}: use Duplicate or edit the current active revision.`);
         return;
       }
       applyFormulaToEditor(formula, requestedMode);
@@ -563,7 +564,7 @@ function Formulas() {
     }
   };
 
-  const handleEdit = (formula) => loadFormula(formula.id, Number(formula.is_locked || 0) === 1 ? "VIEW" : "EDIT");
+  const handleEdit = (formula) => loadFormula(formula.id, "EDIT");
   const handleCreateNewVersion = (formula) => loadFormula(formula.id, "NEW_VERSION");
 
   const validate = () => {
@@ -1243,7 +1244,7 @@ function Formulas() {
                         <td>{formula.is_active ? <span className="badge text-bg-success">Active</span> : <span className="badge text-bg-secondary">Inactive</span>}</td>
                         <td>
                           <div className="d-flex flex-wrap gap-2">
-                            <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => handleEdit(formula)}>{Number(formula.is_locked || 0) === 1 ? "View" : "Edit"}</button>
+                            <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => handleEdit(formula)}>{Number(formula.is_locked || 0) === 1 ? (formula.is_active && isLatestFormulaVersion(formula) ? "Edit (new revision)" : "View history") : "Edit"}</button>
                             {formula.is_active && <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => loadFormula(formula.id, "DUPLICATE")}>Duplicate</button>}
                             {formula.is_active && isLatestFormulaVersion(formula) && <button type="button" className="btn btn-sm btn-outline-dark" onClick={() => handleCreateNewVersion(formula)}>Create New Version</button>}
                             {formula.is_active ? (
