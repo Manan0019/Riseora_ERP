@@ -237,7 +237,7 @@ function Suppliers() {
           <h2 className="mb-1">Suppliers</h2>
           <p className="text-muted mb-0">Maintain suppliers without exposing internal ERP codes.</p>
         </div>
-        <button type="button" className="btn btn-primary" onClick={openNew}>+ New Supplier</button>
+        <button type="button" className="btn btn-primary" data-pro-action="new" onClick={openNew}>+ New Supplier</button>
       </div>
 
       {error && !modalOpen && <div className="alert alert-danger">{error}</div>}
@@ -286,10 +286,10 @@ function Suppliers() {
               {selectedId && <button type="button" className={selectedSupplier?.is_active ? "btn btn-outline-danger" : "btn btn-outline-success"} onClick={toggleActive}>{selectedSupplier?.is_active ? "Deactivate" : "Activate"}</button>}
             </div>
             <div className="master-modal-footer-group">
-              {!editing && selectedId && selectedSupplier?.is_active && <button type="button" className="btn btn-secondary" onClick={() => setEditing(true)}>Edit</button>}
+              {!editing && selectedId && selectedSupplier?.is_active && <button type="button" className="btn btn-secondary" data-pro-action="edit" onClick={() => setEditing(true)}>Edit</button>}
               {editing && <button type="button" className="btn btn-outline-secondary" onClick={requestClose}>Cancel</button>}
               {editing && <button type="button" className="btn btn-outline-primary" disabled={saving} onClick={() => save(false)}>{saving ? "Saving..." : "Apply"}</button>}
-              {editing && <button type="button" className="btn btn-success" disabled={saving} onClick={() => save(true)}>{saving ? "Saving..." : "OK"}</button>}
+              {editing && <button type="button" className="btn btn-success" disabled={saving} data-pro-action="save" onClick={() => save(true)}>{saving ? "Saving..." : "OK"}</button>}
               {!editing && <button type="button" className="btn btn-primary" onClick={requestClose}>OK</button>}
             </div>
           </>

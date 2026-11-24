@@ -23,7 +23,7 @@ try {
   const { default: db } = await import('../src/db/database.js');
   const { initDatabase } = await import('../src/db/initDatabase.js');
   const { convertQuantityWithDensity, convertItemQuantityByUnitIds } = await import('../src/services/unitConversionService.js');
-  const { stageDatabaseRestore } = await import('../src/services/backupService.js');
+  const { stageDatabaseRestore, previewDatabaseRestore } = await import('../src/services/backupService.js');
   const { applyPendingDatabaseRestore, validateRiseoraDatabase } = await import('../src/db/pendingRestore.js');
   await initDatabase();
   assert.equal(convertQuantityWithDensity(1, 'L', 'ML', null), 1000);
@@ -47,6 +47,9 @@ try {
   validateRiseoraDatabase(importFile);
   db.prepare('UPDATE items SET name = ? WHERE id = ?').run('TEMP AFTER BACKUP', rawItem.id);
   await assert.rejects(stageDatabaseRestore(Buffer.from('NOT A VALID SQLITE FILE')), /valid/);
+  const preview = previewDatabaseRestore(fs.readFileSync(importFile));
+  assert.equal(preview.itemCount, db.prepare("SELECT COUNT(*) n FROM items").get().n);
+  assert.equal(db.prepare("SELECT name FROM items WHERE id = ?").get(rawItem.id).name, "TEMP AFTER BACKUP");
   const response = await stageDatabaseRestore(fs.readFileSync(importFile));
   assert.equal(response.requiresRestart, true);
   assert.equal(db.prepare('SELECT name FROM items WHERE id = ?').get(rawItem.id).name, 'TEMP AFTER BACKUP', 'Restore must not modify active database');

@@ -297,7 +297,7 @@ function Items() {
           <h2 className="mb-1">Item Master</h2>
           <p className="text-muted mb-0">Edit any item, including the preloaded Excel catalogue. Item code, name, price, HSN, GST and density are editable; base unit/category remain locked after business transactions.</p>
         </div>
-        <button type="button" className="btn btn-primary" onClick={openNew}>+ New Item</button>
+        <button type="button" className="btn btn-primary" data-pro-action="new" onClick={openNew}>+ New Item</button>
       </div>
 
       {error && !modalOpen && <div className="alert alert-danger">{error}</div>}
@@ -354,7 +354,7 @@ function Items() {
         title={selectedId ? (editing ? `Edit Item — ${selectedItem?.name || form.name}` : `Item Details — ${selectedItem?.name || form.name}`) : "New Item"}
         subtitle="Right-click a misspelled word for suggestions. Item names are normalized to title case when saved."
         onRequestClose={requestClose}
-        footer={<><div className="master-modal-footer-group">{selectedId && <button type="button" className={selectedItem?.is_active ? "btn btn-outline-danger" : "btn btn-outline-success"} onClick={toggleActive}>{selectedItem?.is_active ? "Deactivate" : "Activate"}</button>}</div><div className="master-modal-footer-group">{!editing && selectedId && selectedItem?.is_active && <button type="button" className="btn btn-secondary" onClick={() => setEditing(true)}>Edit</button>}{editing && <button type="button" className="btn btn-outline-secondary" onClick={requestClose}>Cancel</button>}{editing && <button type="button" className="btn btn-outline-primary" disabled={saving} onClick={() => save(false)}>{saving ? "Saving..." : "Apply"}</button>}{editing && <button type="button" className="btn btn-success" disabled={saving} onClick={() => save(true)}>{saving ? "Saving..." : "OK"}</button>}{!editing && <button type="button" className="btn btn-primary" onClick={requestClose}>OK</button>}</div></>}
+        footer={<><div className="master-modal-footer-group">{selectedId && <button type="button" className={selectedItem?.is_active ? "btn btn-outline-danger" : "btn btn-outline-success"} onClick={toggleActive}>{selectedItem?.is_active ? "Deactivate" : "Activate"}</button>}</div><div className="master-modal-footer-group">{!editing && selectedId && selectedItem?.is_active && <button type="button" className="btn btn-secondary" data-pro-action="edit" onClick={() => setEditing(true)}>Edit</button>}{editing && <button type="button" className="btn btn-outline-secondary" onClick={requestClose}>Cancel</button>}{editing && <button type="button" className="btn btn-outline-primary" disabled={saving} onClick={() => save(false)}>{saving ? "Saving..." : "Apply"}</button>}{editing && <button type="button" className="btn btn-success" disabled={saving} data-pro-action="save" onClick={() => save(true)}>{saving ? "Saving..." : "OK"}</button>}{!editing && <button type="button" className="btn btn-primary" onClick={requestClose}>OK</button>}</div></>}
       >
         {error && <div className="alert alert-danger">{error}</div>}
         <div className="row">

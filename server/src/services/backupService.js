@@ -360,7 +360,21 @@ export function backupFileForDownload(fileName) {
   return full;
 }
 
+export function previewDatabaseRestore(bytes) {
+  if (!Buffer.isBuffer(bytes) || bytes.length < 4096 || bytes.length > 250 * 1024 * 1024) throw new Error('Select a valid .db backup up to 250 MB.');
+  const tmpPath = path.join(path.dirname(getDatabasePath()), `.riseora-preview-${crypto.randomBytes(8).toString('hex')}.db`);
+  try { fs.writeFileSync(tmpPath,bytes,{flag:'wx',mode:0o600}); return validateRiseoraDatabase(tmpPath); }
+  finally { fs.rmSync(tmpPath,{force:true}); }
+}
+
+let restoreStaging = false;
 export async function stageDatabaseRestore(bytes) {
+  if (restoreStaging) throw new Error("Another restore is being prepared.");
+  restoreStaging = true;
+  try { return await stageRestoreInternal(bytes); } finally { restoreStaging = false; }
+}
+
+async function stageRestoreInternal(bytes) {
   if (!Buffer.isBuffer(bytes) || bytes.length < 4096) throw new Error('Select a valid .db backup file.');
   if (bytes.length > 250 * 1024 * 1024) throw new Error('Backup exceeds 250 MB transfer limit.');
   const dataDir = path.dirname(getDatabasePath());

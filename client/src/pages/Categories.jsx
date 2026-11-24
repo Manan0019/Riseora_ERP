@@ -256,7 +256,7 @@ function Categories() {
             Maintain category names and inventory roles. Internal category codes are managed automatically and are not shown.
           </p>
         </div>
-        <button type="button" className="btn btn-primary" onClick={openNew}>+ New Category</button>
+        <button type="button" className="btn btn-primary" data-pro-action="new" onClick={openNew}>+ New Category</button>
       </div>
 
       {error && !modalOpen && <div className="alert alert-danger">{error}</div>}
@@ -358,7 +358,7 @@ function Categories() {
             </div>
             <div className="master-modal-footer-group">
               {!editing && selectedId && selectedCategory?.is_active && (
-                <button type="button" className="btn btn-secondary" onClick={() => setEditing(true)}>Edit</button>
+                <button type="button" className="btn btn-secondary" data-pro-action="edit" onClick={() => setEditing(true)}>Edit</button>
               )}
               {editing && <button type="button" className="btn btn-outline-secondary" onClick={requestClose}>Cancel</button>}
               {editing && (
@@ -367,7 +367,7 @@ function Categories() {
                 </button>
               )}
               {editing && (
-                <button type="button" className="btn btn-success" disabled={saving} onClick={() => save(true)}>
+                <button type="button" className="btn btn-success" disabled={saving} data-pro-action="save" onClick={() => save(true)}>
                   {saving ? "Saving..." : "OK"}
                 </button>
               )}

@@ -1,3 +1,4 @@
+import { useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 
 import api from "../api/api";
@@ -16,7 +17,9 @@ function SalesRegister() {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [correctingSale, setCorrectingSale] = useState(null);
 
-  const [search, setSearch] = useState("");
+  const { search: routeSearch } = useLocation();
+  const [search, setSearch] = useState(() => new URLSearchParams(routeSearch).get("find") || "");
+  useEffect(() => { const value = new URLSearchParams(routeSearch).get("find"); if(value !== null) setSearch(value); }, [routeSearch]);
 
   const [loading, setLoading] = useState(true);
 

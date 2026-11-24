@@ -1,12 +1,12 @@
 import {
-  createDatabaseBackup,
+  createBackup,
   cleanupOldBackups,
 } from "./backupService.js";
 
 export async function runStartupBackup() {
   try {
-    await createDatabaseBackup();
-    cleanupOldBackups(30);
+    await createBackup("startup");
+    cleanupOldBackups({ keep: 30, prefix: "startup_" });
 
     console.log(
       "Startup database backup completed"

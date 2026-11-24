@@ -281,7 +281,7 @@ function Units() {
         <button
           type="button"
           className="btn btn-primary"
-          onClick={handleNew}
+          data-pro-action="new" onClick={handleNew}
           disabled={editing}
         >
           New
@@ -400,7 +400,7 @@ function Units() {
             <button
               type="button"
               className="btn btn-success"
-              onClick={handleSave}
+              data-pro-action="save" onClick={handleSave}
               disabled={!editing || saving}
             >
               {saving ? "Saving..." : "Save"}

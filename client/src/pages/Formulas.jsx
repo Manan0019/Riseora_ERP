@@ -1,7 +1,9 @@
+import { useLocation } from "react-router-dom";
 import SortableTh, { useSortableRows } from "../components/SortableTh";
 import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
 import SearchableSelect from "../components/SearchableSelect";
+import { useWorkspaceTab } from "../context/WorkspaceTabContext";
 import { useUi } from "../context/UiContext";
 
 const STANDARD_UNITS = {
@@ -80,6 +82,7 @@ function convertClient(quantity, fromUnit, toUnit, item = null) {
 
 function Formulas() {
   const { confirm: confirmAction } = useUi();
+  const {markClean:markWorkspaceTabClean}=useWorkspaceTab();
   const [formulas, setFormulas] = useState([]);
   const [items, setItems] = useState([]);
   const [units, setUnits] = useState([]);
@@ -92,7 +95,9 @@ function Formulas() {
   const [selectedFormulaInfo, setSelectedFormulaInfo] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
-  const [search, setSearch] = useState("");
+  const { search: routeSearch } = useLocation();
+  const [search, setSearch] = useState(() => new URLSearchParams(routeSearch).get("find") || "");
+  useEffect(() => { const value = new URLSearchParams(routeSearch).get("find"); if(value !== null) setSearch(value); }, [routeSearch]);
   const [scaleBatchSize, setScaleBatchSize] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -474,21 +479,21 @@ function Formulas() {
 
   const applyFormulaToEditor = (formula, requestedMode) => {
     setShowForm(true);
-    setMode(requestedMode);
-    setSelectedFormulaInfo(formula);
+    setMode(requestedMode === "DUPLICATE" ? "NEW" : requestedMode);
+    setSelectedFormulaInfo(requestedMode === "DUPLICATE" ? null : formula);
 
     const nextVersion = requestedMode === "NEW_VERSION"
       ? Math.max(
           Number(formula.version_no || 0),
           ...formulas.filter((item) => item.code === formula.code).map((item) => Number(item.version_no || 0)),
         ) + 1
-      : Number(formula.version_no || 1);
+      : requestedMode === "DUPLICATE" ? 1 : Number(formula.version_no || 1);
 
-    setSelectedId(requestedMode === "NEW_VERSION" ? null : formula.id);
+    setSelectedId(["NEW_VERSION", "DUPLICATE"].includes(requestedMode) ? null : formula.id);
     setSourceFormulaId(requestedMode === "NEW_VERSION" ? formula.id : null);
     setForm({
-      code: formula.code || "",
-      name: formula.name || "",
+      code: requestedMode === "DUPLICATE" ? "" : formula.code || "",
+      name: requestedMode === "DUPLICATE" ? `${formula.name} (copy)` : formula.name || "",
       finishedItemId: String(formula.finished_item_id || ""),
       versionNo: String(nextVersion),
       batchSize: String(formula.batch_size || ""),
@@ -657,6 +662,7 @@ function Formulas() {
 
       setMessage(response.data.message || "Formula saved successfully.");
       resetEditor();
+      markWorkspaceTabClean();
       await loadFormulas();
     } catch (err) {
       console.error(err);
@@ -743,7 +749,7 @@ function Formulas() {
             Maintain version-controlled recipes by direct quantity/weight or by percentage composition.
           </p>
         </div>
-        {!showForm && <button type="button" className="btn btn-primary" onClick={handleNew}>New Formula</button>}
+        {!showForm && <button type="button" className="btn btn-primary" data-pro-action="new" onClick={handleNew}>New Formula</button>}
       </div>
 
       {message && <div className="alert alert-success">{message}</div>}
@@ -1170,7 +1176,7 @@ function Formulas() {
 
           <div className="d-flex gap-2 mb-4 flex-wrap">
             {!isReadOnly && (
-              <button type="button" className="btn btn-success" onClick={handleSave} disabled={saving || percentageOver}>
+              <button type="button" className="btn btn-success" data-pro-action="save" onClick={handleSave} disabled={saving || percentageOver}>
                 {saving ? "Saving..." : isNewVersion ? `Create V${form.versionNo}` : mode === "EDIT" ? "Update Formula" : "Save Formula"}
               </button>
             )}
@@ -1223,6 +1229,7 @@ function Formulas() {
                         <td>
                           <div className="d-flex flex-wrap gap-2">
                             <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => handleEdit(formula)}>{Number(formula.is_locked || 0) === 1 ? "View" : "Edit"}</button>
+                            {formula.is_active && <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => loadFormula(formula.id, "DUPLICATE")}>Duplicate</button>}
                             {formula.is_active && isLatestFormulaVersion(formula) && <button type="button" className="btn btn-sm btn-outline-dark" onClick={() => handleCreateNewVersion(formula)}>Create New Version</button>}
                             {formula.is_active ? (
                               <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => handleDeactivate(formula)}>Deactivate</button>

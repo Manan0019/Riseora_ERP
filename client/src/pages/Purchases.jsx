@@ -248,7 +248,7 @@ function Purchases({ initialPurchase = null, onSaved = null, embedded = false })
           <div className="col-sm-6 col-md-8 d-flex justify-content-end gap-3 flex-wrap purchase-total-summary"><span>Taxable <strong>{money(totals.subtotal)}</strong></span><span>GST <strong>{money(totals.gst)}</strong></span><span>Grand Total <strong>{money(totals.grandTotal)}</strong></span></div>
         </div>
       </div></div>
-      <div className="transaction-action-bar"><div className="transaction-action-copy"><span>{initialPurchase ? `Correct ${initialPurchase.purchase_no}` : "Purchase total"}</span><strong>{money(totals.grandTotal)}</strong></div><button type="button" className="btn btn-success" onClick={savePurchase} disabled={saving}>{saving ? "Saving..." : initialPurchase ? "Save Purchase Corrections" : "Post Purchase"}</button></div>
+      <div className="transaction-action-bar"><div className="transaction-action-copy"><span>{initialPurchase ? `Correct ${initialPurchase.purchase_no}` : "Purchase total"}</span><strong>{money(totals.grandTotal)}</strong></div><button type="button" className="btn btn-success" data-pro-action="save" data-pro-confirm-post="true" onClick={savePurchase} disabled={saving}>{saving ? "Saving..." : initialPurchase ? "Save Purchase Corrections" : "Post Purchase"}</button></div>
     </div>
   );
 }

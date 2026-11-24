@@ -2401,27 +2401,78 @@ a:focus-visible,
   outline-offset: 3px;
   box-shadow: 0 0 0 5px rgba(150,81,58,.16) !important;
 }
-.table, .entry-table { border-collapse: separate; border-spacing: 0; }
-.table-bordered, .table-responsive { border-color: var(--riseora-table-line-strong) !important; }
-.table-bordered > :not(caption) > * > * {
-  border-right: 1px solid var(--riseora-table-line-strong) !important;
-  border-bottom: 1px solid var(--riseora-table-line-strong) !important;
+/* Screen tables use a rounded frame and a single-owner internal grid.
+   Do not draw the perimeter on cells: a rounded scroll container clips it. */
+@media screen {
+  :root {
+    --riseora-table-line-strong: #a8978b;
+    --riseora-table-frame: #89766a;
+    --riseora-table-hover-strong: #ebdbcf;
+    --riseora-table-header: #f4eae2;
+    --riseora-table-radius: 10px;
+  }
+  .table:not(.table-borderless) {
+    border-collapse: separate;
+    border-spacing: 0;
+    --bs-table-border-color: var(--riseora-table-line-strong);
+    margin-bottom: 0;
+  }
+  .table:not(.table-borderless),
+  .table:not(.table-borderless) > :is(thead, tbody, tfoot),
+  .table:not(.table-borderless) > :is(thead, tbody, tfoot) > tr {
+    border: 0 !important;
+  }
+  .table:not(.table-borderless) > :is(thead, tbody, tfoot) > tr > * {
+    border: 0 !important;
+    border-right: 1px solid var(--riseora-table-line-strong) !important;
+    border-bottom: 1px solid var(--riseora-table-line-strong) !important;
+  }
+  .table:not(.table-borderless) > :is(thead, tbody, tfoot) > tr > :last-child {
+    border-right: 0 !important;
+  }
+  .table:not(.table-borderless) > :is(thead, tbody, tfoot):last-child > tr:last-child > * {
+    border-bottom: 0 !important;
+  }
+  /* The visible rounded outline belongs to the scroll viewport itself. */
+  .table-responsive:has(> table.table:not(.table-borderless)) {
+    border: 1px solid var(--riseora-table-frame);
+    border-radius: var(--riseora-table-radius);
+    background: #fffdfb;
+    overflow: auto;
+    scrollbar-gutter: auto;
+    max-width: 100%;
+  }
+  /* Compact purchase/sales grids should not acquire a large empty frame. */
+  .table-responsive:has(> table.table.compact-entry-table) {
+    width: fit-content;
+    max-width: 100%;
+  }
+  /* The sales totals table is not in a responsive wrapper. */
+  :not(.table-responsive) > .table:not(.table-borderless) {
+    border: 1px solid var(--riseora-table-frame) !important;
+    border-radius: var(--riseora-table-radius);
+    overflow: hidden;
+    background: #fffdfb;
+  }
+  .table > thead > tr > th {
+    background: var(--riseora-table-header) !important;
+    color: #382c25 !important;
+    letter-spacing: .025em;
+  }
+  /* Keep semantic warning, cancelled, credit and other status rows intact. */
+  .table > tbody > tr:not(:is(.table-danger,.table-warning,.table-secondary,.table-primary,.table-success,.table-info,.table-light,.table-dark,.formula-extra-preview-row)):hover > * {
+    --bs-table-bg-state: var(--riseora-table-hover-strong) !important;
+    background: var(--riseora-table-hover-strong) !important;
+  }
+  .table > tbody > tr:not(:is(.table-danger,.table-warning,.table-secondary,.table-primary,.table-success,.table-info,.table-light,.table-dark,.formula-extra-preview-row)):focus-within > * {
+    --bs-table-bg-state: #f5e6da !important;
+    background: #f5e6da !important;
+  }
+  .table > tbody > tr:is(.row-clickable,.master-row-clickable):is(:hover,:focus-within) > :first-child {
+    box-shadow: inset 3px 0 0 #8f4734;
+  }
+  .table :is(td,th).text-end { font-variant-numeric: tabular-nums; }
 }
-.table-bordered > :not(caption) > * > :first-child { border-left: 1px solid var(--riseora-table-line-strong) !important; }
-.table-bordered > thead > tr:first-child > * { border-top: 1px solid var(--riseora-table-line-strong) !important; }
-.table > :not(caption) > * > * { border-bottom-color: var(--riseora-table-line-strong) !important; }
-.table > thead > tr > th { color: #43332b !important; }
-.table > tbody > tr:hover:not(.table-danger) > * {
-  --bs-table-bg-state: var(--riseora-table-hover-strong) !important;
-  background: var(--riseora-table-hover-strong) !important;
-  color: #261e1b !important;
-  box-shadow: inset 0 1px 0 rgba(92,62,48,.20), inset 0 -1px 0 rgba(92,62,48,.20);
-}
-.table > tbody > tr:focus-within > * {
-  --bs-table-bg-state: #f5e8de !important;
-  background: #f5e8de !important;
-}
-.table > tbody > tr.row-clickable:hover > :first-child { border-left: 4px solid #8f4734 !important; }
 .entry-hsn-input { min-width: 72px; width: 9ch; max-width: 15ch; text-transform: uppercase; }
 .form-control.is-invalid, .form-select.is-invalid, [aria-invalid="true"] {
   border-color: #b42318 !important;

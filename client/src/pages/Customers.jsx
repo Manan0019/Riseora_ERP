@@ -236,7 +236,7 @@ function Customers() {
     <div>
       <div className="d-flex justify-content-between align-items-start mb-4">
         <div><h2 className="mb-1">Customers</h2><p className="text-muted mb-0">Maintain retail, wholesale and distributor customers without visible ERP IDs.</p></div>
-        <button type="button" className="btn btn-primary" onClick={openNew}>+ New Customer</button>
+        <button type="button" className="btn btn-primary" data-pro-action="new" onClick={openNew}>+ New Customer</button>
       </div>
 
       {error && !modalOpen && <div className="alert alert-danger">{error}</div>}
@@ -263,7 +263,7 @@ function Customers() {
         title={selectedId ? (editing ? "Edit Customer" : "Customer Details") : "New Customer"}
         subtitle="Internal customer IDs/codes are generated automatically and are not shown to the owner."
         onRequestClose={requestClose}
-        footer={<><div className="master-modal-footer-group">{selectedId && <button type="button" className={selectedCustomer?.is_active ? "btn btn-outline-danger" : "btn btn-outline-success"} onClick={toggleActive}>{selectedCustomer?.is_active ? "Deactivate" : "Activate"}</button>}</div><div className="master-modal-footer-group">{!editing && selectedId && selectedCustomer?.is_active && <button type="button" className="btn btn-secondary" onClick={() => setEditing(true)}>Edit</button>}{editing && <button type="button" className="btn btn-outline-secondary" onClick={requestClose}>Cancel</button>}{editing && <button type="button" className="btn btn-outline-primary" disabled={saving} onClick={() => save(false)}>{saving ? "Saving..." : "Apply"}</button>}{editing && <button type="button" className="btn btn-success" disabled={saving} onClick={() => save(true)}>{saving ? "Saving..." : "OK"}</button>}{!editing && <button type="button" className="btn btn-primary" onClick={requestClose}>OK</button>}</div></>}
+        footer={<><div className="master-modal-footer-group">{selectedId && <button type="button" className={selectedCustomer?.is_active ? "btn btn-outline-danger" : "btn btn-outline-success"} onClick={toggleActive}>{selectedCustomer?.is_active ? "Deactivate" : "Activate"}</button>}</div><div className="master-modal-footer-group">{!editing && selectedId && selectedCustomer?.is_active && <button type="button" className="btn btn-secondary" data-pro-action="edit" onClick={() => setEditing(true)}>Edit</button>}{editing && <button type="button" className="btn btn-outline-secondary" onClick={requestClose}>Cancel</button>}{editing && <button type="button" className="btn btn-outline-primary" disabled={saving} onClick={() => save(false)}>{saving ? "Saving..." : "Apply"}</button>}{editing && <button type="button" className="btn btn-success" disabled={saving} data-pro-action="save" onClick={() => save(true)}>{saving ? "Saving..." : "OK"}</button>}{!editing && <button type="button" className="btn btn-primary" onClick={requestClose}>OK</button>}</div></>}
       >
         {error && <div className="alert alert-danger">{error}</div>}
         <div className="row">

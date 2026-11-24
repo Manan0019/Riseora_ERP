@@ -2,10 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { version as appVersion } from "../../../version.json";
 import { NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import WorkspaceSearch from "../components/WorkspaceSearch";
+import { readPreference, writePreference } from "../utils/proPreferences";
 import AppIcon from "../components/AppIcon";
 import riseoraLogoHori from "../assets/riseora-logo-Horizontal.png";
 import riseoraFallbackMark from "../assets/riseora-Logo-Vertical.png";
 import { WorkspaceTabProvider } from "../context/WorkspaceTabContext";
+import BusinessTools from "../pages/BusinessTools";
 import Dashboard from "../pages/Dashboard";
 import Company from "../pages/Company";
 import Units from "../pages/Units";
@@ -83,7 +86,7 @@ const navGroups = [
       { to: "/upad", label: "Upad", icon: "register" },
     ],
   },
-  { label: "Reports", key: "reports", items: [{ to: "/reports", label: "Business Reports", icon: "reports" }] },
+  { label: "Reports", key: "reports", items: [{ to: "/reports", label: "Business Reports", icon: "reports" }, { to: "/business-tools", label: "Business Tools", icon: "reports" }] },
   { label: "System", key: "system", items: [{ to: "/settings", label: "Settings", icon: "settings" }] },
 ];
 
@@ -110,6 +113,7 @@ const pageMeta = {
   "/customer-ledger": ["Customer Ledger", "Receivables, payments and running balances"],
   "/investments": ["Investment", "Borrowed funds, simple interest, returns and outstanding balances"],
   "/upad": ["Upad", "Management deduction from sales summary"],
+  "/business-tools": ["Business Tools", "Planning, stock reconciliation and record history"],
   "/reports": ["Business Reports", "Operational and financial management reports"],
   "/settings": ["Settings", "Security, backups and application controls"],
 };
@@ -142,6 +146,7 @@ function WorkspaceRoutes({ location }) {
       <Route path="investments" element={<Investments />} />
       <Route path="upad" element={<Upad />} />
       <Route path="reports" element={<Reports />} />
+      <Route path="business-tools" element={<BusinessTools />} />
       <Route path="*" element={<Dashboard />} />
     </Routes>
   );
@@ -246,6 +251,9 @@ function MainLayout() {
   const [activeTabId, setActiveTabId] = useState(initialWorkspace.activeTabId);
   const [nextTabId, setNextTabId] = useState(initialWorkspace.nextTabId);
   const [contextMenu, setContextMenu] = useState(null);
+  const [palette, setPalette] = useState("");
+  const [compact, setCompact] = useState(() => readPreference("compact", false));
+  useEffect(() => { writePreference("compact", compact); }, [compact]);
 
   const activeTabIdRef = useRef(initialWorkspace.activeTabId);
   const nextTabIdRef = useRef(initialWorkspace.nextTabId);
@@ -454,6 +462,7 @@ function MainLayout() {
       const target = event.target;
       if (!(target instanceof Element)) return;
       if (!target.matches('input, textarea, select, [contenteditable="true"]')) return;
+      if (target.matches('input[placeholder*="Search" i]:not([data-entry-field]):not(.searchable-select-input)') && !target.closest(".transaction-entry")) return;
 
       const pageHost = target.closest("[data-workspace-page-tab-id]");
       if (!pageHost) return;
@@ -479,6 +488,7 @@ function MainLayout() {
     const targetPath = safeWorkspacePath(path);
     const tabId = activeTabIdRef.current;
     const now = getCurrentTime();
+    if (tabs.find(t => t.id === tabId)?.dirty && activeTab?.path !== targetPath && !window.confirm("Leave this page? Unsaved changes may be lost.")) return;
 
     blurCurrentEditor();
 
@@ -577,6 +587,7 @@ function MainLayout() {
 
     const tabId = Number(id);
     const currentTabs = tabs;
+    if (currentTabs.find(t => t.id === tabId)?.dirty && !window.confirm("Close this tab? Unsaved changes may be lost.")) return;
 
     if (currentTabs.length === 1) {
       const now = getCurrentTime();
@@ -630,6 +641,7 @@ function MainLayout() {
     const targetId = Number(tabId);
     const target = tabs.find((tab) => tab.id === targetId) || activeTab;
     if (!target) return;
+    if (target.dirty && !window.confirm("Reload this tab? Unsaved changes may be lost.")) return;
 
     const previousActiveId = activeTabIdRef.current;
     const now = getCurrentTime();
@@ -698,6 +710,7 @@ function MainLayout() {
   };
 
   const handleLogout = async () => {
+    if (tabs.some(t => t.dirty) && !window.confirm("Sign out? Unsaved changes may be lost.")) return;
     try {
       window.sessionStorage.removeItem(WORKSPACE_STORAGE_KEY);
     } catch {
@@ -707,6 +720,40 @@ function MainLayout() {
     navigate("/login");
   };
 
+  useEffect(() => {
+    const beforeUnload = e => { if (tabs.some(t => t.dirty)) { e.preventDefault(); e.returnValue = ""; } };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [tabs]);
+  useEffect(() => {
+    const handler = e => {
+      if (e.defaultPrevented || e.repeat || e.altKey || e.shiftKey || e.metaKey) return;
+      const key = e.key.toLowerCase();
+      if (palette || document.querySelector(".ui-dialog-layer, dialog[open]")) return;
+      const visible = el => el && !el.disabled && el.getClientRects().length > 0;
+      const modal = [...document.querySelectorAll('.master-modal[role="dialog"]')].filter(visible).at(-1);
+      const scope = modal || document.querySelector(".workspace-page-host.is-active");
+      if (key === "f1" && !e.ctrlKey && !modal) { e.preventDefault(); setPalette("help"); return; }
+      if (!scope) return;
+      if (e.ctrlKey && key === "k" && !modal) { e.preventDefault(); setPalette("search"); return; }
+      if (e.ctrlKey && key === "f") {
+        const input = [...scope.querySelectorAll('input[placeholder*="Search" i]')].find(visible);
+        if (input) { e.preventDefault(); input.focus(); input.select(); } return;
+      }
+      const action = e.ctrlKey && key === "n" ? "new" : e.ctrlKey && key === "s" ? "save" : !e.ctrlKey && key === "f2" ? "edit" : null;
+      if (!action) return;
+      const candidates = [...scope.querySelectorAll(`[data-pro-action="${action}"]`)].filter(visible);
+      if (candidates.length !== 1) return;
+      e.preventDefault();
+      const button = candidates[0];
+      if (action === "save" && button.dataset.proConfirmPost === "true") button.focus();
+      else if (action === "edit") button.focus();
+      else button.click();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [palette]);
+
   const initials = (user?.fullName || user?.username || "A")
     .split(/\s+/)
     .filter(Boolean)
@@ -715,7 +762,7 @@ function MainLayout() {
     .join("");
 
   return (
-    <div className={`app-shell ${sidebarCondensed ? "is-sidebar-condensed" : ""}`} onContextMenu={handleContextMenu}>
+    <div className={`app-shell ${sidebarCondensed ? "is-sidebar-condensed" : ""} ${compact ? "pro-compact" : ""}`} onContextMenu={handleContextMenu}>
       <aside className={`sidebar ${sidebarOpen ? "is-open" : ""}`}>
         <div className="sidebar-brand-wrap">
           <NavLink
@@ -823,6 +870,9 @@ function MainLayout() {
 
           <div className="topbar-user">
             <div className="topbar-workspace-tools" aria-label="Workspace controls">
+              <button type="button" onClick={() => setPalette("search")} title="Search (Ctrl+K)">Search <kbd>Ctrl+K</kbd></button>
+              <button type="button" onClick={() => setCompact(v => !v)} aria-pressed={compact} title="Toggle compact tables">{compact ? "Comfortable" : "Compact"}</button>
+              <button type="button" onClick={() => setPalette("help")} title="Keyboard shortcuts (F1)">?</button>
               <button type="button" title="New tab" onClick={() => openPathInNewTab("/dashboard")}>
                 <span aria-hidden="true">＋</span><span>New Tab</span>
               </button>
@@ -936,6 +986,7 @@ function MainLayout() {
         </main>
       </div>
 
+      {palette && <WorkspaceSearch pages={navGroups.flatMap(g => g.items)} help={palette === "help"} onOpen={openPathInNewTab} onClose={() => setPalette("")} />}
       {contextMenu && (
         <div
           className="workspace-context-menu"

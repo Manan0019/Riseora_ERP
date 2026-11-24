@@ -1,3 +1,6 @@
+import { useLocation } from "react-router-dom";
+import SortableTh, { useSortableRows } from "../components/SortableTh";
+import { readPreference, writePreference } from "../utils/proPreferences";
 import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
 import SearchableSelect from "../components/SearchableSelect";
@@ -26,8 +29,16 @@ function Reports() {
   const firstOfMonth = `${today.slice(0, 8)}01`;
 
   const [catalog, setCatalog] = useState([]);
-  const [reportKey, setReportKey] = useState("sales-register");
+  const { search: routeSearch } = useLocation();
+  const [reportKey, setReportKey] = useState(() => new URLSearchParams(routeSearch).get("report") || "sales-register");
+  useEffect(() => { const key=new URLSearchParams(routeSearch).get("report"); if(key) {setReportKey(key);setReport(null);} },[routeSearch]);
   const [report, setReport] = useState(null);
+  const [hiddenByReport,setHiddenByReport] = useState(() => readPreference("reportColumns", {}));
+  const columns = (report?.columns||[]).filter(c=>!(hiddenByReport[reportKey]||[]).includes(c.key));
+  const shownColumns = columns.length ? columns : (report?.columns||[]);
+  const {sortedRows,sort,toggle} = useSortableRows(report?.rows||[], "");
+  function toggleColumn(key) { setHiddenByReport(prev=>{ const existing=prev[reportKey]||[]; const next={...prev,[reportKey]:existing.includes(key)?existing.filter(x=>x!==key):[...existing,key]};writePreference("reportColumns",next);return next;}); }
+
   const [items, setItems] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -42,6 +53,7 @@ function Reports() {
     status: "",
     days: "90"
   });
+  const [presetNotice,setPresetNotice]=useState("");
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
@@ -86,6 +98,8 @@ function Reports() {
     return groups;
   }, [catalog]);
 
+  function saveFilterPreset() { writePreference(`reportFilters:${reportKey}`,filters); setPresetNotice("Saved filters for this report on this PC."); }
+  function restoreFilterPreset() { const saved=readPreference(`reportFilters:${reportKey}`,null); if(saved){setFilters(prev=>({...prev,...saved}));setReport(null);setPresetNotice("Saved filters loaded. Generate the report to refresh results.");}else setPresetNotice("No saved filters for this report."); }
   function updateFilter(name, value) {
     setFilters((current) => ({ ...current, [name]: value }));
   }
@@ -233,6 +247,7 @@ function Reports() {
                 <div>
                   <h5 className="mb-1">{selectedDefinition?.title || "Select Report"}</h5>
                   <div className="text-muted small">Choose filters and generate the report.</div>
+                  <div className="d-flex flex-wrap gap-2 mt-2"><button type="button" className="btn btn-sm btn-outline-secondary" onClick={saveFilterPreset}>Save filters</button><button type="button" className="btn btn-sm btn-outline-secondary" onClick={restoreFilterPreset}>Load saved filters</button></div><small role="status">{presetNotice}</small>
                 </div>
 
                 <div className="d-flex gap-2 flex-wrap">
@@ -442,19 +457,20 @@ function Reports() {
                     </div>
                 )}
 
+                  <details className="pro-columns mb-2"><summary>Visible columns (screen only)</summary><div className="d-flex flex-wrap gap-3 p-2">{report.columns.map(c=><label key={c.key}><input type="checkbox" className="form-check-input me-1" checked={shownColumns.some(x=>x.key===c.key)} disabled={shownColumns.length===1&&shownColumns[0].key===c.key} onChange={()=>toggleColumn(c.key)}/>{c.label}</label>)}</div></details>
                   <div className="table-responsive">
                     <table className="table table-bordered table-hover align-middle table-sm">
                       <thead className="table-light">
                         <tr>
-                          {report.columns.map((column) =>
-                        <th key={column.key}>{column.label}</th>
+                          {shownColumns.map((column) =>
+                        <SortableTh key={column.key} field={`${reportKey}:${column.key}`} sort={{...sort,key:sort.key?`${reportKey}:${sort.key}`:""}} onSort={()=>toggle(column.key)}>{column.label}</SortableTh>
                         )}
                         </tr>
                       </thead>
                       <tbody>
-                        {report.rows.map((row, rowIndex) =>
+                        {sortedRows.map((row, rowIndex) =>
                       <tr key={row.id ?? rowIndex}>
-                            {report.columns.map((column) =>
+                            {shownColumns.map((column) =>
                         <td
                           key={column.key}
                           className={
@@ -474,7 +490,7 @@ function Reports() {
                         {report.rows.length === 0 &&
                       <tr>
                             <td
-                          colSpan={report.columns.length}
+                          colSpan={shownColumns.length}
                           className="text-center text-muted py-4">
                           
                               No records found for the selected filters.

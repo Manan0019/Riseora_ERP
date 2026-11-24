@@ -5,8 +5,13 @@ import {
 } from "react";
 
 import api from "../api/api";
+import { useUi } from "../context/UiContext";
 
 function Settings() {
+  const {confirm:confirmAction}=useUi();
+  const [schedule,setSchedule]=useState(null);
+  useEffect(()=>{api.get("/pro/backup-schedule").then(r=>setSchedule(r.data.hours)).catch(()=>{});},[]);
+  async function updateSchedule(value){try{const r=await api.put("/pro/backup-schedule",{hours:Number(value)});setSchedule(r.data.hours);setMessage("Backup schedule saved.");}catch(e){setError(e.response?.data?.message||"Unable to save backup schedule.");}}
   const restoreFileRef = useRef(null);
   const [restoring, setRestoring] = useState(false);
   const [backups, setBackups] =
@@ -101,13 +106,12 @@ function Settings() {
     if (!file) return;
     if (!file.name.toLowerCase().endsWith(".db")) { setError("Select a Riseora ERP .db backup."); return; }
     if (file.size > 250 * 1024 * 1024) { setError("Backup must be 250 MB or smaller."); return; }
-    const accepted = window.confirm(
-      `Restore the database from ${file.name}?\n\nThis REPLACES the CURRENT laptop's business records after restarting Riseora ERP. A safety backup will be saved. Existing transactions on this laptop will NOT be merged. Continue?`
-    );
-    if (!accepted) return;
     try {
       setRestoring(true); setMessage(""); setError("");
       const buffer = await file.arrayBuffer();
+      const preview = (await api.post("/backups/restore-preview", buffer, {headers:{"Content-Type":"application/octet-stream"},timeout:120000})).data.summary;
+      const accepted = await confirmAction({title:"Restore database?", message:`${file.name} — ${preview.companyName || "Company not recorded"}`, detail:`Items: ${preview.itemCount}; purchases: ${preview.purchaseCount}; sales: ${preview.salesCount}; formulas: ${preview.formulaCount ?? "Unknown"}; production: ${preview.productionCount ?? "Unknown"}. This replaces all current records on restart. A safety backup will be created; no merging.`, confirmLabel:"Schedule restore",cancelLabel:"Cancel",variant:"danger"});
+      if (!accepted) return;
       const result = await api.post("/backups/restore", buffer, {
         headers: { "Content-Type": "application/octet-stream" },
         timeout: 120000,
@@ -258,6 +262,8 @@ function Settings() {
               ? "Creating Backup..."
               : "Backup Now"}
           </button>
+          <div className="mt-3"><strong>Most recent backup:</strong> {backups[0] ? new Date(backups[0].modifiedAt).toLocaleString() : "None found"}</div>
+          <div className="mt-2"><label className="form-label" htmlFor="backup-schedule">Automatic backup while desktop app is running</label><select id="backup-schedule" className="form-select w-auto" disabled={schedule===null} value={schedule??24} onChange={e=>updateSchedule(e.target.value)}><option value={0}>Off</option><option value={6}>Every 6 hours</option><option value={12}>Every 12 hours</option><option value={24}>Every 24 hours</option></select><small>Startup backups remain enabled. Download important copies to a separate drive.</small></div>
           <hr />
           <h5>Restore a backup from this PC or another PC</h5>
           <p className="text-muted">Download a .db backup from the old PC, copy it to this PC and select it here. The backup is checked before restore. Your current database is preserved in Backup History.</p>

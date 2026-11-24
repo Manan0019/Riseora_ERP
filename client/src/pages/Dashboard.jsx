@@ -29,11 +29,13 @@ function SummaryCard({ label, value, detail, icon, tone = "primary" }) {
 
 function Dashboard() {
   const [summary, setSummary] = useState(null);
+  const [activity, setActivity] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     loadDashboard();
+    api.get("/pro/monthly").then(r => setActivity(r.data.rows)).catch(() => setActivity([]));
   }, []);
 
   const loadDashboard = async () => {
@@ -112,6 +114,9 @@ function Dashboard() {
         </div>
       </div>
 
+      <section className="card p-3 mb-4"><div className="d-flex justify-content-between align-items-center"><div><h5>Sales and purchases · last six months</h5><p className="text-muted">Posted invoice totals including GST, net of posted credit notes by credit date; excludes Upad.</p></div><Link to="/reports?report=sales-profitability" className="btn btn-outline-primary">Profitability report</Link></div>
+      {activity===null?<p>Loading activity…</p>:activity.length===0?<p>Activity unavailable.</p>:<div className="pro-trend">{activity.map(r=>{const max=Math.max(1,...activity.flatMap(x=>[Math.abs(x.sales),Math.abs(x.purchases)]));return <div key={r.month} className="pro-trend-row"><strong>{r.month}</strong><div><div className="pro-bar-track"><span className="pro-bar-sales" style={{width:`${Math.abs(r.sales)/max*100}%`}}/></div><small>Net invoices {money(r.sales)}</small></div><div><div className="pro-bar-track"><span className="pro-bar-purchases" style={{width:`${Math.abs(r.purchases)/max*100}%`}}/></div><small>Purchases {money(r.purchases)}</small></div></div>})}</div>}
+      <div className="d-flex flex-wrap gap-2 mt-3"><Link to="/reports?report=low-stock" className="btn btn-outline-primary">Reorder report</Link><Link to="/reports?report=expiry" className="btn btn-outline-primary">Expiry report</Link><Link to="/reports?report=stock-valuation" className="btn btn-outline-primary">Stock valuation</Link><Link to="/business-tools" className="btn btn-outline-primary">Batch planning &amp; health</Link></div></section>
       <div className="row g-4">
         <div className="col-xl-7">
           <div className="card dashboard-panel h-100">

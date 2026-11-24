@@ -1,0 +1,25 @@
+/* Shared workspace polish; existing rounded table border and theme remain authoritative. */
+.pro-dialog { width:min(720px, calc(100vw - 32px)); max-height:80vh; border:1px solid #9d8275; border-radius:14px; padding:22px; color:#302925; background:#fffaf6; box-shadow:0 16px 48px #38241838; }
+.pro-dialog::backdrop { background:#211a18a8; }
+.pro-dialog header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+.pro-dialog header h2 { font-size:1.3rem; margin:0; }
+.pro-search-results { max-height:52vh; overflow:auto; margin:12px 0; }
+.pro-search-results button { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; padding:10px; border:0; border-bottom:1px solid #e1d3ca; color:#302925; background:transparent; text-align:left; }
+.pro-search-results button:hover,.pro-search-results button.is-selected { background:#ead8cd; }
+.pro-shortcuts>div { display:grid; grid-template-columns:150px 1fr; gap:12px; padding:8px 0; border-bottom:1px solid #e1d3ca; }
+.pro-shortcuts dd { margin:0; }
+.topbar-workspace-tools kbd { font-size:.68rem; background:transparent; color:inherit; border:1px solid #c9b8ac; }
+.pro-compact .workspace-page-host table:not(.purchase-items-table):not(.sales-items-table) th,.pro-compact .workspace-page-host table:not(.purchase-items-table):not(.sales-items-table) td { padding-top:4px!important; padding-bottom:4px!important; }
+.pro-resizable-th { position:relative; }
+.pro-resizable-th .table-sort-button { padding-inline-end:10px!important; }
+.pro-resize-handle { position:absolute; right:0; top:0; bottom:0; width:8px; cursor:col-resize; touch-action:none; z-index:2; }
+.pro-resize-handle:hover,.pro-resize-handle:focus-visible { background:#96624e; outline:2px solid #744333; }
+.pro-trend { display:grid; gap:8px; }
+.pro-trend-row { display:grid; grid-template-columns:85px 1fr 1fr; gap:12px; align-items:center; }
+.pro-bar-track { height:9px; background:#eee5de; border-radius:5px; overflow:hidden; }
+.pro-bar-track span { display:block; height:100%; }
+.pro-bar-sales { background:#855845; } .pro-bar-purchases { background:#69776d; }
+.pro-trend-row small { font-variant-numeric:tabular-nums; color:#4b423d; }
+.pro-tools pre { max-width:480px; max-height:220px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; }
+.pro-tools .text-end { font-variant-numeric:tabular-nums; }
+@media(max-width:700px){.pro-trend-row{grid-template-columns:60px 1fr 1fr;gap:6px;}.pro-shortcuts>div{grid-template-columns:110px 1fr;}}

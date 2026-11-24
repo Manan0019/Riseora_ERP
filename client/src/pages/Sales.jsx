@@ -1196,7 +1196,7 @@ function Sales({ initialSale = null, onSaved = null }) {
         <button
           type="button"
           className="btn btn-success btn-lg"
-          onClick={handleSave}
+          data-pro-action="save" data-pro-confirm-post="true" onClick={handleSave}
           disabled={saving}>
           
           {saving ? "Saving Invoice..." : "Post Sales Invoice"}

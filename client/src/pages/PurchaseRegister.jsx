@@ -1,3 +1,4 @@
+import { useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
 import { useUi } from "../context/UiContext";
@@ -10,7 +11,9 @@ function PurchaseRegister() {
   const [purchases, setPurchases] = useState([]);
   const [selectedPurchase, setSelectedPurchase] = useState(null);
   const [editing, setEditing] = useState(false);
-  const [search, setSearch] = useState("");
+  const { search: routeSearch } = useLocation();
+  const [search, setSearch] = useState(() => new URLSearchParams(routeSearch).get("find") || "");
+  useEffect(() => { const value = new URLSearchParams(routeSearch).get("find"); if(value !== null) setSearch(value); }, [routeSearch]);
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [error, setError] = useState("");

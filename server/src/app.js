@@ -34,6 +34,9 @@ import upadRoutes from "./routes/upadRoutes.js";
 
 import { requireAuth, requireAdmin } from "./middleware/authMiddleware.js";
 import { runStartupBackup } from "./services/startupBackupService.js";
+import { backupSchedule, setBackupSchedule, startBackupSchedule } from "./services/backupScheduleService.js";
+import { recordHistory, databaseHealth, formulaPlan, monthlyActivity, recordedLots, batchTrace } from "./services/proWorkspaceService.js";
+import { searchWorkspace } from "./services/workspaceSearchService.js";
 import { initDatabase } from "./db/initDatabase.js";
 
 dotenv.config();
@@ -97,6 +100,16 @@ app.use("/api/auth", passwordResetRoutes);
 
 const adminOnly = [requireAuth, requireAdmin];
 
+app.get("/api/pro/backup-schedule", ...adminOnly, (_req,res) => res.json(backupSchedule()));
+app.put("/api/pro/backup-schedule", ...adminOnly, (req,res) => { try { res.json(setBackupSchedule(req.body.hours)); } catch(e){res.status(400).json({message:e.message});} });
+app.get("/api/pro/history", ...adminOnly, (req,res) => res.json({ rows:recordHistory(req.query.entity,req.query.recordId) }));
+app.get("/api/pro/health", ...adminOnly, (_req,res) => res.json(databaseHealth()));
+app.get("/api/pro/monthly", ...adminOnly, (_req,res) => res.json({ rows:monthlyActivity() }));
+app.get("/api/pro/lots/:id", ...adminOnly, (req,res)=>{try{res.json(recordedLots(req.params.id));}catch(e){res.status(400).json({message:e.message});}});
+app.get("/api/pro/batch-trace/:id", ...adminOnly, (req,res)=>{try{res.json(batchTrace(req.params.id));}catch(e){res.status(400).json({message:e.message});}});
+app.get("/api/pro/formula-plan/:id", ...adminOnly, (req,res) => { try { res.json(formulaPlan(req.params.id,req.query.target)); } catch(e) { res.status(400).json({ message:e.message }); } });
+app.get("/api/workspace-search", ...adminOnly, (req, res) => res.json({ success:true, results: searchWorkspace(req.query.q) }));
+
 app.use("/api/company", ...adminOnly, companyRoutes);
 app.use("/api/units", ...adminOnly, unitRoutes);
 app.use("/api/categories", ...adminOnly, categoryRoutes);
@@ -125,6 +138,8 @@ app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
   return res.status(500).json({ success: false, message: "Unexpected server error." });
 });
+
+if (isProduction || process.env.NODE_ENV === "desktop") startBackupSchedule();
 
 app.listen(PORT, () => {
   console.log(`Riseora ERP server running on http://localhost:${PORT}`);

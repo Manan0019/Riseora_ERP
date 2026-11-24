@@ -32,6 +32,9 @@ export function validateRiseoraDatabase(filePath) {
     const missing = REQUIRED_TABLES.filter(name => !tables.has(name));
     if (missing.length) throw new Error(`Not a compatible Riseora ERP backup; missing: ${missing.join(', ')}.`);
     return {
+      companyName: tables.has('companies') ? source.prepare('SELECT name FROM companies ORDER BY id LIMIT 1').get()?.name || null : null,
+      formulaCount: tables.has('formulas') ? source.prepare('SELECT COUNT(*) AS n FROM formulas').get().n : null,
+      productionCount: tables.has('production_batches') ? source.prepare('SELECT COUNT(*) AS n FROM production_batches').get().n : null,
       itemCount: Number(source.prepare('SELECT COUNT(*) AS n FROM items').get().n),
       purchaseCount: Number(source.prepare('SELECT COUNT(*) AS n FROM purchases').get().n),
       salesCount: Number(source.prepare('SELECT COUNT(*) AS n FROM sales_invoices').get().n),
