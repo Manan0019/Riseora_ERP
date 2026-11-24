@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/api";
+import { useAuth } from "../context/AuthContext";
+import WorkspaceDialog from "../components/ui/WorkspaceDialog";
+import { DASHBOARD_WIDGETS, normalizeDashboard, moveDashboardWidget } from "../utils/workspaceAppearance";
+import { readPreference, writePreference } from "../utils/proPreferences";
 import AppIcon from "../components/AppIcon";
 
 const money = (value) =>
@@ -28,6 +32,12 @@ function SummaryCard({ label, value, detail, icon, tone = "primary" }) {
 }
 
 function Dashboard() {
+  const { user } = useAuth();
+  const layoutKey = `dashboard.${user?.id}.${user?.username}`;
+  const [layout,setLayout] = useState(()=>normalizeDashboard(readPreference(layoutKey,null)));
+  const [customize,setCustomize] = useState(false);
+  const updateLayout = value => { const normalized=normalizeDashboard(value);setLayout(normalized);writePreference(layoutKey,normalized); };
+
   const [summary, setSummary] = useState(null);
   const [activity, setActivity] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -79,15 +89,16 @@ function Dashboard() {
           <h2 className="mb-1">Dashboard</h2>
           <p className="text-muted mb-0">Live operational position across Riseora.</p>
         </div>
-        <button type="button" className="btn btn-outline-primary" onClick={loadDashboard}>
+        <div className="d-flex flex-wrap gap-2"><button type="button" className="btn btn-outline-primary" onClick={()=>setCustomize(true)}><AppIcon name="settings" size={16}/> Customize</button><button type="button" className="btn btn-outline-primary" onClick={loadDashboard}>
           <AppIcon name="refresh" size={16} />
           Refresh
-        </button>
+        </button></div>
       </div>
 
       {error && <div className="alert alert-danger">{error}</div>}
 
-      <div className="row g-3 mb-4">
+      <div className="custom-dashboard-grid">{layout.order.filter(id=>!layout.hidden.includes(id)).map(id=><section key={id} className={`custom-dashboard-widget widget-${id}`} aria-label={DASHBOARD_WIDGETS.find(([key])=>key===id)?.[1]}>
+        {id === "metrics" && (<div className="row g-3 mb-4">
         <div className="col-md-6 col-xl-3">
           <SummaryCard label="Net Sales" value={money(summary.totalSales)} detail="Posted sales after returns" icon="sales" />
         </div>
@@ -112,13 +123,11 @@ function Dashboard() {
         <div className="col-md-6 col-xl-3">
           <SummaryCard label="Draft Production" value={Number(summary.draftProductionCount || 0)} detail="Awaiting material issue" icon="formula" tone="slate" />
         </div>
-      </div>
-
-      <section className="card p-3 mb-4"><div className="d-flex justify-content-between align-items-center"><div><h5>Sales and purchases · last six months</h5><p className="text-muted">Posted invoice totals including GST, net of posted credit notes by credit date; excludes Upad.</p></div><Link to="/reports?report=sales-profitability" className="btn btn-outline-primary">Profitability report</Link></div>
+      </div>)}
+        {id === "activity" && (<section className="card p-3 mb-4"><div className="d-flex justify-content-between align-items-center"><div><h5>Sales and purchases · last six months</h5><p className="text-muted">Posted invoice totals including GST, net of posted credit notes by credit date; excludes Upad.</p></div><Link to="/reports?report=sales-profitability" className="btn btn-outline-primary">Profitability report</Link></div>
       {activity===null?<p>Loading activity…</p>:activity.length===0?<p>Activity unavailable.</p>:<div className="pro-trend">{activity.map(r=>{const max=Math.max(1,...activity.flatMap(x=>[Math.abs(x.sales),Math.abs(x.purchases)]));return <div key={r.month} className="pro-trend-row"><strong>{r.month}</strong><div><div className="pro-bar-track"><span className="pro-bar-sales" style={{width:`${Math.abs(r.sales)/max*100}%`}}/></div><small>Net invoices {money(r.sales)}</small></div><div><div className="pro-bar-track"><span className="pro-bar-purchases" style={{width:`${Math.abs(r.purchases)/max*100}%`}}/></div><small>Purchases {money(r.purchases)}</small></div></div>})}</div>}
-      <div className="d-flex flex-wrap gap-2 mt-3"><Link to="/reports?report=low-stock" className="btn btn-outline-primary">Reorder report</Link><Link to="/reports?report=expiry" className="btn btn-outline-primary">Expiry report</Link><Link to="/reports?report=stock-valuation" className="btn btn-outline-primary">Stock valuation</Link><Link to="/business-tools" className="btn btn-outline-primary">Batch planning &amp; health</Link></div></section>
-      <div className="row g-4">
-        <div className="col-xl-7">
+      <div className="d-flex flex-wrap gap-2 mt-3"><Link to="/reports?report=low-stock" className="btn btn-outline-primary">Reorder report</Link><Link to="/reports?report=expiry" className="btn btn-outline-primary">Expiry report</Link><Link to="/reports?report=stock-valuation" className="btn btn-outline-primary">Stock valuation</Link><Link to="/business-tools" className="btn btn-outline-primary">Batch planning &amp; health</Link></div></section>)}
+        {id === "stock" && (<div className="dashboard-widget-stock">
           <div className="card dashboard-panel h-100">
             <div className="card-header dashboard-panel-header">
               <div>
@@ -151,9 +160,8 @@ function Dashboard() {
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="col-xl-5">
+        </div>)}
+        {id === "production" && (<div className="dashboard-widget-production">
           <div className="card dashboard-panel h-100">
             <div className="card-header dashboard-panel-header">
               <div>
@@ -183,8 +191,9 @@ function Dashboard() {
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </div>)}
+      </section>)}</div>
+      {customize&&<WorkspaceDialog title="Customize dashboard" onClose={()=>setCustomize(false)}><p className="text-muted">Choose which panels appear and their order. At least one panel stays visible. Preferences are saved on this device.</p><div className="dashboard-customize-list">{layout.order.map((id,i)=><div key={id}><label><input type="checkbox" className="form-check-input" checked={!layout.hidden.includes(id)} disabled={!layout.hidden.includes(id)&&layout.hidden.length===DASHBOARD_WIDGETS.length-1} onChange={e=>updateLayout({...layout,hidden:e.target.checked?layout.hidden.filter(x=>x!==id):[...layout.hidden,id]})}/> {DASHBOARD_WIDGETS.find(([key])=>key===id)?.[1]}</label><div className="d-flex gap-1"><button type="button" className="btn btn-sm btn-outline-secondary" aria-label={`Move ${id} up`} disabled={i===0} onClick={()=>updateLayout({...layout,order:moveDashboardWidget(layout.order,id,-1)})}>↑</button><button type="button" className="btn btn-sm btn-outline-secondary" aria-label={`Move ${id} down`} disabled={i===layout.order.length-1} onClick={()=>updateLayout({...layout,order:moveDashboardWidget(layout.order,id,1)})}>↓</button></div></div>)}</div><button type="button" className="btn btn-outline-secondary mt-3" onClick={()=>updateLayout(null)}>Restore default layout</button></WorkspaceDialog>}
     </div>
   );
 }

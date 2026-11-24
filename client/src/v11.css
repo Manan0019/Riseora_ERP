@@ -37,7 +37,7 @@
 }
 
 .master-modal-header h3 { margin: 0; font-size: 1.18rem; }
-.master-modal-header p { margin: 4px 0 0; color: var(--riseora-muted); font-size: 13px; }
+.master-modal-header p { margin: 4px 0 0; color: var(--riseora-muted); font-size: calc(13px * var(--riseora-font-scale, 1)); }
 .master-modal-close {
   width: 38px;
   height: 38px;
@@ -46,7 +46,7 @@
   border-radius: 10px;
   background: #fff;
   color: #705f56;
-  font-size: 25px;
+  font-size: calc(25px * var(--riseora-font-scale, 1));
   line-height: 1;
 }
 .master-modal-close:hover { background: #fff3ec; color: var(--riseora-primary-900); }
@@ -68,7 +68,7 @@
   border-radius: 10px;
   background: #fff8f2;
   color: #725f55;
-  font-size: 13px;
+  font-size: calc(13px * var(--riseora-font-scale, 1));
 }
 
 .workspace-tabs {
@@ -96,7 +96,7 @@
   border-radius: 9px 9px 0 0;
   background: transparent;
   color: #786b63;
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--riseora-font-scale, 1));
   cursor: pointer;
 }
 .workspace-tab.active {
@@ -124,7 +124,7 @@
   border-radius: 8px;
   background: #fff;
   color: var(--riseora-primary-800);
-  font-size: 19px;
+  font-size: calc(19px * var(--riseora-font-scale, 1));
   line-height: 1;
 }
 
@@ -136,7 +136,7 @@
   border-radius: 8px;
   background: #fff;
   color: #74645c;
-  font-size: 12px;
+  font-size: calc(12px * var(--riseora-font-scale, 1));
   font-weight: 700;
 }
 .topbar-tool-button:hover { background: #fff7f2; color: var(--riseora-primary-900); }
@@ -154,7 +154,7 @@
   background: var(--riseora-surface);
   box-shadow: var(--riseora-shadow-sm);
 }
-.finance-summary-card span { display: block; color: var(--riseora-muted); font-size: 12px; font-weight: 700; }
+.finance-summary-card span { display: block; color: var(--riseora-muted); font-size: calc(12px * var(--riseora-font-scale, 1)); font-weight: 700; }
 .finance-summary-card strong { display: block; margin-top: 5px; color: #43362f; font-size: 1.25rem; }
 
 .row-clickable { cursor: pointer; }
@@ -195,7 +195,7 @@
   border-radius: 8px;
   background: #fff;
   color: #74645c;
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--riseora-font-scale, 1));
   font-weight: 700;
 }
 .topbar-workspace-tools button:hover {
@@ -219,7 +219,7 @@
   flex: 0 0 auto;
   border-radius: 6px;
   color: #9b8c83;
-  font-size: 17px;
+  font-size: calc(17px * var(--riseora-font-scale, 1));
   line-height: 1;
 }
 .workspace-tab-close:hover { background: #f2dfd4; color: #7d4e3e; }
@@ -232,7 +232,7 @@
   border-radius: 8px;
   background: #fff;
   color: var(--riseora-primary-800);
-  font-size: 19px;
+  font-size: calc(19px * var(--riseora-font-scale, 1));
   line-height: 1;
 }
 
@@ -342,7 +342,7 @@
   padding: 7px 9px 6px;
   overflow: hidden;
   color: var(--riseora-muted);
-  font-size: 11px;
+  font-size: calc(11px * var(--riseora-font-scale, 1));
   font-weight: 800;
   letter-spacing: 0.035em;
   text-overflow: ellipsis;
@@ -367,7 +367,7 @@
   border-radius: 8px;
   background: transparent;
   color: #554840;
-  font-size: 13px;
+  font-size: calc(13px * var(--riseora-font-scale, 1));
   font-weight: 650;
   text-align: left;
 }
@@ -383,7 +383,7 @@
   width: 20px;
   flex: 0 0 auto;
   color: var(--riseora-primary-700);
-  font-size: 16px;
+  font-size: calc(16px * var(--riseora-font-scale, 1));
   text-align: center;
 }
 
@@ -448,14 +448,14 @@
 
 .investment-detail-grid span {
   color: var(--riseora-muted);
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--riseora-font-scale, 1));
   font-weight: 750;
 }
 
 .investment-detail-grid strong {
   margin-top: 4px;
   color: #43362f;
-  font-size: 15px;
+  font-size: calc(15px * var(--riseora-font-scale, 1));
 }
 
 .investment-detail-grid .investment-total-due {
@@ -465,7 +465,7 @@
 
 .investment-detail-grid .investment-total-due strong {
   color: var(--riseora-primary-900);
-  font-size: 17px;
+  font-size: calc(17px * var(--riseora-font-scale, 1));
 }
 
 .investment-payment-panel {
@@ -481,7 +481,7 @@
   border-radius: 9px;
   background: #fff;
   color: var(--riseora-muted);
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--riseora-font-scale, 1));
 }
 
 .investment-payment-due strong {
@@ -592,7 +592,7 @@
   height: 18px;
   padding: 0 4px;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: calc(9px * var(--riseora-font-scale, 1));
   font-weight: 850;
   line-height: 1;
   letter-spacing: 0;
@@ -609,7 +609,7 @@
   padding: 0;
   background: transparent;
   color: #b36d47;
-  font-size: 12px;
+  font-size: calc(12px * var(--riseora-font-scale, 1));
 }
 
 .workspace-tab.active .workspace-tab-state-dirty {
@@ -755,23 +755,23 @@ input[type="number"] {
   min-height: 20px;
   margin-top: 8px;
   color: var(--riseora-muted);
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--riseora-font-scale, 1));
   font-weight: 650;
 }
 
 /* ---------- Owner feedback: compact data-entry screens ---------- */
 .content-area .card-body { padding: 13px 15px; }
 .content-area .card { margin-bottom: 13px !important; }
-.content-area .form-label { margin-bottom: 3px; font-size: 12px; font-weight: 600; }
+.content-area .form-label { margin-bottom: 3px; font-size: calc(12px * var(--riseora-font-scale, 1)); font-weight: 600; }
 .content-area .form-control,
-.content-area .form-select { min-height: 34px; padding: 5px 8px; font-size: 13px; }
+.content-area .form-select { min-height: 34px; padding: 5px 8px; font-size: calc(13px * var(--riseora-font-scale, 1)); }
 .content-area textarea.form-control { min-height: 58px; }
-.content-area .table { font-size: 12.5px; }
+.content-area .table { font-size: calc(12.5px * var(--riseora-font-scale, 1)); }
 .content-area .table th, .content-area .table td { padding: 6px 7px; }
 .content-area .table .btn { white-space: nowrap; }
-.content-area h2 { font-size: 22px; }
-.content-area h5 { font-size: 15px; }
-.entry-table .form-control, .entry-table .form-select { min-height: 30px; padding: 3px 5px; font-size: 12px; }
+.content-area h2 { font-size: calc(22px * var(--riseora-font-scale, 1)); }
+.content-area h5 { font-size: calc(15px * var(--riseora-font-scale, 1)); }
+.entry-table .form-control, .entry-table .form-select { min-height: 30px; padding: 3px 5px; font-size: calc(12px * var(--riseora-font-scale, 1)); }
 .entry-table input[type="number"] { min-width: 65px; padding: 3px 5px; }
 .purchase-entry-page .entry-table { min-width: 1180px; width: max-content; }
 .sales-entry-page .entry-table { min-width: 1160px; width: 100%; }
@@ -783,20 +783,20 @@ input[type="number"] {
 .purchase-entry-page .entry-table .purchase-lot { width: 90px; }
 .purchase-entry-page .entry-table .smart-date-input { min-width: 122px; }
 .purchase-entry-page .entry-table td, .sales-entry-page .entry-table td { white-space: nowrap; }
-.purchase-entry-page .purchase-total-summary { font-size: 13px; }
+.purchase-entry-page .purchase-total-summary { font-size: calc(13px * var(--riseora-font-scale, 1)); }
 .purchase-entry-page .purchase-total-summary strong { margin-left: 4px; }
 .purchase-editor-embedded .transaction-card { margin-bottom: 9px !important; }
 .purchase-editor-embedded .transaction-action-bar { position: sticky; bottom: 0; z-index: 2; }
 .master-modal-body .purchase-editor-embedded .form-control,
-.master-modal-body .purchase-editor-embedded .form-select { padding: 4px 7px; min-height: 32px; font-size: 13px; }
+.master-modal-body .purchase-editor-embedded .form-select { padding: 4px 7px; min-height: 32px; font-size: calc(13px * var(--riseora-font-scale, 1)); }
 .master-modal-body .purchase-editor-embedded .card-body { padding: 10px; }
 .master-modal-body .purchase-editor-embedded .card { margin-bottom: 10px !important; }
-.master-modal-body .purchase-editor-embedded .form-label { font-size: 12px; margin-bottom: 3px; }
+.master-modal-body .purchase-editor-embedded .form-label { font-size: calc(12px * var(--riseora-font-scale, 1)); margin-bottom: 3px; }
 .master-modal-body .purchase-editor-embedded .table td,
-.master-modal-body .purchase-editor-embedded .table th { padding: 5px 6px; font-size: 12px; }
+.master-modal-body .purchase-editor-embedded .table th { padding: 5px 6px; font-size: calc(12px * var(--riseora-font-scale, 1)); }
 .table-sort-button { display: inline-flex; align-items: center; justify-content: space-between; gap: 7px; width: 100%; border: 0; background: transparent; padding: 0; text-align: left; color: inherit; font: inherit; font-weight: inherit; cursor: pointer; }
 .table-sort-button:hover, .table-sort-button:focus-visible { color: var(--riseora-primary-800); text-decoration: underline; }
-.table-sort-indicator { color: var(--riseora-primary-600); font-size: 10px; }
+.table-sort-indicator { color: var(--riseora-primary-600); font-size: calc(10px * var(--riseora-font-scale, 1)); }
 .sales-register-detail-popup { min-width: 0; }
 .sales-register-detail-popup .card-body { padding: 0; }
 
@@ -814,7 +814,7 @@ input[type="number"] {
   .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .sidebar-footer div,
   .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .brand-logo { display: none; }
   .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .sidebar-brand-wrap { justify-content: center; padding: 12px 5px; }
-  .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .brand-link::after { content: "R"; display: grid; place-items: center; width: 37px; height: 37px; border-radius: 10px; background: rgba(255,255,255,.7); color: var(--riseora-primary-900); font-weight: 800; font-size: 20px; }
+  .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .brand-link::after { content: "R"; display: grid; place-items: center; width: 37px; height: 37px; border-radius: 10px; background: rgba(255,255,255,.7); color: var(--riseora-primary-900); font-weight: 800; font-size: calc(20px * var(--riseora-font-scale, 1)); }
   .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .sidebar-link { justify-content: center; padding: 9px 6px; }
   .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .sidebar-scroll { padding: 8px 6px; }
   .app-shell.is-sidebar-condensed .sidebar:not(:hover):not(:focus-within) .sidebar-heading { height: 20px; min-height: 20px; padding: 0; }
@@ -858,7 +858,7 @@ input[type="number"] {
   max-width: none;
   min-height: 30px;
   padding: 3px 5px;
-  font-size: 12px;
+  font-size: calc(12px * var(--riseora-font-scale, 1));
   flex: 0 0 auto;
 }
 .purchase-entry-page .compact-entry-table input.auto-width-entry-input[type="number"],
@@ -875,7 +875,7 @@ input[type="number"] {
 }
 .purchase-entry-page .compact-entry-table .purchase-unit { width: 64px; min-width: 64px; }
 .purchase-entry-page .compact-entry-table .smart-date-input { min-width: 117px; width: 117px; }
-.entry-shortcut-hint { margin-left: 6px; padding-left: 6px; border-left: 1px solid currentColor; font-size: 10px; font-weight: 600; opacity: .85; }
+.entry-shortcut-hint { margin-left: 6px; padding-left: 6px; border-left: 1px solid currentColor; font-size: calc(10px * var(--riseora-font-scale, 1)); font-weight: 600; opacity: .85; }
 
 /* ---------- Owner refinement: darker accessible text, without recoloring action buttons ---------- */
 :root {
@@ -953,7 +953,7 @@ body, .content-area, .master-modal-body, .ui-dialog-card { color: var(--riseora-
   }
   .table-sort-indicator {
     color: #786456;
-    font-size: 11px;
+    font-size: calc(11px * var(--riseora-font-scale, 1));
     line-height: 1;
     flex: 0 0 auto;
   }

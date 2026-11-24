@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { version as appVersion } from "../../../version.json";
 import { NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { AppearanceDialog, NotificationControl, TableViewer, captureVisibleTables } from "../components/ui/WorkspaceEnhancements";
+import { normalizeAppearance } from "../utils/workspaceAppearance";
 import WorkspaceSearch, { ShortcutHelp } from "../components/WorkspaceSearch";
 import { readPreference, writePreference } from "../utils/proPreferences";
 import AppIcon from "../components/AppIcon";
@@ -265,6 +267,17 @@ function MainLayout() {
   const [compact, setCompact] = useState(() => readPreference("compact", false));
   useEffect(() => { writePreference("compact", compact); }, [compact]);
 
+  const appearanceKey = `appearance.${user?.id}.${user?.username}`;
+  const [appearance, setAppearance] = useState(() => normalizeAppearance(readPreference(appearanceKey, null)));
+  const [tableSnapshots, setTableSnapshots] = useState([]);
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.riseoraTheme = appearance.theme;
+    root.dataset.bsTheme = appearance.theme;
+    root.dataset.riseoraFont = String(appearance.font);
+    writePreference(appearanceKey, appearance);
+    return () => { delete root.dataset.riseoraTheme; delete root.dataset.riseoraFont; delete root.dataset.bsTheme; };
+  }, [appearance, appearanceKey]);
   const activeTabIdRef = useRef(initialWorkspace.activeTabId);
   const nextTabIdRef = useRef(initialWorkspace.nextTabId);
   const pendingNavigationRef = useRef(null);
@@ -883,6 +896,9 @@ function MainLayout() {
             <div className="topbar-workspace-tools" aria-label="Workspace controls">
               {currentFavorite && <button type="button" className="favorite-toggle" aria-pressed={favorites.includes(currentFavorite.to)} aria-label={favorites.includes(currentFavorite.to)?"Remove from favorites":"Add current module to favorites"} title={favorites.includes(currentFavorite.to)?"Remove from favorites":"Add current module to favorites"} onClick={toggleFavorite}>{favorites.includes(currentFavorite.to)?"★":"☆"}</button>}
               <button type="button" onClick={() => setCompact(v => !v)} aria-pressed={compact} aria-label="Toggle compact tables" title="Toggle compact tables">{compact ? "Comfortable" : "Compact"}</button>
+              <NotificationControl open={palette === "notifications"} onOpen={() => setPalette("notifications")} onClose={() => setPalette("")} />
+              <button type="button" onClick={() => setPalette("appearance")} title="Appearance and text size" aria-label="Appearance and text size"><AppIcon name="appearance" size={18}/></button>
+              <button type="button" onClick={() => { setTableSnapshots(captureVisibleTables(document.querySelector(".workspace-page-host.is-active"))); setPalette("tables"); }} title="Expand visible table" aria-label="Expand visible table"><AppIcon name="expand" size={18}/></button>
               <button type="button" onClick={() => setPalette("help")} aria-label="Keyboard shortcuts" title="Keyboard shortcuts (F1)">?</button>
               <button type="button" aria-label="New tab" title="New tab" onClick={() => openPathInNewTab("/dashboard")}>
                 <span aria-hidden="true">＋</span><span>New Tab</span>
@@ -997,6 +1013,8 @@ function MainLayout() {
         </main>
       </div>
 
+      {palette === "appearance" && <AppearanceDialog value={appearance} onChange={setAppearance} onClose={() => setPalette("")} />}
+      {palette === "tables" && <TableViewer tables={tableSnapshots} onClose={() => {setPalette("");setTableSnapshots([]);}} />}
       {palette === "help" && <ShortcutHelp onClose={() => setPalette("")} />}
       {contextMenu && (
         <div

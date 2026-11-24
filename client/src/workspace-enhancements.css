@@ -1,0 +1,126 @@
+/* UI-only preferences. Print routes do not mount MainLayout; no print rules here. */
+@media screen {
+  html[data-riseora-font="90"] { --riseora-font-scale:.9; font-size:90%; }
+  html[data-riseora-font="100"] { --riseora-font-scale:1; font-size:100%; }
+  html[data-riseora-font="110"] { --riseora-font-scale:1.1; font-size:110%; }
+  html[data-riseora-font="120"] { --riseora-font-scale:1.2; font-size:120%; }
+  .workspace-enhancement-dialog { max-height:calc(100dvh - 32px); overflow:auto; margin:auto; }
+  .workspace-enhancement-dialog>header { position:sticky; top:-22px; background:inherit; padding:8px 0; z-index:3; }
+  .workspace-enhancement-dialog legend { font-size:1rem; font-weight:700; margin-bottom:8px; }
+  .appearance-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .appearance-options legend { grid-column:1/-1; }
+  .appearance-option { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:12px; border:1px solid var(--riseora-border-strong); border-radius:10px; cursor:pointer; }
+  .appearance-option.selected { border:2px solid var(--riseora-primary-700); padding:11px; }
+  .appearance-swatch { width:100%; height:58px; border-radius:6px; display:flex; gap:5px; padding:8px; background:#f2eadf; border:1px solid #d4c2b4; }
+  .appearance-swatch i { background:#fff; flex:1; border:1px solid #e2d3c9; border-radius:4px; }
+  .appearance-swatch i:first-child { flex:.45; background:#d79c80; }
+  .appearance-swatch.dark { background:#222022; border-color:#695e59; }
+  .appearance-swatch.dark i { background:#353033; border-color:#695e59; }
+  .appearance-swatch.dark i:first-child { background:#855845; }
+  .appearance-sample { background:var(--riseora-surface); border:1px solid var(--riseora-border-strong); padding:12px; border-radius:8px; }
+  .topbar-workspace-tools .workspace-notification-button { position:relative; display:inline-flex; align-items:center; justify-content:center; }
+  .topbar-workspace-tools .workspace-notification-button .notification-count { position:absolute; display:block; top:-6px; right:-7px; font-size:.65rem; line-height:1; color:#fff; background:#aa3f37; border:1px solid #fff; border-radius:20px; min-width:16px; padding:3px; }
+  .notification-toolbar,.expanded-table-toolbar { display:flex; align-items:flex-end; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+  .notification-toolbar label,.expanded-table-toolbar label { flex:1; min-width:160px; font-size:.85rem; }
+  .notification-history { max-height:55vh; overflow:auto; }
+  .notification-entry { display:grid; grid-template-columns:32px minmax(0,1fr); align-items:start; padding:12px 4px; gap:10px; border-bottom:1px solid var(--riseora-border); }
+  .notification-entry p { margin:3px 0 0; overflow-wrap:anywhere; }
+  .notification-symbol { display:grid; place-items:center; width:32px; height:32px; color:var(--riseora-info); background:var(--riseora-surface-soft); border-radius:8px; }
+  .notification-entry.success .notification-symbol { color:#28704a; }
+  .notification-entry.danger .notification-symbol { color:var(--riseora-danger); }
+  .notification-entry.warning .notification-symbol { color:var(--riseora-warning); }
+  .notification-meta { display:flex; flex-wrap:wrap; justify-content:space-between; color:var(--riseora-muted); font-size:.75rem; }
+  .expanded-table-dialog { width:calc(100vw - 28px); height:calc(100dvh - 28px); max-width:none; max-height:none; padding:18px; }
+  .expanded-table-dialog[open] { display:flex; flex-direction:column; }
+  .expanded-table-dialog>header { flex:none; top:-18px; }
+  .expanded-table-scroll { flex:1; min-height:0; overflow:auto; }
+  .expanded-table-scroll th { position:sticky; top:0; z-index:1; white-space:normal; }
+  .expanded-table-scroll td { white-space:normal; min-width:65px; }
+  .expanded-table-toolbar span { color:var(--riseora-muted); font-size:.85rem; }
+  .custom-dashboard-grid { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:16px; }
+  .custom-dashboard-widget { grid-column:1/-1; min-width:0; }
+  .custom-dashboard-widget .mb-4 { margin-bottom:0!important; }
+  .custom-dashboard-widget.widget-stock { grid-column:span 7; }
+  .custom-dashboard-widget.widget-production { grid-column:span 5; }
+  .custom-dashboard-widget.widget-stock:only-child,.custom-dashboard-widget.widget-production:only-child { grid-column:1/-1; }
+  .dashboard-customize-list>div { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--riseora-border); }
+  .dashboard-customize-list label { display:flex; gap:8px; align-items:center; }
+  @media(max-width:1200px){ .custom-dashboard-widget.widget-stock,.custom-dashboard-widget.widget-production { grid-column:1/-1; } }
+  @media(max-width:600px){ .appearance-options { grid-template-columns:1fr; } .workspace-enhancement-dialog { padding:12px; } }
+  /* Keep the topbar compact, with icon-only tools still identifiable by titles. */
+  .topbar-workspace-tools { flex-wrap:wrap; }
+  .topbar-workspace-tools button { flex-shrink:0; }
+  html[data-riseora-font="120"] .topbar { flex-wrap:wrap; gap:8px; }
+  html[data-riseora-font="120"] .workspace-global-search { max-width:none; flex-basis:180px; }
+  /* Dark theme: neutral surfaces, warm brand accents, high-contrast text. */
+  html[data-riseora-theme="dark"] {
+    color-scheme:dark;
+    --riseora-bg:#1b191b; --riseora-surface:#292629; --riseora-surface-soft:#332d30;
+    --riseora-text:#f1e9e5; --riseora-muted:#c4b8b3;
+    --riseora-border:#554b4e; --riseora-border-strong:#796a66;
+    --riseora-primary-950:#ffe0cc; --riseora-primary-900:#b3765f; --riseora-primary-800:#97604e;
+    --riseora-primary-700:#e6a588; --riseora-primary-600:#daa086; --riseora-primary-100:#4b3731; --riseora-primary-50:#392b27;
+    --riseora-accent:#e5a082; --riseora-accent-soft:#4a3832;
+    --riseora-danger:#ffaaa2; --riseora-warning:#f2c47b; --riseora-info:#a0d5f3;
+    --riseora-table-line-strong:#5d5255; --riseora-table-frame:#897874; --riseora-table-header:#393136; --riseora-table-hover-strong:#463831;
+    --bs-body-color:#f1e9e5; --bs-body-bg:#1b191b; --bs-secondary-color:#c4b8b3; --bs-tertiary-color:#c4b8b3;
+    --bs-border-color:#554b4e; --bs-secondary-bg:#332d30; --bs-tertiary-bg:#332d30;
+    --riseora-shadow-sm:0 2px 8px #0003; --riseora-shadow-md:0 12px 32px #0005;
+  }
+  html[data-riseora-theme="dark"] :is(body,.app-shell,.content-area) { background:var(--riseora-bg); color:var(--riseora-text); }
+  html[data-riseora-theme="dark"] :is(.sidebar,.sidebar-footer) { background:#302629; color:var(--riseora-text); }
+  html[data-riseora-theme="dark"] :is(.sidebar-heading,.sidebar-link,.sidebar-label,.sidebar-footer small,.sidebar-footer strong,.page-context-title,.page-context-subtitle,.user-copy strong,.user-copy small,.workspace-tab,.topbar-logout,.topbar-tool-button) { color:var(--riseora-text)!important; }
+  html[data-riseora-theme="dark"] :is(.sidebar-link.active,.sidebar-link:hover,.workspace-tab.active,.workspace-tab:not(.active):hover,.sidebar-link:focus-visible) { background:#4d3933!important; color:#ffdfc9!important; }
+  html[data-riseora-theme="dark"] :is(.topbar,.workspace-tabs,.workspace-context-menu,.workspace-search-panel,.workspace-search-field,.searchable-select-menu,.master-modal,.master-modal-header,.master-modal-footer,.ui-dialog-card,.ui-toast,.pro-dialog,.card,.card-header,.card-footer,.transaction-section,.transaction-intro,.entry-draft-panel,.report-state,.report-summary-card,.report-search-input,.report-workspace .pro-columns) { background:var(--riseora-surface)!important; color:var(--riseora-text)!important; border-color:var(--riseora-border-strong)!important; }
+  html[data-riseora-theme="dark"] :is(.sidebar-brand-wrap,.brand-logo,.brand-logo-mark) { background:#f3e4da; }
+  html[data-riseora-theme="dark"] :is(.topbar-workspace-tools button,.topbar-collapse-button,.topbar-menu-button,.topbar-logout,.workspace-tab-add,.master-modal-close,.workspace-search-clear,.searchable-select-clear,.ui-toast-close,.workspace-context-menu button) { background:var(--riseora-surface-soft)!important; color:var(--riseora-text)!important; border-color:var(--riseora-border-strong)!important; }
+  html[data-riseora-theme="dark"] :is(.content-area,.master-modal-body,.pro-dialog) :is(.form-label,.transaction-mini-title,.transaction-intro h2,.table td,.table th,.text-dark,.text-body,.metric-label,.metric-value,.metric-detail,.production-feed-copy strong,.production-feed-copy span,.production-feed-qty,.dashboard-panel-kicker) { color:var(--riseora-text)!important; }
+  html[data-riseora-theme="dark"] :is(.content-area,.master-modal-body,.pro-dialog) :is(.text-muted,small.text-muted,.transaction-intro p,.transaction-section-heading p) { color:var(--riseora-muted)!important; }
+  html[data-riseora-theme="dark"] :is(.form-control,.form-select,.input-group-text,.smart-date-input,.smart-date-input input,.searchable-select-input,.workspace-search-field input) { color:var(--riseora-text)!important; background:var(--riseora-bg)!important; border-color:var(--riseora-border-strong)!important; }
+  html[data-riseora-theme="dark"] :is(.form-control,.form-select):disabled { background:#373236!important; color:#ada19e!important; }
+  html[data-riseora-theme="dark"] :is(input,textarea)::placeholder { color:#c4b8b3!important; opacity:1; }
+  html[data-riseora-theme="dark"] :is(.form-control,.form-select,[aria-invalid="true"]):is(.is-invalid,[aria-invalid="true"]) { border-color:#ff928c!important; background:#44292d!important; }
+  html[data-riseora-theme="dark"] :is(.table-responsive:has(> table.table),:not(.table-responsive)>.table:not(.table-borderless)) { background:var(--riseora-surface)!important; }
+  html[data-riseora-theme="dark"] .table { --bs-table-color:var(--riseora-text); --bs-table-bg:transparent; --bs-table-striped-bg:#312c30; --bs-table-striped-color:var(--riseora-text); --bs-table-hover-color:var(--riseora-text); --bs-table-hover-bg:var(--riseora-table-hover-strong); }
+  html[data-riseora-theme="dark"] .table > thead > tr > th { background:var(--riseora-table-header)!important; color:var(--riseora-text)!important; }
+  html[data-riseora-theme="dark"] .table th[aria-sort]:not([aria-sort="none"]) { --riseora-table-header:#554038; }
+  html[data-riseora-theme="dark"] .table > tbody > tr:not(:is(.table-danger,.table-warning,.table-secondary,.table-primary,.table-success,.table-info,.table-light,.table-dark,.formula-extra-preview-row)):is(:hover,:focus-within)>* { background:var(--riseora-table-hover-strong)!important; --bs-table-bg-state:var(--riseora-table-hover-strong)!important; }
+  html[data-riseora-theme="dark"] .table :is(tr.table-warning,tr.table-danger,tr.table-success,tr.table-secondary,tr.table-info,tr.formula-extra-preview-row)>* { color:var(--riseora-text)!important; --bs-table-color:var(--riseora-text); background:#45353a!important; }
+  html[data-riseora-theme="dark"] :is(.table-sort-button,.table-sort-indicator,.workspace-search-label,.workspace-search-caption,.workspace-search-footer,.workspace-search-empty,.searchable-select-option,.searchable-select-option-label,.searchable-select-option-meta,.searchable-select-empty,.searchable-select-more,.searchable-select-search-icon,.ui-toast-copy strong,.ui-toast-copy span,.ui-dialog-copy h3,.ui-dialog-copy p,.ui-dialog-detail,.report-export-note,.report-stale,.entry-draft-heading small,.entry-draft-record small,.bulk-toolbar,.pro-trend-row small) { color:var(--riseora-text)!important; }
+  html[data-riseora-theme="dark"] :is(.workspace-search-caption,.workspace-search-footer,.workspace-search-type-icon,.report-count,.lookup-recent-label,.workspace-search-field kbd,.master-readonly-note,.ui-dialog-detail,.report-library .btn[aria-pressed=false]:hover,.pro-bar-track) { background:var(--riseora-surface-soft)!important; color:var(--riseora-text)!important; border-color:var(--riseora-border)!important; }
+  html[data-riseora-theme="dark"] :is(.workspace-search-option[aria-selected=true],.workspace-search-option:hover,.searchable-select-option.is-active,.searchable-select-option.is-selected,.searchable-select-option:hover,.pro-search-results button:hover) { background:#4d3933!important; color:#ffe0cc!important; }
+  html[data-riseora-theme="dark"] :is(.btn-outline-primary,.btn-outline-secondary,.btn-outline-dark) { color:#f1c6b2!important; border-color:#a98171!important; background:transparent!important; }
+  html[data-riseora-theme="dark"] :is(.btn-outline-primary,.btn-outline-secondary,.btn-outline-dark):hover { background:#4d3933!important; color:#ffe0cc!important; }
+  html[data-riseora-theme="dark"] :is(.btn-primary,.report-library .btn[aria-pressed=true]) { background:#97604e!important; border-color:#c48d76!important; color:white!important; }
+  html[data-riseora-theme="dark"] .btn-outline-danger { color:#ffaaa2!important; border-color:#ffaaa2!important; }
+  html[data-riseora-theme="dark"] :is(.text-danger,.report-workspace td.text-alert) { color:#ffaaa2!important; }
+  html[data-riseora-theme="dark"] .text-success { color:#a8e5b8!important; }
+  html[data-riseora-theme="dark"] .alert-danger { background:#482a31!important; color:#ffd1ce!important; border-color:#a35b60!important; }
+  html[data-riseora-theme="dark"] .alert-success { background:#234335!important; color:#b8e7c9!important; border-color:#527b60!important; }
+  html[data-riseora-theme="dark"] .alert-warning { background:#493a24!important; color:#ffe1a3!important; border-color:#97733b!important; }
+  html[data-riseora-theme="dark"] .alert-info { background:#233945!important; color:#bde4fa!important; border-color:#55788c!important; }
+  html[data-riseora-theme="dark"] :is(.notification-entry.success .notification-symbol) { color:#a8e5b8; }
+  html[data-riseora-theme="dark"] :is(button,a,input,select,textarea,[tabindex]):focus-visible { outline-color:#f2b397!important; }
+  html[data-riseora-theme="dark"] :is(.bg-light,.bg-white,.formula-extra-card,.transaction-total-card,.transaction-summary-strip,.summary-strip,.transaction-sticky-footer) { background:var(--riseora-surface)!important; color:var(--riseora-text)!important; }
+  html[data-riseora-theme="dark"] :is(.card h1,.card h2,.card h3,.card h4,.card h5,.card h6,.page-hero h2,.transaction-intro h2,.transaction-section-heading h3,.transaction-section-heading h4) { color:var(--riseora-text)!important; }
+}
+@media screen {
+  .custom-dashboard-grid:not(:has(.widget-production))>.widget-stock,.custom-dashboard-grid:not(:has(.widget-stock))>.widget-production { grid-column:1/-1; }
+  @media(max-width:1350px) {
+    .app-shell:not(.is-sidebar-condensed) .topbar { flex-wrap:wrap; gap:8px; }
+    .app-shell:not(.is-sidebar-condensed) .workspace-global-search { order:3; flex-basis:100%; max-width:none; }
+    .app-shell:not(.is-sidebar-condensed) .workspace-tabs { position:relative; top:auto; }
+  }
+  html[data-riseora-font="120"] .workspace-tabs { position:relative; top:auto; }
+  html[data-riseora-theme="dark"] :is(.form-section,.transaction-action-bar,.summary-strip-item,.formula-method-help,.formula-percentage-meter,.finance-summary-emphasis,.investment-detail-grid>div,.investment-payment-panel,.investment-payment-due,.formula-method-card) { background:var(--riseora-surface)!important; border-color:var(--riseora-border-strong)!important; color:var(--riseora-text)!important; }
+  html[data-riseora-theme="dark"] :is(.formula-percentage-meter span,.formula-percentage-meter strong,.formula-percentage-meter small,.formula-cell-hint,.summary-strip-item strong,.investment-detail-grid strong,.investment-payment-due strong,.transaction-action-copy>strong,.form-section-badge,.unit-pill,.transaction-step) { color:var(--riseora-text)!important; }
+  html[data-riseora-theme="dark"] .formula-percentage-meter.is-complete { border-color:#6fa483!important; background:#233e30!important; }
+  html[data-riseora-theme="dark"] .formula-percentage-meter.is-over { border-color:#c27b78!important; background:#492c30!important; }
+  html[data-riseora-theme="dark"] :is(.production-feed-item:hover,.sidebar-link:not(.active):hover) { background:var(--riseora-surface-soft)!important; }
+  html[data-riseora-theme="dark"] .table-code { background:#3d3539; color:#f1e9e5; }
+  html[data-riseora-theme="dark"] .text-bg-success { background:#244936!important; color:#b7e9c5!important; }
+  html[data-riseora-theme="dark"] .text-bg-warning { background:#4d3d25!important; color:#ffdf9f!important; }
+  html[data-riseora-theme="dark"] .text-bg-danger { background:#4e2b32!important; color:#ffd0cc!important; }
+  html[data-riseora-theme="dark"] .text-bg-secondary { background:#423a3e!important; color:#ece2de!important; }
+  html[data-riseora-theme="dark"] .text-bg-primary { background:#50382f!important; color:#fbd0b8!important; }
+}

@@ -44,7 +44,7 @@ body {
     "Segoe UI", sans-serif;
   background: var(--riseora-bg);
   color: var(--riseora-text);
-  font-size: 15.5px;
+  font-size: calc(15.5px * var(--riseora-font-scale, 1));
   line-height: 1.52;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -122,7 +122,7 @@ a {
   border-radius: 9px;
   background: rgba(255, 255, 255, 0.34);
   color: #5A3C31;
-  font-size: 24px;
+  font-size: calc(24px * var(--riseora-font-scale, 1));
   line-height: 1;
 }
 
@@ -156,7 +156,7 @@ a {
   border: 0;
   background: transparent;
   color: rgba(82, 52, 42, 0.66);
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--riseora-font-scale, 1));
   font-weight: 800;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -207,7 +207,7 @@ a {
   border-radius: 10px;
   color: rgba(70, 45, 37, 0.88);
   text-decoration: none;
-  font-size: 14.75px;
+  font-size: calc(14.75px * var(--riseora-font-scale, 1));
   font-weight: 600;
   transition:
     color 160ms ease,
@@ -291,13 +291,13 @@ a {
 }
 
 .sidebar-footer strong {
-  font-size: 12px;
+  font-size: calc(12px * var(--riseora-font-scale, 1));
 }
 
 .sidebar-footer small {
   margin-top: 1px;
   color: rgba(78, 49, 40, 0.58);
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--riseora-font-scale, 1));
 }
 
 .app-main {
@@ -352,7 +352,7 @@ a {
 
 .page-context-title {
   color: #46362F;
-  font-size: 15px;
+  font-size: calc(15px * var(--riseora-font-scale, 1));
   font-weight: 700;
   line-height: 1.25;
 }
@@ -361,7 +361,7 @@ a {
   margin-top: 2px;
   overflow: hidden;
   color: var(--riseora-muted);
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--riseora-font-scale, 1));
   line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -380,7 +380,7 @@ a {
   border-radius: 50%;
   background: var(--riseora-primary-100);
   color: var(--riseora-primary-900);
-  font-size: 11px;
+  font-size: calc(11px * var(--riseora-font-scale, 1));
   font-weight: 800;
   letter-spacing: 0.04em;
 }
@@ -398,7 +398,7 @@ a {
   max-width: 180px;
   overflow: hidden;
   color: #3B312D;
-  font-size: 12px;
+  font-size: calc(12px * var(--riseora-font-scale, 1));
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -406,7 +406,7 @@ a {
 .user-copy small {
   margin-top: 1px;
   color: var(--riseora-muted);
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--riseora-font-scale, 1));
 }
 
 .topbar-logout {
@@ -419,7 +419,7 @@ a {
   border-radius: 9px;
   background: #fff;
   color: #746A64;
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--riseora-font-scale, 1));
   font-weight: 600;
   transition: 160ms ease;
 }
@@ -488,7 +488,7 @@ h6 {
 .page-eyebrow,
 .dashboard-panel-kicker {
   color: var(--riseora-primary-700);
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--riseora-font-scale, 1));
   font-weight: 800;
   letter-spacing: 0.11em;
   text-transform: uppercase;
@@ -529,7 +529,7 @@ h6 {
   justify-content: center;
   gap: 7px;
   border-radius: 9px;
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--riseora-font-scale, 1));
   font-weight: 650;
   box-shadow: none !important;
   transition:
@@ -552,7 +552,7 @@ h6 {
   min-height: 32px;
   padding: 5px 10px;
   border-radius: 8px;
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--riseora-font-scale, 1));
 }
 
 .btn-lg {
@@ -606,7 +606,7 @@ h6 {
 .form-label {
   margin-bottom: 6px;
   color: #5C504A;
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--riseora-font-scale, 1));
   font-weight: 700;
 }
 
@@ -617,7 +617,7 @@ h6 {
   border-radius: 9px;
   background-color: #fff;
   color: var(--riseora-text);
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--riseora-font-scale, 1));
   box-shadow: none !important;
   transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
 }
@@ -671,7 +671,7 @@ textarea.form-control {
   --bs-table-striped-bg: #FEFAF7;
   margin-bottom: 0;
   color: #3B322E;
-  font-size: 12px;
+  font-size: calc(12px * var(--riseora-font-scale, 1));
 }
 
 .table-bordered {
@@ -690,7 +690,7 @@ textarea.form-control {
   border-bottom-width: 1px;
   background: #FBF5F0 !important;
   color: #6E625C;
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--riseora-font-scale, 1));
   font-weight: 800;
   letter-spacing: 0.035em;
   text-transform: uppercase;
@@ -722,7 +722,7 @@ textarea.form-control {
 .badge {
   padding: 5px 8px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: calc(10px * var(--riseora-font-scale, 1));
   font-weight: 750;
   letter-spacing: 0.02em;
 }
@@ -755,7 +755,7 @@ textarea.form-control {
 .alert {
   border: 1px solid transparent;
   border-radius: 11px;
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--riseora-font-scale, 1));
   box-shadow: none;
   animation: riseoraAlertIn 180ms ease both;
 }
@@ -794,7 +794,7 @@ textarea.form-control {
   border-bottom: 2px solid transparent;
   border-radius: 8px 8px 0 0;
   color: #7A706B;
-  font-size: 12px;
+  font-size: calc(12px * var(--riseora-font-scale, 1));
   font-weight: 650;
 }
 
@@ -849,7 +849,7 @@ textarea.form-control {
 
 .metric-label {
   color: var(--riseora-muted);
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--riseora-font-scale, 1));
   font-weight: 700;
   letter-spacing: 0.025em;
   text-transform: uppercase;
@@ -866,7 +866,7 @@ textarea.form-control {
 .metric-detail {
   margin-top: 6px;
   color: #8C817A;
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--riseora-font-scale, 1));
   line-height: 1.35;
 }
 
@@ -880,7 +880,7 @@ textarea.form-control {
 
 .dashboard-panel-kicker {
   margin-bottom: 3px;
-  font-size: 9.5px;
+  font-size: calc(9.5px * var(--riseora-font-scale, 1));
 }
 
 .dashboard-table > thead > tr > th {
@@ -894,7 +894,7 @@ textarea.form-control {
   background: #F3EAE4;
   color: #716760;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--riseora-font-scale, 1));
 }
 
 .unit-pill {
@@ -904,7 +904,7 @@ textarea.form-control {
   border-radius: 999px;
   background: var(--riseora-primary-50);
   color: var(--riseora-primary-800);
-  font-size: 9.5px;
+  font-size: calc(9.5px * var(--riseora-font-scale, 1));
   font-weight: 750;
   text-align: center;
 }
@@ -954,7 +954,7 @@ textarea.form-control {
 
 .production-feed-copy strong {
   overflow: hidden;
-  font-size: 12px;
+  font-size: calc(12px * var(--riseora-font-scale, 1));
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -962,12 +962,12 @@ textarea.form-control {
 .production-feed-copy span {
   margin-top: 3px;
   color: var(--riseora-muted);
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--riseora-font-scale, 1));
 }
 
 .production-feed-qty {
   color: #3A312D;
-  font-size: 13px;
+  font-size: calc(13px * var(--riseora-font-scale, 1));
   font-weight: 750;
   text-align: right;
 }
@@ -976,7 +976,7 @@ textarea.form-control {
   display: block;
   margin-top: 2px;
   color: var(--riseora-muted);
-  font-size: 9.5px;
+  font-size: calc(9.5px * var(--riseora-font-scale, 1));
   font-weight: 650;
 }
 
@@ -1049,7 +1049,7 @@ textarea.form-control {
   border-radius: 999px;
   background: rgba(255, 251, 247, 0.54);
   color: #965B48;
-  font-size: 9.5px;
+  font-size: calc(9.5px * var(--riseora-font-scale, 1));
   font-weight: 800;
   letter-spacing: 0.12em;
 }
@@ -1068,7 +1068,7 @@ textarea.form-control {
   max-width: 560px;
   margin: 18px 0 26px;
   color: rgba(78, 55, 46, 0.74);
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--riseora-font-scale, 1));
   line-height: 1.65;
 }
 
@@ -1084,7 +1084,7 @@ textarea.form-control {
   border-radius: 999px;
   background: rgba(255, 250, 246, 0.38);
   color: rgba(74, 51, 42, 0.78);
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--riseora-font-scale, 1));
 }
 
 .login-card {
@@ -1124,18 +1124,18 @@ textarea.form-control {
 .login-heading p {
   margin: 7px 0 24px;
   color: var(--riseora-muted);
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--riseora-font-scale, 1));
 }
 
 .login-card .form-control-lg {
   min-height: 48px;
-  font-size: 15px;
+  font-size: calc(15px * var(--riseora-font-scale, 1));
 }
 
 .login-footnote {
   margin-top: 22px;
   color: #8E7C72;
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--riseora-font-scale, 1));
   text-align: center;
 }
 
@@ -1196,7 +1196,7 @@ hr {
   border-color: var(--riseora-border);
   border-radius: 11px;
   box-shadow: var(--riseora-shadow-md);
-  font-size: 12px;
+  font-size: calc(12px * var(--riseora-font-scale, 1));
 }
 
 .modal-content {
@@ -1330,7 +1330,7 @@ hr {
   }
 
   .table {
-    font-size: 11.5px;
+    font-size: calc(11.5px * var(--riseora-font-scale, 1));
   }
 
   .login-page {
@@ -1380,7 +1380,7 @@ hr {
   padding: 9mm 9mm 7mm;
   background: #fff;
   box-shadow: 0 8px 30px rgba(77, 53, 45, 0.11);
-  font-size: 11px;
+  font-size: calc(11px * var(--riseora-font-scale, 1));
   line-height: 1.38;
   display: flex;
   flex-direction: column;
@@ -1410,7 +1410,7 @@ hr {
 }
 
 .invoice-company-name {
-  font-size: 19px;
+  font-size: calc(19px * var(--riseora-font-scale, 1));
   line-height: 1.1;
   font-weight: 800;
   color: #A96D57;
@@ -1423,7 +1423,7 @@ hr {
 }
 
 .invoice-title {
-  font-size: 22px;
+  font-size: calc(22px * var(--riseora-font-scale, 1));
   font-weight: 800;
   letter-spacing: 0.06em;
   color: #A96D57;
@@ -1456,7 +1456,7 @@ hr {
 }
 
 .invoice-box-title {
-  font-size: 10px;
+  font-size: calc(10px * var(--riseora-font-scale, 1));
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1465,7 +1465,7 @@ hr {
 }
 
 .invoice-party-name {
-  font-size: 13px;
+  font-size: calc(13px * var(--riseora-font-scale, 1));
   font-weight: 700;
 }
 
@@ -1495,7 +1495,7 @@ hr {
 .invoice-items-table th {
   background: #F7DED2;
   color: #8E5747;
-  font-size: 9px;
+  font-size: calc(9px * var(--riseora-font-scale, 1));
   text-transform: uppercase;
   letter-spacing: 0.01em;
 }
@@ -1545,7 +1545,7 @@ hr {
   padding: 7px 11px !important;
   background: #F5D9CC;
   color: #755247;
-  font-size: 13px;
+  font-size: calc(13px * var(--riseora-font-scale, 1));
 }
 
 .invoice-amount-words {
@@ -1593,7 +1593,7 @@ hr {
 
 .invoice-signature-company {
   width: 100%;
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--riseora-font-scale, 1));
 }
 
 .invoice-signature-space {
@@ -1609,7 +1609,7 @@ hr {
 }
 
 .invoice-signature-caption {
-  font-size: 9.5px;
+  font-size: calc(9.5px * var(--riseora-font-scale, 1));
   font-weight: 700;
   line-height: 1.2;
 }
@@ -1620,7 +1620,7 @@ hr {
   border-top: 1px solid #eadfd7;
   text-align: center;
   color: #8A8490;
-  font-size: 8.5px;
+  font-size: calc(8.5px * var(--riseora-font-scale, 1));
   line-height: 1.25;
 }
 
@@ -1629,7 +1629,7 @@ hr {
   top: 44%;
   left: 50%;
   transform: translate(-50%, -50%) rotate(-28deg);
-  font-size: 64px;
+  font-size: calc(64px * var(--riseora-font-scale, 1));
   font-weight: 900;
   color: rgba(180, 35, 35, 0.14);
   border: 6px solid rgba(180, 35, 35, 0.14);
@@ -1685,7 +1685,7 @@ hr {
     padding: 8mm 8mm 6mm;
     box-sizing: border-box;
     box-shadow: none;
-    font-size: 9.6px;
+    font-size: calc(9.6px * var(--riseora-font-scale, 1));
     line-height: 1.32;
     display: flex;
     flex-direction: column;
@@ -1746,19 +1746,19 @@ hr {
   background: var(--riseora-primary-900);
   color: #fff;
   font-family: Georgia, serif;
-  font-size: 27px;
+  font-size: calc(27px * var(--riseora-font-scale, 1));
   box-shadow: 0 12px 30px rgba(95, 65, 55, 0.17);
 }
 
 .app-boot-title {
   color: #3B312D;
-  font-size: 15px;
+  font-size: calc(15px * var(--riseora-font-scale, 1));
   font-weight: 780;
 }
 
 .app-boot-subtitle {
   color: var(--riseora-muted);
-  font-size: 11px;
+  font-size: calc(11px * var(--riseora-font-scale, 1));
 }
 
 .app-boot-loader {
@@ -1831,7 +1831,7 @@ hr {
 .ui-dialog-copy p {
   margin: 0;
   color: #6F655F;
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--riseora-font-scale, 1));
   line-height: 1.55;
 }
 
@@ -1842,7 +1842,7 @@ hr {
   border-radius: 10px;
   background: #fcf7f3;
   color: #7B716B;
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--riseora-font-scale, 1));
   line-height: 1.5;
 }
 
@@ -1911,8 +1911,8 @@ hr {
   gap: 2px;
 }
 
-.ui-toast-copy strong { color: #3B322E; font-size: 12.5px; }
-.ui-toast-copy span { color: #756B65; font-size: 11.5px; line-height: 1.45; }
+.ui-toast-copy strong { color: #3B322E; font-size: calc(12.5px * var(--riseora-font-scale, 1)); }
+.ui-toast-copy span { color: #756B65; font-size: calc(11.5px * var(--riseora-font-scale, 1)); line-height: 1.45; }
 
 .ui-toast-close {
   width: 26px;
@@ -1921,7 +1921,7 @@ hr {
   border-radius: 8px;
   background: transparent;
   color: #8C817A;
-  font-size: 18px;
+  font-size: calc(18px * var(--riseora-font-scale, 1));
   line-height: 1;
 }
 
@@ -1988,14 +1988,14 @@ hr {
 
 .transaction-section-heading h5 {
   margin: 0;
-  font-size: 14px;
+  font-size: calc(14px * var(--riseora-font-scale, 1));
   font-weight: 800;
 }
 
 .transaction-section-heading p {
   margin: 2px 0 0;
   color: var(--riseora-muted);
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--riseora-font-scale, 1));
 }
 
 .transaction-step {
@@ -2008,7 +2008,7 @@ hr {
   border-radius: 9px;
   background: var(--riseora-primary-50);
   color: var(--riseora-primary-800);
-  font-size: 10px;
+  font-size: calc(10px * var(--riseora-font-scale, 1));
   font-weight: 850;
   letter-spacing: 0.04em;
 }
@@ -2016,7 +2016,7 @@ hr {
 .transaction-mini-title {
   margin-bottom: 14px;
   color: #514741;
-  font-size: 12px;
+  font-size: calc(12px * var(--riseora-font-scale, 1));
   font-weight: 800;
 }
 
@@ -2027,7 +2027,7 @@ hr {
 .entry-table .form-control,
 .entry-table .form-select {
   min-height: 36px;
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--riseora-font-scale, 1));
 }
 
 .entry-table tbody tr:hover {
@@ -2066,7 +2066,7 @@ hr {
 
 .transaction-action-copy > span {
   color: var(--riseora-muted);
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--riseora-font-scale, 1));
   font-weight: 800;
   letter-spacing: 0.055em;
   text-transform: uppercase;
@@ -2074,14 +2074,14 @@ hr {
 
 .transaction-action-copy > strong {
   color: var(--riseora-primary-900);
-  font-size: 17px;
+  font-size: calc(17px * var(--riseora-font-scale, 1));
   font-weight: 850;
 }
 
 .transaction-action-copy > small {
   grid-column: 1 / -1;
   color: #8A8490;
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--riseora-font-scale, 1));
 }
 
 .form-section {
@@ -2102,9 +2102,9 @@ hr {
 }
 
 .form-section-title-row { display: flex; align-items: center; gap: 8px; }
-.form-section-title { margin: 0; font-size: 14px; font-weight: 800; }
-.form-section-subtitle { margin: 3px 0 0; color: var(--riseora-muted); font-size: 11.5px; }
-.form-section-badge { padding: 4px 7px; border-radius: 999px; background: var(--riseora-primary-50); color: var(--riseora-primary-800); font-size: 9.5px; font-weight: 800; }
+.form-section-title { margin: 0; font-size: calc(14px * var(--riseora-font-scale, 1)); font-weight: 800; }
+.form-section-subtitle { margin: 3px 0 0; color: var(--riseora-muted); font-size: calc(11.5px * var(--riseora-font-scale, 1)); }
+.form-section-badge { padding: 4px 7px; border-radius: 999px; background: var(--riseora-primary-50); color: var(--riseora-primary-800); font-size: calc(9.5px * var(--riseora-font-scale, 1)); font-weight: 800; }
 .form-section-body { padding: 18px; }
 .form-section-actions { display: flex; gap: 8px; }
 
@@ -2123,8 +2123,8 @@ hr {
 }
 
 .summary-strip-item span,
-.summary-strip-item small { display: block; color: var(--riseora-muted); font-size: 10.5px; }
-.summary-strip-item strong { display: block; margin: 3px 0 1px; color: #403631; font-size: 14px; font-weight: 800; }
+.summary-strip-item small { display: block; color: var(--riseora-muted); font-size: calc(10.5px * var(--riseora-font-scale, 1)); }
+.summary-strip-item strong { display: block; margin: 3px 0 1px; color: #403631; font-size: calc(14px * var(--riseora-font-scale, 1)); font-weight: 800; }
 
 @keyframes uiBackdropIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes uiDialogIn { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
@@ -2170,7 +2170,7 @@ hr {
 
 /* ---------- Warm peach / beige accessibility scale ---------- */
 .form-label {
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--riseora-font-scale, 1));
   font-weight: 700;
   color: #59483f;
 }
@@ -2179,20 +2179,20 @@ hr {
 .form-select,
 .input-group-text {
   min-height: 42px;
-  font-size: 15px;
+  font-size: calc(15px * var(--riseora-font-scale, 1));
 }
 
 .btn {
-  font-size: 14.5px;
+  font-size: calc(14.5px * var(--riseora-font-scale, 1));
   font-weight: 700;
 }
 
 .btn-sm {
-  font-size: 13.25px;
+  font-size: calc(13.25px * var(--riseora-font-scale, 1));
 }
 
 .table {
-  font-size: 14.25px;
+  font-size: calc(14.25px * var(--riseora-font-scale, 1));
 }
 
 .table > :not(caption) > * > * {
@@ -2201,7 +2201,7 @@ hr {
 }
 
 .table thead th {
-  font-size: 12px;
+  font-size: calc(12px * var(--riseora-font-scale, 1));
   letter-spacing: 0.045em;
 }
 
@@ -2213,15 +2213,15 @@ hr {
 .text-muted.small,
 .small,
 small {
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--riseora-font-scale, 1));
 }
 
 .sidebar-footer strong {
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--riseora-font-scale, 1));
 }
 
 .sidebar-footer small {
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--riseora-font-scale, 1));
 }
 
 /* ---------- Formula entry method ---------- */
@@ -2236,7 +2236,7 @@ small {
   border-radius: 10px;
   background: #fffdf9;
   color: #68584f;
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--riseora-font-scale, 1));
   line-height: 1.5;
 }
 
@@ -2256,7 +2256,7 @@ small {
 
 .formula-percentage-meter span {
   color: #75645a;
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--riseora-font-scale, 1));
   font-weight: 800;
   letter-spacing: 0.045em;
   text-transform: uppercase;
@@ -2265,7 +2265,7 @@ small {
 .formula-percentage-meter strong {
   margin-top: 2px;
   color: #7f4e3e;
-  font-size: 20px;
+  font-size: calc(20px * var(--riseora-font-scale, 1));
   line-height: 1.15;
 }
 
@@ -2304,7 +2304,7 @@ small {
   display: block;
   margin-top: 3px;
   color: #9a7766;
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--riseora-font-scale, 1));
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.035em;
@@ -2315,43 +2315,43 @@ small {
 }
 
 /* ---------- Slightly larger owner-friendly typography ---------- */
-.page-context-title { font-size: 16.5px; }
-.page-context-subtitle { font-size: 12.5px; }
-.user-avatar { font-size: 12px; }
-.user-copy strong { font-size: 13.5px; }
-.user-copy small { font-size: 11.5px; }
-.topbar-logout { font-size: 13px; }
+.page-context-title { font-size: calc(16.5px * var(--riseora-font-scale, 1)); }
+.page-context-subtitle { font-size: calc(12.5px * var(--riseora-font-scale, 1)); }
+.user-avatar { font-size: calc(12px * var(--riseora-font-scale, 1)); }
+.user-copy strong { font-size: calc(13.5px * var(--riseora-font-scale, 1)); }
+.user-copy small { font-size: calc(11.5px * var(--riseora-font-scale, 1)); }
+.topbar-logout { font-size: calc(13px * var(--riseora-font-scale, 1)); }
 .page-eyebrow,
-.dashboard-panel-kicker { font-size: 11.5px; }
-.metric-label { font-size: 11.5px; }
+.dashboard-panel-kicker { font-size: calc(11.5px * var(--riseora-font-scale, 1)); }
+.metric-label { font-size: calc(11.5px * var(--riseora-font-scale, 1)); }
 .metric-value { font-size: clamp(1.35rem, 1.85vw, 1.7rem); }
-.metric-detail { font-size: 11.5px; }
-.table-code { font-size: 11.5px; }
-.unit-pill { font-size: 10.75px; }
-.alert { font-size: 13.5px; }
-.badge { font-size: 11px; }
+.metric-detail { font-size: calc(11.5px * var(--riseora-font-scale, 1)); }
+.table-code { font-size: calc(11.5px * var(--riseora-font-scale, 1)); }
+.unit-pill { font-size: calc(10.75px * var(--riseora-font-scale, 1)); }
+.alert { font-size: calc(13.5px * var(--riseora-font-scale, 1)); }
+.badge { font-size: calc(11px * var(--riseora-font-scale, 1)); }
 
 /* ---------- Owner readability refinement ---------- */
-.sidebar-heading { font-size: 12.25px; }
-.sidebar-link { font-size: 15.25px; }
-.page-context-title { font-size: 17px; }
-.page-context-subtitle { font-size: 13px; }
-.user-copy strong { font-size: 14px; }
-.user-copy small { font-size: 12px; }
-.form-label { font-size: 14px; }
+.sidebar-heading { font-size: calc(12.25px * var(--riseora-font-scale, 1)); }
+.sidebar-link { font-size: calc(15.25px * var(--riseora-font-scale, 1)); }
+.page-context-title { font-size: calc(17px * var(--riseora-font-scale, 1)); }
+.page-context-subtitle { font-size: calc(13px * var(--riseora-font-scale, 1)); }
+.user-copy strong { font-size: calc(14px * var(--riseora-font-scale, 1)); }
+.user-copy small { font-size: calc(12px * var(--riseora-font-scale, 1)); }
+.form-label { font-size: calc(14px * var(--riseora-font-scale, 1)); }
 .form-control,
 .form-select,
-.input-group-text { font-size: 15.25px; }
-.btn { font-size: 14.75px; }
-.btn-sm { font-size: 13.5px; }
-.table { font-size: 14.75px; }
-.table thead th { font-size: 12.75px; }
+.input-group-text { font-size: calc(15.25px * var(--riseora-font-scale, 1)); }
+.btn { font-size: calc(14.75px * var(--riseora-font-scale, 1)); }
+.btn-sm { font-size: calc(13.5px * var(--riseora-font-scale, 1)); }
+.table { font-size: calc(14.75px * var(--riseora-font-scale, 1)); }
+.table thead th { font-size: calc(12.75px * var(--riseora-font-scale, 1)); }
 .card h5,
 .card .h5 { font-size: 1.12rem; }
 .text-muted.small,
 .small,
-small { font-size: 13.75px; }
-.badge { font-size: 11.75px; }
+small { font-size: calc(13.75px * var(--riseora-font-scale, 1)); }
+.badge { font-size: calc(11.75px * var(--riseora-font-scale, 1)); }
 
 /* ---------- Process allowance / extra formula materials ---------- */
 .formula-extra-card {

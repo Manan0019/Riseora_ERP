@@ -1,10 +1,21 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
+import { useAuth } from "./AuthContext";
+import { appendNotification, markNotificationsRead } from "../utils/workspaceAppearance";
 import ToastViewport from "../components/ui/ToastViewport";
 
 const UiContext = createContext(null);
 
+const NotificationContext = createContext(null);
 export function UiProvider({ children }) {
+  const { user } = useAuth();
+  return <UiSession key={user ? `${user.id}:${user.username}` : "signed-out"}>{children}</UiSession>;
+}
+function UiSession({ children }) {
+  const [history, setHistory] = useState([]);
+  const markAllRead = useCallback(() => setHistory(markNotificationsRead), []);
+  const clearHistory = useCallback(() => setHistory([]), []);
+  const notifications = useMemo(() => ({ history, markAllRead, clearHistory }), [history, markAllRead, clearHistory]);
   const [toasts, setToasts] = useState([]);
   const [confirmation, setConfirmation] = useState(null);
   const confirmationResolver = useRef(null);
@@ -17,7 +28,8 @@ export function UiProvider({ children }) {
   const toast = useCallback(
     ({ type = "info", title = "", message = "", duration = 4200 } = {}) => {
       const id = nextToastId.current++;
-      const entry = { id, type, title, message, duration };
+      const entry = { id, type, title, message, duration, createdAt: Date.now() };
+      setHistory(current => appendNotification(current, entry));
       setToasts((current) => [...current.slice(-3), entry]);
       return id;
     },
@@ -79,7 +91,7 @@ export function UiProvider({ children }) {
 
   return (
     <UiContext.Provider value={value}>
-      {children}
+      <NotificationContext.Provider value={notifications}>{children}</NotificationContext.Provider>
       <ToastViewport toasts={toasts} onDismiss={dismissToast} />
       <ConfirmDialog
         open={Boolean(confirmation)}
@@ -98,3 +110,5 @@ export function useUi() {
   }
   return context;
 }
+
+export function useNotificationHistory() { return useContext(NotificationContext); }
