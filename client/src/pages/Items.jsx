@@ -7,6 +7,7 @@ import { useWorkspaceTab } from "../context/WorkspaceTabContext";
 import MasterEditorModal from "../components/MasterEditorModal";
 import SortableTh, { useSortableRows } from "../components/SortableTh";
 import { sameForm, toTitleCase } from "../utils/textFormat";
+import { matchingUnits } from "../utils/purchaseEntry";
 import { clearInvalidField } from "../utils/entryValidation";
 
 const emptyForm = {
@@ -14,6 +15,7 @@ const emptyForm = {
   name: "",
   categoryId: "",
   baseUnitId: "",
+  preferredEntryUnitId: "",
   reorderLevel: "0",
   trackLot: false,
   trackExpiry: false,
@@ -31,6 +33,7 @@ function mapItem(item) {
     name: item?.name || "",
     categoryId: String(item?.category_id || ""),
     baseUnitId: String(item?.base_unit_id || ""),
+    preferredEntryUnitId: String(item?.preferred_entry_unit_id || ""),
     reorderLevel: String(item?.reorder_level ?? 0),
     trackLot: Boolean(item?.track_lot),
     trackExpiry: Boolean(item?.track_expiry),
@@ -91,7 +94,7 @@ function Items() {
   async function loadItems() {
     try {
       setError("");
-      const response = await api.get("/items", { params: { includeInactive: showInactive } });
+      const response = await api.get("/items", { params: { includeInactive: showInactive, includeEditPolicy: true } });
       setItems(response.data.items);
     } catch (err) {
       console.error(err);
@@ -123,6 +126,11 @@ function Items() {
   }, [form.categoryId, modalOpen, editing, selectedId, customCode]);
 
   const selectedItem = items.find((item) => item.id === selectedId);
+  const baseLocked = Boolean(selectedItem?.base_unit_locked);
+  const categoryLocked = Boolean(selectedItem?.category_locked);
+  const densityLocked = Boolean(selectedItem?.density_locked);
+  const baseCode = units.find(unit=>String(unit.id)===form.baseUnitId)?.code;
+  const preferredUnits = matchingUnits(baseCode,units,form.density);
   const dirty = editing && !sameForm(form, originalForm);
 
   const filteredItems = useMemo(() => {
@@ -202,10 +210,14 @@ function Items() {
     clearInvalidField(setInvalidFields, name);
     if (name === "code") setCustomCode(Boolean(value.trim()));
     if (name === "categoryId" && !selectedId) setCustomCode(false);
-    setForm((current) => ({
-      ...current,
-      [name]: type === "checkbox" ? checked : (name === "code" || name === "hsnCode") ? value.toUpperCase() : value,
-    }));
+    setForm((current) => {
+      const next = {...current,[name]:type === "checkbox" ? checked : (name === "code" || name === "hsnCode") ? value.toUpperCase() : value};
+      if (["baseUnitId","density"].includes(name) && next.preferredEntryUnitId) {
+        const code = units.find(unit=>String(unit.id)===next.baseUnitId)?.code;
+        if (!matchingUnits(code,units,next.density).some(unit=>String(unit.id)===next.preferredEntryUnitId)) next.preferredEntryUnitId="";
+      }
+      return next;
+    });
   }
 
   function validate(payload) {
@@ -215,6 +227,7 @@ function Items() {
     if (!payload.name.trim()) fail("name", "Item name is required.");
     if (!payload.categoryId) fail("categoryId", "Category is required.");
     if (!payload.baseUnitId) fail("baseUnitId", "Base unit is required.");
+    if (payload.preferredEntryUnitId && !preferredUnits.some(unit=>String(unit.id)===payload.preferredEntryUnitId)) fail("preferredEntryUnitId", "Select a compatible preferred entry unit.");
     if (Number(payload.reorderLevel) < 0) fail("reorderLevel", "Reorder level cannot be negative.");
     if (payload.density && Number(payload.density) <= 0) fail("density", "Density must be greater than zero.");
     if (Number(payload.defaultSellingPrice || 0) < 0) fail("defaultSellingPrice", "Default selling price cannot be negative.");
@@ -261,6 +274,8 @@ function Items() {
     } catch (err) {
       const message = err.response?.data?.message || "Unable to save item.";
       setError(message);
+      const field = /preferred entry unit/i.test(message) && !/stock base unit is locked/i.test(message) ? "preferredEntryUnitId" : /base unit|cannot be converted|cannot convert/i.test(message) ? "baseUnitId" : /density/i.test(message) ? "density" : /category/i.test(message) ? "categoryId" : null;
+      if (field) setInvalidFields({[field]:true});
       toastError(message, "Item not saved");
     } finally {
       setSaving(false);
@@ -301,7 +316,7 @@ function Items() {
       <div className="d-flex justify-content-between align-items-start mb-4">
         <div>
           <h2 className="mb-1">Item Master</h2>
-          <p className="text-muted mb-0">Edit any item, including the preloaded Excel catalogue. Item code, name, price, HSN, GST and density are editable; base unit/category remain locked after business transactions.</p>
+          <p className="text-muted mb-0">Edit catalogue details and preferred entry units. Posted stock and production keep their original measurement basis.</p>
         </div>
         <button type="button" className="btn btn-primary" data-pro-action="new" onClick={openNew}>+ New Item</button>
       </div>
@@ -365,13 +380,17 @@ function Items() {
         footer={<><div className="master-modal-footer-group">{selectedId && <button type="button" className={selectedItem?.is_active ? "btn btn-outline-danger" : "btn btn-outline-success"} onClick={toggleActive}>{selectedItem?.is_active ? "Deactivate" : "Activate"}</button>}</div><div className="master-modal-footer-group">{!editing && selectedId && selectedItem?.is_active && <button type="button" className="btn btn-secondary" data-pro-action="edit" onClick={() => setEditing(true)}>Edit</button>}{editing && <button type="button" className="btn btn-outline-secondary" onClick={requestClose}>Cancel</button>}{editing && <button type="button" className="btn btn-outline-primary" disabled={saving} onClick={() => save(false)}>{saving ? "Saving..." : "Apply"}</button>}{editing && <button type="button" className="btn btn-success" disabled={saving} data-pro-action="save" onClick={() => save(true)}>{saving ? "Saving..." : "OK"}</button>}{!editing && <button type="button" className="btn btn-primary" onClick={requestClose}>OK</button>}</div></>}
       >
         {error && <div className="alert alert-danger">{error}</div>}
+        {selectedId && baseLocked && <div className="alert alert-info" role="status"><strong>Stock unit protected:</strong> {selectedItem?.unit_lock_reasons?.join(", ")}. Other item details remain editable. To enter in a different compatible unit, set Preferred Entry Unit below.{densityLocked && " Density is protected by production history."}</div>}
+        {selectedId && !baseLocked && selectedItem?.formula_unit_codes?.length>0 && <div className="alert alert-info">This item has formula references but no posted or production history. Base-unit corrections must remain compatible with existing formula units ({selectedItem.formula_unit_codes.join(", ")}). Formula quantities will not be rewritten.</div>}
+        {editing && selectedId && form.baseUnitId !== originalForm.baseUnitId && <div className="alert alert-warning">Review reorder level and selling price: these are expressed per new stock base unit. Existing formula quantities stay in their original units.</div>}
         <div className="row">
           <div className="col-md-3 mb-3"><label className="form-label">Item Code (Auto / Editable)</label><input className="form-control" name="code" value={form.code} onChange={handleChange} disabled={!editing} maxLength={30} /></div>
           <div className="col-md-5 mb-3"><label className="form-label">Item Name *</label><input spellCheck className="form-control" name="name" value={form.name} onChange={handleChange} onBlur={() => setForm((current) => ({ ...current, name: toTitleCase(current.name) }))} disabled={!editing} autoFocus={editing} /></div>
-          <div className="col-md-4 mb-3"><label className="form-label">Category *</label><select className="form-select" name="categoryId" value={form.categoryId} onChange={handleChange} disabled={!editing}><option value="">Select Category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name} [{category.inventory_role || "CONS"}]</option>)}</select></div>
-          <div className="col-md-4 mb-3"><label className="form-label">Base Unit *</label><select className="form-select" name="baseUnitId" value={form.baseUnitId} onChange={handleChange} disabled={!editing}><option value="">Select Unit</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.code} - {unit.name}</option>)}</select></div>
+          <div className="col-md-4 mb-3"><label className="form-label">Category *</label><select className="form-select" name="categoryId" value={form.categoryId} onChange={handleChange} disabled={!editing || categoryLocked}><option value="">Select Category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name} [{category.inventory_role || "CONS"}]</option>)}</select></div>
+          <div className="col-md-4 mb-3"><label className="form-label">Base Unit *</label><select className="form-select" name="baseUnitId" value={form.baseUnitId} onChange={handleChange} disabled={!editing || baseLocked}><option value="">Select Unit</option>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.code} - {unit.name}</option>)}</select></div>
           <div className="col-md-4 mb-3"><label className="form-label">Reorder Level</label><input type="number" min="0" step="0.001" className="form-control" name="reorderLevel" value={form.reorderLevel} onChange={handleChange} disabled={!editing} /></div>
-          <div className="col-md-4 mb-3"><label className="form-label">Density (g/mL)</label><input type="number" min="0" step="0.0001" className="form-control" name="density" value={form.density} onChange={handleChange} disabled={!editing} placeholder="Optional" /></div>
+          <div className="col-md-4 mb-3"><label className="form-label">Density (g/mL)</label><input type="number" min="0" step="0.0001" className="form-control" name="density" value={form.density} onChange={handleChange} disabled={!editing || densityLocked} placeholder="Optional" /></div>
+          <div className="col-md-4 mb-3"><label className="form-label" htmlFor="itemPreferredEntryUnit">Preferred Entry Unit</label><select id="itemPreferredEntryUnit" className="form-select" name="preferredEntryUnitId" value={form.preferredEntryUnitId} onChange={handleChange} disabled={!editing || !baseCode}><option value="">Same as stock base unit</option>{preferredUnits.map(unit=><option key={unit.id} value={unit.id}>{unit.code} - {unit.name}</option>)}</select><div className="form-text">Default for new purchase and formula ingredient rows. Stock stays in {baseCode || "the base unit"}. Weight ↔ volume requires actual density.</div></div>
           <div className="col-md-4 mb-3"><label className="form-label">Default Selling Price</label><div className="input-group"><span className="input-group-text">₹</span><input type="number" min="0" step="0.01" className="form-control" name="defaultSellingPrice" value={form.defaultSellingPrice} onChange={handleChange} disabled={!editing} /></div></div>
           <div className="col-md-4 mb-3"><label className="form-label">Target Gross Margin %</label><input type="number" min="0" max="99.99" step="0.01" className="form-control" name="targetMarginPercent" value={form.targetMarginPercent} onChange={handleChange} disabled={!editing} /></div>
           <div className="col-md-4 mb-3"><label className="form-label">HSN Code</label><input className="form-control" name="hsnCode" value={form.hsnCode} onChange={handleChange} disabled={!editing} /></div>

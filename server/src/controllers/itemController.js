@@ -14,7 +14,7 @@ export function listItems(req, res) {
       req.query.includeInactive === "true";
 
     const items =
-      getItems(includeInactive);
+      getItems(includeInactive, req.query.includeEditPolicy === "true");
 
     return res.json({
       success: true,

@@ -151,6 +151,12 @@ function Formulas() {
     });
   };
 
+  const preferredIngredientUnit = (item) => {
+    if (!item) return "";
+    const preferred = compatibleUnitsForItem(item).find(unit=>Number(unit.id)===Number(item.preferred_entry_unit_id));
+    return String(preferred?.id || item.base_unit_id || "");
+  };
+
   const compatibleBatchUnits = useMemo(() => {
     const finished = finishedItems.find((item) => Number(item.id) === Number(form.finishedItemId));
     if (!finished) return units;
@@ -410,7 +416,7 @@ function Formulas() {
     if (field === "ingredientItemId") {
       const selectedItem = itemById(value);
       current.ingredientItemId = value;
-      current.unitId = selectedItem?.base_unit_id ? String(selectedItem.base_unit_id) : "";
+      current.unitId = preferredIngredientUnit(selectedItem);
       current.percentage = roleOf(selectedItem) === "PACK" ? "" : current.percentage;
       if (roleOf(selectedItem) === "RAW" && form.entryMode === "PERCENTAGE" && !current.percentage) {
         current.percentage = "";
@@ -474,7 +480,7 @@ function Formulas() {
           return {
             ...row,
             ingredientItemId: value,
-            unitId: selectedItem?.base_unit_id ? String(selectedItem.base_unit_id) : "",
+            unitId: preferredIngredientUnit(selectedItem),
           };
         }
         return { ...row, [field]: value };

@@ -110,7 +110,7 @@ function Purchases({ initialPurchase = null, copyFrom = null, onSaved = null, em
       if (i !== index) return line;
       if (field === "itemId") {
         const item = getItem(value);
-        return { ...blankPurchaseLine(), itemId: value, unitId: String(item?.base_unit_id || ""), gstRate: String(item?.default_gst_rate ?? 0), hsnCode: String(item?.hsn_code || "") };
+        return { ...blankPurchaseLine(), itemId: value, unitId: String(matchingUnits(item?.unit_code, units, item?.density).some(unit=>Number(unit.id)===Number(item?.preferred_entry_unit_id)) ? item.preferred_entry_unit_id : item?.base_unit_id || ""), gstRate: String(item?.default_gst_rate ?? 0), hsnCode: String(item?.hsn_code || "") };
       }
       if (field === "unitId") {
         const oldUnit = units.find((unit) => Number(unit.id) === Number(line.unitId));

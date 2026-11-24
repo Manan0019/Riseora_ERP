@@ -1,3 +1,4 @@
+import { installPreferredEntryUnit } from "../utils/itemUnitPolicy.js";
 import db from "./database.js";
 import { runInitialMigration } from "./migrations/001_initial_schema.js";
 import { seedUnits } from "./seeds/seedUnits.js";
@@ -43,6 +44,7 @@ export async function initDatabase() {
   runSupplierMigration();
   runCustomerMigration();
   runItemMigration();
+  installPreferredEntryUnit(db);
   runPurchaseInventoryMigration();
   runOpeningStockMigration();
   runStockAdjustmentMigration();

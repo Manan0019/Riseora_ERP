@@ -76,7 +76,7 @@ try {
   assert.ok(management.lotSuggestion(raw.id,1,'FEFO').verified);
   // Exercise the real business posting services, not just the allocation fixture.
   const {inventoryOperations:inv}=await import('../src/services/advancedInventoryService.js');
-  const {createItem,bulkEditItems}=await import('../src/services/itemService.js');
+  const {createItem,updateItem,getItems,bulkEditItems}=await import('../src/services/itemService.js');
   // Real better-sqlite3 transaction, with authenticated history attribution.
   const bulkRows=db.prepare('SELECT id,default_gst_rate FROM items WHERE is_active=1 ORDER BY id LIMIT 2').all();
   assert.equal(bulkRows.length,2);
@@ -97,6 +97,27 @@ try {
   const kg=db.prepare("SELECT id FROM units WHERE code='KG'").get().id;
   const lotItem=createItem({code:'V115-LOT-RAW',name:'Fixture tracked material',categoryId:category,baseUnitId:kg,trackLot:true,trackExpiry:true,reorderLevel:0,defaultGstRate:0,defaultSellingPrice:0,targetMarginPercent:0});
   const supplier=createSupplier({code:'V115-SUP',name:'Fixture lot supplier',state:'Gujarat',paymentTermsDays:0});
+  // Owner catalogue correction: same item ID and posted amounts stay intact.
+  const litre=db.prepare("SELECT id FROM units WHERE code='L'").get().id;
+  const corrected=createItem({code:'V115-UNIT-FIX',name:'Fixture catalogue unit',categoryId:category,baseUnitId:litre});
+  const edit={code:corrected.code,name:corrected.name,categoryId:category,baseUnitId:kg,reorderLevel:0};
+  assert.equal(updateItem(corrected.id,edit).base_unit_id,kg);
+  assert.equal(updateItem(corrected.id,{...edit,baseUnitId:litre}).base_unit_id,litre);
+  createPurchase({purchaseDate:day,supplierId:supplier.id,supplierInvoiceNo:'V115-UNIT-BEFORE',items:[{itemId:corrected.id,quantity:2,rate:10,gstRate:0}]});
+  const stockBefore=db.prepare('SELECT * FROM stock_transactions WHERE item_id=?').all(corrected.id);
+  const purchasesBefore=db.prepare('SELECT * FROM purchase_items WHERE item_id=?').all(corrected.id);
+  assert.throws(()=>updateItem(corrected.id,edit),/Stock base unit is locked/);
+  const sameBase={...edit,baseUnitId:litre,preferredEntryUnitId:kg};
+  assert.throws(()=>updateItem(corrected.id,sameBase),/density/i);
+  const updated=updateItem(corrected.id,{...sameBase,density:1.25,notes:'Owner corrected entry preference'});
+  assert.equal(updated.id,corrected.id);assert.equal(updated.base_unit_id,litre);assert.equal(updated.preferred_entry_unit_id,kg);
+  assert.deepEqual(db.prepare('SELECT * FROM stock_transactions WHERE item_id=?').all(corrected.id),stockBefore);
+  assert.deepEqual(db.prepare('SELECT * FROM purchase_items WHERE item_id=?').all(corrected.id),purchasesBefore);
+  assert.equal(getItems(false,true).find(x=>x.id===corrected.id).base_unit_locked,true);
+  createPurchase({purchaseDate:day,supplierId:supplier.id,supplierInvoiceNo:'V115-UNIT-AFTER',items:[{itemId:corrected.id,quantity:2.5,unitId:kg,rate:8,gstRate:0}]});
+  const newLine=db.prepare('SELECT * FROM purchase_items WHERE item_id=? ORDER BY id DESC LIMIT 1').get(corrected.id);
+  assert.equal(newLine.entry_quantity,2.5);assert.equal(newLine.entry_unit_id,kg);assert.equal(newLine.quantity,2);assert.equal(newLine.taxable_amount,20);
+  console.log('PASS owner item correction and preferred entry unit with preserved posted history');
   inv.enable(lotItem.id,{method:'FEFO',positions:[],reason:'Verified zero fixture stock',confirm:true});
   for(const [lot,quantity,expiryDate] of [['LATE',6,later],['EARLY',3,soon]]) createPurchase({purchaseDate:day,supplierId:supplier.id,supplierInvoiceNo:'V115-'+lot,items:[{itemId:lotItem.id,quantity,rate:10,gstRate:0,lotNo:lot,expiryDate}]});
   const warehouse=inv.createWarehouse({code:'FIXTURE',name:'Fixture warehouse'});

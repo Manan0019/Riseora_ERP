@@ -1,6 +1,6 @@
 // Fixed allowlist. Never audit passwords, secrets, sessions, or contact details.
 export const historyFields = {
-  items: ['code','name','base_unit_id','category_id','density','reorder_level','hsn_code','default_gst_rate','is_active'],
+  items: ['code','name','base_unit_id','preferred_entry_unit_id','category_id','density','reorder_level','hsn_code','default_gst_rate','is_active'],
   formulas: ['code','name','version_no','batch_size','batch_unit_id','is_active'],
   formula_items: ['formula_id','ingredient_item_id','quantity','unit_id','percentage','component_role'],
   purchases: ['purchase_no','supplier_id','purchase_date','grand_total','status'],

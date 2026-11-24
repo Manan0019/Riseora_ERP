@@ -1,4 +1,6 @@
 import {runBulkEdit} from "../utils/bulkItemEdit.js";
+import { itemUnitPolicy, validateUnitCorrection } from "../utils/itemUnitPolicy.js";
+import { convertQuantityWithDensity } from "./unitConversionService.js";
 import db from "../db/database.js";
 import { toTitleCase } from "../utils/textFormat.js";
 
@@ -35,24 +37,16 @@ function normalizeInventoryFields(data) {
   if (!category || Number(category.is_active) !== 1) throw new Error("Please select an active item category.");
   if (!unit || Number(unit.is_active) !== 1) throw new Error("Please select an active base unit.");
 
-  return { categoryId, baseUnitId, reorderLevel, density };
+  const preferredEntryUnitId = data.preferredEntryUnitId == null || data.preferredEntryUnitId === "" ? null : Number(data.preferredEntryUnitId);
+  if (preferredEntryUnitId != null) {
+    const preferred = db.prepare('SELECT code, is_active FROM units WHERE id=?').get(preferredEntryUnitId);
+    if (!preferred || Number(preferred.is_active)!==1) throw new Error('Select an active preferred entry unit.');
+    convertQuantityWithDensity(1, preferred.code, unit.code, density, data.name || 'Item');
+  }
+  return { categoryId, baseUnitId, baseUnitCode:unit.code, reorderLevel, density, preferredEntryUnitId };
 }
 
-function itemHasBusinessHistory(itemId) {
-  const row = db.prepare(`
-    SELECT
-      EXISTS(SELECT 1 FROM stock_transactions WHERE item_id = ? LIMIT 1)
-      OR EXISTS(SELECT 1 FROM formula_items WHERE ingredient_item_id = ? LIMIT 1)
-      OR EXISTS(SELECT 1 FROM formulas WHERE finished_item_id = ? LIMIT 1)
-      OR EXISTS(SELECT 1 FROM sales_items WHERE item_id = ? LIMIT 1)
-      OR EXISTS(SELECT 1 FROM purchase_items WHERE item_id = ? LIMIT 1)
-      OR EXISTS(SELECT 1 FROM production_batches WHERE finished_item_id = ? LIMIT 1)
-      AS has_history
-  `).get(itemId, itemId, itemId, itemId, itemId, itemId);
-  return Number(row?.has_history || 0) === 1;
-}
-
-export function getItems(includeInactive = false) {
+export function getItems(includeInactive = false, includeEditPolicy = false) {
   const sql = `
     SELECT
       i.*,
@@ -68,7 +62,8 @@ export function getItems(includeInactive = false) {
     ${includeInactive ? "" : "WHERE i.is_active = 1"}
     ORDER BY i.is_active DESC, i.name
   `;
-  return db.prepare(sql).all();
+  const rows = db.prepare(sql).all();
+  return includeEditPolicy ? rows.map(item=>({...item,...itemUnitPolicy(db,item.id)})) : rows;
 }
 
 export function getItemById(id) {
@@ -109,8 +104,8 @@ export function createItem(data) {
     INSERT INTO items (
       code, name, category_id, base_unit_id, reorder_level, track_lot,
       track_expiry, density, default_selling_price, target_margin_percent,
-      hsn_code, default_gst_rate, notes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      hsn_code, default_gst_rate, notes, preferred_entry_unit_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     code,
     name,
@@ -125,12 +120,16 @@ export function createItem(data) {
     String(data.hsnCode || "").trim().toUpperCase() || null,
     pricing.defaultGstRate,
     String(data.notes || "").trim() || null,
+    inventory.preferredEntryUnitId,
   );
 
   return getItemById(result.lastInsertRowid);
 }
 
 export function updateItem(id, data) {
+  return db.transaction(()=>updateItemAtomic(id,data)).immediate();
+}
+function updateItemAtomic(id, data) {
   const itemId = Number(id);
   const existingItem = getItemById(itemId);
   if (!existingItem) throw new Error("Item not found.");
@@ -144,40 +143,15 @@ export function updateItem(id, data) {
   if (duplicate) throw new Error("An item with this code already exists.");
 
   const pricing = normalizePricing(data);
-  const inventory = normalizeInventoryFields(data);
+  const inventory = normalizeInventoryFields({...data, preferredEntryUnitId: Object.hasOwn(data,"preferredEntryUnitId") ? data.preferredEntryUnitId : existingItem.preferred_entry_unit_id});
 
-  if (itemHasBusinessHistory(itemId) || db.prepare("SELECT 1 FROM tracked_inventory_items WHERE id=?").get(itemId)) {
-    if (Number(existingItem.base_unit_id) !== inventory.baseUnitId) {
-      throw new Error("Base unit cannot be changed after an item has business history. Create a new item if a different stock unit is required.");
-    }
-    if (Number(existingItem.category_id) !== inventory.categoryId) {
-      throw new Error("Item category cannot be changed after an item has business history. Create a new item if the business classification has changed.");
-    }
-  }
-
-  // Existing production plans/consumption were calculated using the previous density.
-  // Changing it afterward could silently reinterpret historical g/mL conversions.
-  const previousDensity = existingItem.density == null ? null : Number(existingItem.density);
-  if (previousDensity !== inventory.density) {
-    const productionUsesItem = db.prepare(`
-      SELECT 1 AS used FROM production_batches pb
-      WHERE pb.status <> 'CANCELLED'
-        AND (pb.finished_item_id = ? OR EXISTS (
-          SELECT 1 FROM formula_items fi
-          WHERE fi.formula_id = pb.formula_id AND fi.ingredient_item_id = ?
-        ))
-      LIMIT 1
-    `).get(itemId, itemId);
-    if (productionUsesItem) {
-      throw new Error('Density is locked after this item is used in production. Create a new item/version to change its conversion basis.');
-    }
-  }
+  validateUnitCorrection(itemUnitPolicy(db,itemId), existingItem, inventory, convertQuantityWithDensity);
 
   db.prepare(`
     UPDATE items
     SET code = ?, name = ?, category_id = ?, base_unit_id = ?, reorder_level = ?,
         track_lot = ?, track_expiry = ?, density = ?, default_selling_price = ?,
-        target_margin_percent = ?, hsn_code = ?, default_gst_rate = ?, notes = ?,
+        target_margin_percent = ?, hsn_code = ?, default_gst_rate = ?, notes = ?, preferred_entry_unit_id = ?,
         updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `).run(
@@ -194,6 +168,7 @@ export function updateItem(id, data) {
     String(data.hsnCode || "").trim().toUpperCase() || null,
     pricing.defaultGstRate,
     String(data.notes || "").trim() || null,
+    inventory.preferredEntryUnitId,
     itemId,
   );
 
