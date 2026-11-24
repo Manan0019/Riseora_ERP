@@ -10,25 +10,29 @@ const iconByType = {
 
 function ToastItem({ toast, onDismiss }) {
   const [leaving, setLeaving] = useState(false);
-
+  const [hovered,setHovered]=useState(false);
+  const [focused,setFocused]=useState(false);
+  const paused=hovered||focused;
+  // Errors stay visible until dismissed; other messages pause while being read.
+  const persistent=toast.type==="danger";
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setLeaving(true);
-      window.setTimeout(() => onDismiss(toast.id), 180);
-    }, toast.duration || 4200);
-
-    return () => window.clearTimeout(timer);
-  }, [toast.id, toast.duration, onDismiss]);
-
-  const dismiss = () => {
-    setLeaving(true);
-    window.setTimeout(() => onDismiss(toast.id), 180);
-  };
+    if(leaving||persistent||paused)return;
+    const timer=window.setTimeout(()=>setLeaving(true),toast.duration||4200);
+    return ()=>window.clearTimeout(timer);
+  },[leaving,persistent,paused,toast.duration]);
+  useEffect(()=>{
+    if(!leaving)return;
+    const timer=window.setTimeout(()=>onDismiss(toast.id),180);
+    return ()=>window.clearTimeout(timer);
+  },[leaving,toast.id,onDismiss]);
+  const dismiss=()=>setLeaving(true);
 
   return (
     <div
       className={`ui-toast ${toast.type || "info"} ${leaving ? "leaving" : ""}`}
       role={toast.type === "danger" ? "alert" : "status"}
+      onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)}
+      onFocus={()=>setFocused(true)} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))setFocused(false);}}
     >
       <div className="ui-toast-icon">
         <AppIcon name={iconByType[toast.type] || "info"} size={18} />
@@ -40,7 +44,7 @@ function ToastItem({ toast, onDismiss }) {
       <button type="button" className="ui-toast-close" aria-label="Dismiss notification" onClick={dismiss}>
         ×
       </button>
-      <div className="ui-toast-progress" style={{ animationDuration: `${toast.duration || 4200}ms` }} />
+      {!persistent&&!paused&&!leaving&&<div className="ui-toast-progress" style={{ animationDuration: `${toast.duration || 4200}ms` }} />}
     </div>
   );
 }

@@ -1,0 +1,52 @@
+/* Report-only print layout. The mounted ReportPrint supplies a single default @page rule. */
+.report-print-page { --report-green: #174b37; color: #1e3028; font: 14px/1.4 Arial, Helvetica, sans-serif; background: #eef2ef; min-height: 100vh; padding: 18px; }
+.report-print-page .report-sheet, .report-print-page .report-actions { max-width: 1040px; margin: 0 auto; }
+.report-print-page.is-landscape .report-sheet, .report-print-page.is-landscape .report-actions { max-width: 1450px; }
+.report-print-page .report-sheet { background: #fff; padding: 28px; box-shadow: 0 4px 24px #17211c18; }
+.report-print-page .report-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.report-print-page .report-actions .report-help { color: #465a4f; font-size: 12px; }
+.report-print-page .report-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 22px; border-bottom: 2px solid var(--report-green); padding-bottom: 12px; margin-bottom: 10px; }
+.report-print-page .report-heading { min-width: 0; flex: 1; }
+.report-print-page .report-logo { display: block; width: 172px; height: 51px; object-fit: contain; object-position: left center; margin-bottom: 9px; }
+.report-print-page .company-meta { max-width: 44%; text-align: right; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.report-print-page .company-meta strong { font-size: 14px; }
+.report-print-page .report-title { font-size: 24px; font-weight: 700; color: var(--report-green); margin: 0; line-height: 1.18; }
+.report-print-page .report-description { color: #42554a; font-size: 12px; margin-top: 5px; }
+.report-print-page .report-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; font-size: 11px; color: #42554a; margin: 10px 0; }
+.report-print-page .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 10px 0 12px; }
+.report-print-page .summary-box { border: 1px solid #c7d5cd; border-left: 3px solid var(--report-green); background: #f0f5f1; padding: 7px 10px; min-width: 0; }
+.report-print-page .summary-label { color: #42554a; font-size: 10px; font-weight: bold; }
+.report-print-page .summary-value { font-size: 17px; font-weight: 700; color: var(--report-green); overflow-wrap: anywhere; }
+.report-print-page .report-note { font-size: 11px; padding: 6px 9px; margin: 6px 0; border-left: 3px solid #a57935; background: #fbf6e9; overflow-wrap: anywhere; }
+.report-print-page .report-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; line-height: 1.28; color: #1e3028; margin: 0; }
+.report-print-page .report-table th { background: var(--report-green); color: white; font-weight: bold; text-align: left; padding: 7px 6px; border: 1px solid #315b48; vertical-align: middle; overflow-wrap: anywhere; }
+.report-print-page .report-table td { padding: 5px 6px; border: 1px solid #cbd6ce; vertical-align: middle; overflow-wrap: anywhere; }
+.report-print-page .report-table tbody tr:nth-child(even) td { background: #f3f7f4; }
+.report-print-page .report-table .text-number { text-align: right; font-variant-numeric: tabular-nums; }
+.report-print-page .report-table .text-alert { color: #8b321f; font-weight: 700; }
+.report-print-page .report-table .text-unit { text-align: center; }
+.report-print-page .report-table .report-empty { text-align: center; padding: 18px; }
+.report-print-page .report-screen-footer { color: #42554a; font-size: 11px; margin-top: 12px; }
+@media print {
+  /* index.css applies invoice dimensions globally; explicitly reset only report routes. */
+  html:has(.report-print-page), body:has(.report-print-page), #root:has(.report-print-page) { width: auto !important; min-width: 0 !important; max-width: none !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; background: white !important; overflow: visible !important; }
+  .report-print-page { page: auto !important; margin: 0; padding: 0; width: 100%; min-height: 0; background: white; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .report-print-page, .report-print-page * { page: auto !important; }
+  .report-print-page .report-actions, .report-print-page .report-screen-footer { display: none !important; }
+  .report-print-page .report-sheet, .report-print-page.is-landscape .report-sheet { margin: 0; width: 100%; max-width: none; padding: 0; box-shadow: none; }
+  .report-print-page .report-header { break-inside: avoid; }
+  .report-print-page .report-logo { width: 40mm; height: 11mm; margin-bottom: 2mm; }
+  .report-print-page .report-title { font-size: 18pt; }
+  .report-print-page .company-meta, .report-print-page .report-description { font-size: 9pt; }
+  .report-print-page .company-meta strong { font-size: 10pt; }
+  .report-print-page .report-meta, .report-print-page .report-note { font-size: 8.5pt; }
+  .report-print-page .summary-grid { display: flex; flex-wrap: wrap; gap: 2mm; break-inside: avoid; }
+  .report-print-page .summary-box { flex: 1 1 30mm; padding: 1.5mm 2mm; }
+  .report-print-page .summary-label { font-size: 8pt; }
+  .report-print-page .summary-value { font-size: 12pt; }
+  .report-print-page .report-table { font-size: 9.5pt; line-height: 1.23; }
+  .report-print-page.is-wide .report-table { font-size: 9pt; }
+  .report-print-page .report-table th, .report-print-page .report-table td { padding: 1.15mm 1.25mm; }
+  .report-print-page .report-table thead { display: table-header-group; }
+  .report-print-page .report-table tr { break-inside: avoid; page-break-inside: avoid; }
+}

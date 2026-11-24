@@ -335,6 +335,7 @@ function configureWindowOpenPolicy(browserWindow) {
             nodeIntegration: false,
             sandbox: true,
             spellcheck: true,
+            ...(new URL(url).pathname === "/reports/print" ? { preload: path.join(__dirname, "report-preload.cjs") } : {}),
           },
         },
       };
@@ -504,6 +505,31 @@ async function startRuntime() {
 
   runtimeStarting = false;
 }
+
+// Export only the authenticated report preview window; never accept arbitrary paths or HTML.
+ipcMain.handle("riseora-reports:save-pdf", async (event, title, paper) => {
+  try {
+    const frame = event.senderFrame;
+    const url = new URL(frame?.url || "about:blank");
+    if (frame !== event.sender.mainFrame || ![LOCAL_FRONTEND, `http://127.0.0.1:${FRONTEND_PORT}`].includes(url.origin) || url.pathname !== "/reports/print") {
+      return { success: false, message: "PDF export is only available in report previews." };
+    }
+    const parent = BrowserWindow.fromWebContents(event.sender);
+    if (!parent || parent.isDestroyed()) return { success: false, message: "Report window is closed." };
+    const safeTitle = String(title || "Report").replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 70) || "Report";
+    const date = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Asia/Kolkata" }).format(new Date());
+    const result = await dialog.showSaveDialog(parent, { title: "Save Riseora report as PDF", defaultPath: `${safeTitle}_${date}.pdf`, filters: [{ name: "PDF document", extensions: ["pdf"] }] });
+    if (result.canceled || !result.filePath) return { success: false, canceled: true };
+    if (parent.isDestroyed() || event.sender.isDestroyed() || event.sender.getURL() !== url.href) return { success: false, message: "Report changed during export. Please try again." };
+    // Keep native defaults consistent with the report CSS, even if a Chromium
+    // fragmentation path falls back to the default paper size.
+    const pageSize = paper?.pageSize === "A3" ? "A3" : "A4";
+    const landscape = pageSize === "A3" || paper?.landscape === true;
+    const pdf = await event.sender.printToPDF({ pageSize, landscape, printBackground: true, preferCSSPageSize: true, displayHeaderFooter: false });
+    await fs.promises.writeFile(result.filePath, pdf);
+    return { success: true };
+  } catch (error) { return { success: false, message: String(error?.message || error) }; }
+});
 
 ipcMain.handle("riseora-setup:save", async (_event, payload) => {
   try {

@@ -46,6 +46,7 @@
     "files": [
       "main.js",
       "preload.cjs",
+      "report-preload.cjs",
       "setup.html",
       "setup-renderer.js",
       "app/**/*",

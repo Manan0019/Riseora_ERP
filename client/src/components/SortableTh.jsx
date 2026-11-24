@@ -2,10 +2,11 @@ import { useMemo, useState, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { readPreference, writePreference } from "../utils/proPreferences";
 
-export function useSortableRows(rows, defaultKey = "", defaultDirection = "asc") {
+export function useSortableRows(rows, defaultKey = "", defaultDirection = "asc", scope = "") {
   const {pathname}=useLocation();
   const prefKey=`sort:${pathname}`;
-  const [sort, setSort] = useState(() => defaultKey ? readPreference(prefKey, {key:defaultKey,direction:defaultDirection}) : {key:defaultKey,direction:defaultDirection});
+  const [sortByScope, setSortByScope] = useState(() => ({[scope]:defaultKey ? readPreference(prefKey, {key:defaultKey,direction:defaultDirection}) : {key:defaultKey,direction:defaultDirection}}));
+  const sort=sortByScope[scope]||{key:defaultKey,direction:defaultDirection};
   const sortedRows = useMemo(() => {
     if (!sort.key) return rows;
     const copy = [...rows];
@@ -21,7 +22,7 @@ export function useSortableRows(rows, defaultKey = "", defaultDirection = "asc")
     return copy;
   }, [rows, sort]);
   function toggle(key) {
-    setSort((current) => { const next={key,direction:current.key===key&&current.direction==="asc"?"desc":"asc"};if(defaultKey)writePreference(prefKey,next);return next; });
+    setSortByScope((previous) => {const current=previous[scope]||{key:defaultKey,direction:defaultDirection}; const next={key,direction:current.key===key&&current.direction==="asc"?"desc":"asc"};if(defaultKey)writePreference(prefKey,next);return {...previous,[scope]:next}; });
   }
   return { sortedRows, sort, toggle };
 }

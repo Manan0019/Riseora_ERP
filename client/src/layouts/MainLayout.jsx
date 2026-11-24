@@ -874,15 +874,15 @@ function MainLayout() {
           <WorkspaceSearch pages={navGroups.flatMap(g => g.items)} open={palette === "search"} onActivate={() => setPalette("search")} onClose={() => setPalette("")} onOpen={openPathInNewTab} />
           <div className="topbar-user">
             <div className="topbar-workspace-tools" aria-label="Workspace controls">
-              <button type="button" onClick={() => setCompact(v => !v)} aria-pressed={compact} title="Toggle compact tables">{compact ? "Comfortable" : "Compact"}</button>
-              <button type="button" onClick={() => setPalette("help")} title="Keyboard shortcuts (F1)">?</button>
-              <button type="button" title="New tab" onClick={() => openPathInNewTab("/dashboard")}>
+              <button type="button" onClick={() => setCompact(v => !v)} aria-pressed={compact} aria-label="Toggle compact tables" title="Toggle compact tables">{compact ? "Comfortable" : "Compact"}</button>
+              <button type="button" onClick={() => setPalette("help")} aria-label="Keyboard shortcuts" title="Keyboard shortcuts (F1)">?</button>
+              <button type="button" aria-label="New tab" title="New tab" onClick={() => openPathInNewTab("/dashboard")}>
                 <span aria-hidden="true">＋</span><span>New Tab</span>
               </button>
-              <button type="button" title="Open current page in a new Riseora window" onClick={() => openNewWindow()}>
+              <button type="button" aria-label="Open current page in a new window" title="Open current page in a new Riseora window" onClick={() => openNewWindow()}>
                 <span aria-hidden="true">□</span><span>New Window</span>
               </button>
-              <button type="button" title="Reload only the current Riseora tab" onClick={() => reloadTab(activeTabId)}>
+              <button type="button" aria-label="Reload current tab" title="Reload only the current Riseora tab" onClick={() => reloadTab(activeTabId)}>
                 <span aria-hidden="true">↻</span><span>Reload</span>
               </button>
             </div>

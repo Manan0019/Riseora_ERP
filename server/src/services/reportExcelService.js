@@ -81,7 +81,7 @@ function zipStore(entries) {
 }
 
 function xmlEscape(value) {
-  return String(value ?? "")
+  return String(value ?? "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -100,32 +100,44 @@ function columnName(index) {
   return result;
 }
 
-function numericStyle(format, bold = false) {
-  if (bold) {
-    if (format === "currency") return 9;
-    if (format === "quantity") return 10;
-    if (format === "percent") return 11;
-    return 8;
-  }
-  if (format === "currency") return 4;
-  if (format === "quantity") return 5;
-  if (format === "percent") return 6;
-  if (format === "integer") return 7;
-  return 0;
+const NUMERIC = new Set(["currency", "quantity", "percent", "integer"]);
+const FORMATS = { text: 0, currency: 164, quantity: 165, percent: 166, integer: 1, date: 167 };
+const formatKeys = Object.keys(FORMATS);
+// Style indexes: title, company, metadata, headers, summary label; then data and summary variants.
+const dataStyle = (format, stripe = false, alert = false) => 6 + Math.max(0, formatKeys.indexOf(format)) * 3 + (alert ? 2 : stripe ? 1 : 0);
+const summaryStyle = format => 24 + Math.max(0, formatKeys.indexOf(format));
+function dateSerial(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return null;
+  const date = new Date(`${value}T00:00:00Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value || value < "1900-03-01") return null;
+  return date.getTime() / 86400000 + 25569;
 }
-
-function makeCell(ref, value, format = "text", styleOverride = null) {
-  const style = styleOverride ?? numericStyle(format);
-  const numeric = ["currency", "quantity", "percent", "integer"].includes(format)
-    && Number.isFinite(Number(value));
-
-  if (numeric) {
-    return `<c r="${ref}" s="${style}"><v>${Number(value)}</v></c>`;
-  }
-
+function makeCell(ref, value, format = "text", style = 0) {
+  const present = value !== null && value !== undefined && value !== "";
+  if (present && NUMERIC.has(format) && Number.isFinite(Number(value))) return `<c r="${ref}" s="${style}"><v>${Number(value)}</v></c>`;
+  const serial = format === "date" && present ? dateSerial(value) : null;
+  if (serial !== null && serial !== false) return `<c r="${ref}" s="${style}"><v>${serial}</v></c>`;
+  // Always inline strings for text: leading zeros and literal formula-like values survive.
   return `<c r="${ref}" s="${style}" t="inlineStr"><is><t xml:space="preserve">${xmlEscape(value ?? "")}</t></is></c>`;
 }
-
+function displayText(value, format) {
+  if (value === null || value === undefined || value === "") return "";
+  if (NUMERIC.has(format) && Number.isFinite(Number(value))) {
+    const n = Number(value);
+    if (format === "currency") return `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (format === "quantity") return n.toLocaleString("en-IN", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+    if (format === "percent") return `${n.toFixed(2)}%`;
+    return n.toFixed(0);
+  }
+  return String(value);
+}
+function rowHeight(text, width, min = 19) {
+  const lines = String(text || "").split(/\r?\n/).reduce((total, line) => total + Math.max(1, Math.ceil(line.length / Math.max(1, width - 3))), 0);
+  return Math.min(409, Math.max(min, lines * 15 + 5));
+}
+function xf(numFmtId, fontId, fillId, borderId, align = "left") {
+  return `<xf numFmtId="${numFmtId}" fontId="${fontId}" fillId="${fillId}" borderId="${borderId}" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="${align}" vertical="center" wrapText="1"/></xf>`;
+}
 function safeFileName(value) {
   return String(value || "report")
     .replace(/[^a-zA-Z0-9_-]+/g, "_")
@@ -142,121 +154,90 @@ function filterLabel(filters = {}) {
 }
 
 export function createReportXlsx(report, filters = {}) {
-  const columnCount = Math.max(1, report.columns.length);
+  const columnCount = Math.max(2, report.columns.length);
   const lastCol = columnName(columnCount - 1);
   const companyName = report.company?.legal_name || report.company?.name || "Riseora";
-  const tableStart = 7;
-  const dataStart = tableStart + 1;
-  const dataEnd = Math.max(dataStart, dataStart + report.rows.length - 1);
-  const rowXml = [];
-
-  rowXml.push(`<row r="1" ht="26"><c r="A1" s="1" t="inlineStr"><is><t>${xmlEscape(report.title)}</t></is></c></row>`);
-  rowXml.push(`<row r="2"><c r="A2" s="2" t="inlineStr"><is><t>${xmlEscape(companyName)}</t></is></c></row>`);
-  rowXml.push(`<row r="3"><c r="A3" t="inlineStr"><is><t>${xmlEscape(filterLabel(filters))}</t></is></c></row>`);
-  rowXml.push(`<row r="4"><c r="A4" t="inlineStr"><is><t>${xmlEscape(`Generated ${new Date(report.generatedAt).toLocaleString("en-IN")}`)}</t></is></c></row>`);
-
-  const headerCells = report.columns.map((column, index) =>
-    makeCell(`${columnName(index)}${tableStart}`, column.label, "text", 3),
-  ).join("");
-  rowXml.push(`<row r="${tableStart}" ht="22">${headerCells}</row>`);
-
-  report.rows.forEach((row, rowIndex) => {
-    const excelRow = dataStart + rowIndex;
-    const cells = report.columns.map((column, colIndex) =>
-      makeCell(
-        `${columnName(colIndex)}${excelRow}`,
-        row[column.key],
-        column.format,
-        ["text", "date"].includes(column.format) ? 12 : null,
-      ),
-    ).join("");
-    rowXml.push(`<row r="${excelRow}">${cells}</row>`);
+  const sheetName = String(report.title || "Report").replace(/[\[\]:*?\/\\]/g, " ").replace(/^'+|'+$/g, "").trim().slice(0, 31) || "Report";
+  const widths = report.columns.map(column => {
+    const longest = report.rows.reduce((max, row) => Math.max(max, ...displayText(row[column.key], column.format).split(/\r?\n/).map(t => t.length)), 0);
+    const label = String(column.label || "").length;
+    return Math.min(48, Math.max(column.format === "currency" ? 19 : column.format === "date" ? 14 : NUMERIC.has(column.format) ? 13 : 11, label + 4, longest + 4));
   });
-
-  let summaryRow = dataStart + report.rows.length + 2;
+  while (widths.length < columnCount) widths.push(18);
+  const fullWidth = widths.reduce((a,b) => a+b, 0);
+  const merges = [];
+  const rowXml = [];
+  let next = 1;
+  const addRow = (r, height, cells) => rowXml.push(`<row r="${r}" ht="${height}" customHeight="1">${cells}</row>`);
+  const fullRow = (text, style, height) => {
+    const r = next++;
+    merges.push(`A${r}:${lastCol}${r}`);
+    addRow(r, height || rowHeight(text, fullWidth), makeCell(`A${r}`, text, "text", style));
+  };
+  fullRow(report.title, 1, 32);
+  fullRow(companyName, 2, 23);
+  if (report.description) fullRow(report.description, 3);
+  const company = report.company || {};
+  const contact = [company.address, [company.city, company.state, company.pincode].filter(Boolean).join(", "), company.gstin && `GSTIN: ${company.gstin}`, company.phone && `Phone: ${company.phone}`, company.email].filter(Boolean).join(" | ");
+  if (contact) fullRow(contact, 3);
+  fullRow(`Filters: ${report.filterSummary || filterLabel(filters)} | ${report.rows.length} records`, 3);
+  const stamp = new Date(report.generatedAt);
+  fullRow(`Generated: ${stamp.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST`, 3);
   if (report.summary?.length) {
-    rowXml.push(`<row r="${summaryRow}"><c r="A${summaryRow}" s="8" t="inlineStr"><is><t>SUMMARY</t></is></c></row>`);
-    summaryRow += 1;
-    for (const summary of report.summary) {
-      rowXml.push(`<row r="${summaryRow}">${makeCell(`A${summaryRow}`, summary.label, "text", 8)}${makeCell(`B${summaryRow}`, summary.value, summary.format, numericStyle(summary.format, true))}</row>`);
-      summaryRow += 1;
+    const half = Math.floor(columnCount / 2);
+    for (const metric of report.summary) {
+      const r = next++;
+      const leftEnd = columnName(half - 1);
+      const rightStart = columnName(half);
+      if (half > 1) merges.push(`A${r}:${leftEnd}${r}`);
+      if (columnCount - half > 1) merges.push(`${rightStart}${r}:${lastCol}${r}`);
+      addRow(r, Math.max(24, rowHeight(metric.label, widths.slice(0, half).reduce((a,b)=>a+b,0))), makeCell(`A${r}`, metric.label, "text", 5) + makeCell(`${rightStart}${r}`, metric.value, metric.format, summaryStyle(metric.format)));
     }
   }
-
-  const widths = report.columns.map((column) => {
-    const labelLength = String(column.label || "").length;
-    const maxData = report.rows.slice(0, 200).reduce(
-      (max, row) => Math.max(max, String(row[column.key] ?? "").length),
-      0,
-    );
-    return Math.min(40, Math.max(10, Math.max(labelLength, maxData) + 2));
+  for (const note of report.notes || []) fullRow(`Note: ${note}`, 3);
+  next++; // small separation before the data table
+  const tableStart = next++;
+  const dataStart = next;
+  addRow(tableStart, Math.max(25, ...report.columns.map((c,i)=>rowHeight(c.label,widths[i],25))), report.columns.map((column, index) => makeCell(`${columnName(index)}${tableStart}`, column.label, "text", 4)).join(""));
+  report.rows.forEach((row, rowIndex) => {
+    const r = next++;
+    const cells = report.columns.map((column, i) => makeCell(`${columnName(i)}${r}`, row[column.key], column.format, dataStyle(column.format, rowIndex % 2 === 1, column.key === "shortage" && Number(row[column.key]) > 0))).join("");
+    addRow(r, Math.max(19, ...report.columns.map((column,i)=>rowHeight(displayText(row[column.key],column.format),widths[i]))), cells);
   });
-  const colsXml = widths.map((width, index) =>
-    `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`,
-  ).join("");
-
-  const merges = [
-    `A1:${lastCol}1`,
-    `A2:${lastCol}2`,
-    `A3:${lastCol}3`,
-    `A4:${lastCol}4`,
-  ];
-
+  if (!report.rows.length) fullRow("No records found.", 3, 24);
+  const dataEnd = next - 1;
+  const tableLastCol = columnName(Math.max(0, report.columns.length - 1));
+  const colsXml = widths.map((width,index)=>`<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`).join("");
   const sheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <dimension ref="A1:${lastCol}${Math.max(summaryRow, dataEnd)}"/>
-  <sheetViews><sheetView workbookViewId="0"><pane ySplit="${tableStart}" topLeftCell="A${dataStart}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
-  <sheetFormatPr defaultRowHeight="15"/>
-  <cols>${colsXml}</cols>
-  <sheetData>${rowXml.join("")}</sheetData>
-  <mergeCells count="${merges.length}">${merges.map((ref) => `<mergeCell ref="${ref}"/>`).join("")}</mergeCells>
-  ${report.rows.length ? `<autoFilter ref="A${tableStart}:${lastCol}${dataEnd}"/>` : ""}
+  <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
+  <dimension ref="A1:${lastCol}${dataEnd}"/>
+  <sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="${tableStart}" topLeftCell="A${dataStart}" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A${dataStart}" sqref="A${dataStart}"/></sheetView></sheetViews>
+  <sheetFormatPr defaultRowHeight="19"/>
+  <cols>${colsXml}</cols><sheetData>${rowXml.join("")}</sheetData>
+  ${report.rows.length ? `<autoFilter ref="A${tableStart}:${tableLastCol}${dataEnd}"/>` : ""}
+  <mergeCells count="${merges.length}">${merges.map(ref=>`<mergeCell ref="${ref}"/>`).join("")}</mergeCells>
+  <printOptions horizontalCentered="1" gridLines="0"/>
+  <pageMargins left="0.35" right="0.35" top="0.55" bottom="0.55" header="0.2" footer="0.2"/>
+  <pageSetup paperSize="${report.columns.length > 10 ? 8 : 9}" orientation="${report.columns.length > 7 ? "landscape" : "portrait"}" fitToWidth="1" fitToHeight="0"/>
+  <headerFooter><oddHeader>&amp;LRiseora ERP&amp;R${xmlEscape(sheetName.replace(/&/g,"&&"))}</oddHeader><oddFooter>&amp;LBusiness report&amp;RPage &amp;P of &amp;N</oddFooter></headerFooter>
 </worksheet>`;
-
+  const styles = [xf(0,0,0,0),xf(0,1,2,0),xf(0,2,0,0),xf(0,0,0,0),xf(0,3,2,1),xf(0,2,3,1)];
+  for (const key of formatKeys) for (let variant=0;variant<3;variant++) styles.push(xf(FORMATS[key],variant===2?4:0,variant===2?4:variant===1?3:0,1,NUMERIC.has(key)?"right":key==="date"?"center":"left"));
+  for (const key of formatKeys) styles.push(xf(FORMATS[key],2,3,1,NUMERIC.has(key)?"right":"left"));
   const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <numFmts count="3">
-    <numFmt numFmtId="164" formatCode='₹#,##0.00;[Red]-₹#,##0.00'/>
-    <numFmt numFmtId="165" formatCode='0.000'/>
-    <numFmt numFmtId="166" formatCode='0.00"%"'/>
-  </numFmts>
-  <fonts count="4">
-    <font><sz val="11"/><name val="Calibri"/></font>
-    <font><b/><sz val="16"/><color rgb="FF174B37"/><name val="Calibri"/></font>
-    <font><b/><sz val="11"/><name val="Calibri"/></font>
-    <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
-  </fonts>
-  <fills count="3">
-    <fill><patternFill patternType="none"/></fill>
-    <fill><patternFill patternType="gray125"/></fill>
-    <fill><patternFill patternType="solid"><fgColor rgb="FF174B37"/><bgColor indexed="64"/></patternFill></fill>
-  </fills>
-  <borders count="2">
-    <border><left/><right/><top/><bottom/><diagonal/></border>
-    <border><left style="thin"><color rgb="FFD9E2DC"/></left><right style="thin"><color rgb="FFD9E2DC"/></right><top style="thin"><color rgb="FFD9E2DC"/></top><bottom style="thin"><color rgb="FFD9E2DC"/></bottom><diagonal/></border>
-  </borders>
-  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="13">
-    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
-    <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0"/>
-    <xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0"/>
-    <xf numFmtId="0" fontId="3" fillId="2" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
-    <xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>
-    <xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>
-    <xf numFmtId="166" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>
-    <xf numFmtId="1" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>
-    <xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0"/>
-    <xf numFmtId="164" fontId="2" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
-    <xf numFmtId="165" fontId="2" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
-    <xf numFmtId="166" fontId="2" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
-    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>
-  </cellXfs>
-  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+  <numFmts count="4"><numFmt numFmtId="164" formatCode='"₹"#,##0.00;[Red]-"₹"#,##0.00'/><numFmt numFmtId="165" formatCode="#,##0.000"/><numFmt numFmtId="166" formatCode='0.00"%"'/><numFmt numFmtId="167" formatCode="dd/mm/yyyy"/></numFmts>
+  <fonts count="5"><font><sz val="11"/><color rgb="FF24352B"/><name val="Calibri"/></font><font><b/><sz val="19"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="12"/><color rgb="FF174B37"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FF8B321F"/><name val="Calibri"/></font></fonts>
+  <fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>${["FF174B37","FFF0F5F1","FFFFEFE8"].map(rgb=>`<fill><patternFill patternType="solid"><fgColor rgb="${rgb}"/><bgColor indexed="64"/></patternFill></fill>`).join("")}</fills>
+  <borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border>${["left","right","top","bottom"].map(side=>`<${side} style="thin"><color rgb="FFD1DCD4"/></${side}>`).join("")}<diagonal/></border></borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${styles.length}">${styles.join("")}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
-
+  const sheetRef = `'${sheetName.replace(/'/g,"''")}'`;
   const workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <sheets><sheet name="${xmlEscape(report.title.slice(0, 31))}" sheetId="1" r:id="rId1"/></sheets>
+  <bookViews><workbookView activeTab="0"/></bookViews><sheets><sheet name="${xmlEscape(sheetName)}" sheetId="1" r:id="rId1"/></sheets>
+  <definedNames><definedName name="_xlnm.Print_Area" localSheetId="0">${xmlEscape(`${sheetRef}!$A$1:$${lastCol}$${dataEnd}`)}</definedName><definedName name="_xlnm.Print_Titles" localSheetId="0">${xmlEscape(`${sheetRef}!$${tableStart}:$${tableStart}`)}</definedName></definedNames>
 </workbook>`;
 
   const entries = [
@@ -287,6 +268,6 @@ export function createReportXlsx(report, filters = {}) {
 
   return {
     buffer: zipStore(entries),
-    fileName: `${safeFileName(report.title)}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+    fileName: `${safeFileName(report.title)}_${new Intl.DateTimeFormat("en-CA", {year:"numeric",month:"2-digit",day:"2-digit",timeZone:"Asia/Kolkata"}).format(stamp)}.xlsx`,
   };
 }

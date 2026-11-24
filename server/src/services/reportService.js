@@ -882,7 +882,7 @@ export const reportCatalog = [
   { key: "supplier-ledger", title: "Supplier Ledger", group: "Payables", filters: ["date", "supplier"] },
 ];
 
-export function getReport(reportKey, filters = {}) {
+function buildReport(reportKey, filters = {}) {
   switch (reportKey) {
     case "sales-register": return salesRegister(filters);
     case "sales-profitability": return salesProfitability(filters);
@@ -902,4 +902,29 @@ export function getReport(reportKey, filters = {}) {
     case "expiry": return expiryReport(filters);
     default: throw new Error("Unknown report.");
   }
+}
+
+// Describe the effective filters, using the same validation as the report queries.
+export function getReport(reportKey, filters = {}) {
+  const report = buildReport(reportKey, filters);
+  const active = reportCatalog.find(entry => entry.key === reportKey)?.filters || [];
+  const parts = [];
+  if (active.includes("date")) {
+    const { fromDate, toDate } = getDateRange(filters);
+    if (fromDate) parts.push(`From: ${fromDate}`);
+    if (toDate) parts.push(`To: ${toDate}`);
+  }
+  for (const [kind, table, label] of [["customer", "customers", "Customer"], ["supplier", "suppliers", "Supplier"], ["item", "items", "Item"], ["category", "item_categories", "Category"]]) {
+    const id = positiveId(filters[`${kind}Id`]);
+    if (!active.includes(kind) || !id) continue;
+    const row = db.prepare(`SELECT name, code FROM ${table} WHERE id = ?`).get(id);
+    parts.push(`${label}: ${row ? `${row.name} (${row.code})` : `#${id}`}`);
+  }
+  const allowedStatuses = active.includes("productionStatus") ? ["DRAFT", "IN_PRODUCTION", "COMPLETED", "CLOSED", "CANCELLED"] : active.includes("status") ? ["POSTED", "CANCELLED"] : [];
+  if (allowedStatuses.includes(filters.status)) parts.push(`Status: ${filters.status}`);
+  if (active.includes("days")) {
+    const horizon = Number(filters.days || 90);
+    parts.push(`Horizon: ${Number.isFinite(horizon) && horizon >= 0 ? Math.min(horizon, 3650) : 90} days`);
+  }
+  return { ...report, filterSummary: parts.join(" | ") || "All applicable records" };
 }

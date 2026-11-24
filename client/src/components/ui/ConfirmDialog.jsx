@@ -13,25 +13,35 @@ function ConfirmDialog({
   onCancel,
 }) {
   const cancelRef = useRef(null);
+  const dialogRef = useRef(null);
+  const cancelHandler = useRef(onCancel);
+  cancelHandler.current=onCancel;
 
   useEffect(() => {
     if (!open) return undefined;
-
+    const previousFocus=document.activeElement;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    window.setTimeout(() => cancelRef.current?.focus(), 20);
-
+    const timer=window.setTimeout(() => cancelRef.current?.focus(), 0);
     const handleKeyDown = (event) => {
-      if (event.key === "Escape") onCancel?.();
+      if (event.key === "Escape") {
+        event.preventDefault();event.stopPropagation();cancelHandler.current?.();return;
+      }
+      if(event.key!=="Tab")return;
+      const buttons=Array.from(dialogRef.current?.querySelectorAll('button:not(:disabled)') || []);
+      if(!buttons.length)return;
+      const current=buttons.indexOf(document.activeElement);
+      const next=event.shiftKey?(current<=0?buttons.length-1:current-1):(current<0||current===buttons.length-1?0:current+1);
+      event.preventDefault();event.stopPropagation();buttons[next]?.focus();
     };
-
-    document.addEventListener("keydown", handleKeyDown);
-
+    document.addEventListener("keydown", handleKeyDown, true);
     return () => {
+      window.clearTimeout(timer);
       document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown, true);
+      if(previousFocus?.isConnected && previousFocus.getClientRects().length)previousFocus.focus({preventScroll:true});
     };
-  }, [open, onCancel]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -43,6 +53,7 @@ function ConfirmDialog({
     <div className="ui-dialog-layer" role="presentation" onMouseDown={onCancel}>
       <section
         className="ui-dialog-card"
+        ref={dialogRef}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="ui-confirm-title"

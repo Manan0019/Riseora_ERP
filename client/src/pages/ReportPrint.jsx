@@ -3,29 +3,16 @@ import { useSearchParams } from "react-router-dom";
 import api from "../api/api";
 import riseoraLogo from "../assets/riseora-logo-Horizontal.png";
 
-function formatValue(value, format) {
-  if (format === "currency") {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      minimumFractionDigits: 2,
-    }).format(Number(value || 0));
-  }
-  if (format === "quantity") return Number(value || 0).toFixed(3);
-  if (format === "percent") return `${Number(value || 0).toFixed(2)}%`;
-  if (format === "integer") return Number(value || 0).toFixed(0);
-  if (format === "date" && value) {
-    const date = new Date(`${value}T00:00:00`);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("en-IN");
-  }
-  return value ?? "-";
-}
+import "./ReportPrint.css";
+import { formatReportValue as formatValue, reportColumnWeights, reportCellClass, reportPaper, reportPageCss } from "../utils/reportPresentation";
 
 function ReportPrint() {
   const [searchParams] = useSearchParams();
   const [report, setReport] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
 
   const reportKey = searchParams.get("reportKey") || "";
   const requestParams = useMemo(() => {
@@ -40,6 +27,7 @@ function ReportPrint() {
     async function loadReport() {
       try {
         setLoading(true);
+        setError("");
         const response = await api.get(`/reports/${reportKey}`, { params: requestParams });
         setReport(response.data.report);
       } catch (err) {
@@ -51,15 +39,29 @@ function ReportPrint() {
     }
 
     if (reportKey) loadReport();
+    else { setError("Report not found."); setLoading(false); }
   }, [reportKey, requestParams]);
 
-  const filterText = useMemo(() => {
-    const parts = [];
-    if (requestParams.fromDate) parts.push(`From: ${requestParams.fromDate}`);
-    if (requestParams.toDate) parts.push(`To: ${requestParams.toDate}`);
-    if (requestParams.days) parts.push(`Horizon: ${requestParams.days} days`);
-    return parts.join("   •   ");
-  }, [requestParams]);
+  useEffect(() => {
+    if (!report) return;
+    const previous = document.title;
+    document.title = `Riseora ERP - ${report.title}`;
+    return () => { document.title = previous; };
+  }, [report]);
+
+  async function savePdf() {
+    if (!window.riseoraReports?.savePdf) return window.print();
+    try {
+      setSaving(true);
+      setSaveMessage("");
+      await document.fonts?.ready;
+      await Promise.all(Array.from(document.querySelectorAll(".report-sheet img"), image => image.decode().catch(() => {})));
+      const result = await window.riseoraReports.savePdf(report.title, reportPaper(report.columns.length));
+      if (result.success) setSaveMessage("PDF saved successfully.");
+      else if (!result.canceled) setSaveMessage(result.message || "Unable to save PDF.");
+    } catch (err) { setSaveMessage(err.message || "Unable to save PDF."); }
+    finally { setSaving(false); }
+  }
 
   if (loading) {
     return <div className="p-4">Loading report...</div>;
@@ -71,53 +73,27 @@ function ReportPrint() {
 
   const company = report.company || {};
   const landscape = report.columns.length > 7;
-
+  const weights = reportColumnWeights(report);
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  const filterText = report.filterSummary || "All applicable records";
   return (
-    <div className="report-print-page">
-      <style>{`
-        @page { size: A4 ${landscape ? "landscape" : "portrait"}; margin: 10mm; }
-        body { background: #eef2ef !important; }
-        .report-print-page { color: #17211c; font-family: Arial, Helvetica, sans-serif; }
-        .report-sheet { max-width: ${landscape ? "1450px" : "950px"}; margin: 24px auto; background: white; padding: 28px; box-shadow: 0 6px 24px rgba(0,0,0,.08); }
-        .report-header { display: flex; justify-content: space-between; gap: 20px; border-bottom: 2px solid #174b37; padding-bottom: 14px; margin-bottom: 16px; }
-        .report-logo { max-width: 190px; max-height: 62px; object-fit: contain; }
-        .company-meta { text-align: right; font-size: 12px; line-height: 1.45; }
-        .report-title { font-size: 22px; font-weight: 700; color: #174b37; margin: 0; }
-        .report-description { color: #5d6963; font-size: 12px; margin-top: 4px; }
-        .report-meta { font-size: 11px; color: #56635c; margin: 10px 0 14px; }
-        .summary-grid { display: grid; grid-template-columns: repeat(${Math.min(4, Math.max(1, report.summary?.length || 1))}, 1fr); gap: 10px; margin-bottom: 16px; }
-        .summary-box { border: 1px solid #d8e0dc; border-radius: 5px; padding: 9px; }
-        .summary-label { color: #68746e; font-size: 10px; text-transform: uppercase; }
-        .summary-value { font-weight: 700; margin-top: 3px; }
-        .report-table { width: 100%; border-collapse: collapse; font-size: ${landscape ? "9px" : "10px"}; }
-        .report-table th { background: #174b37; color: white; text-align: left; padding: 7px 6px; border: 1px solid #174b37; }
-        .report-table td { padding: 6px; border: 1px solid #d9e1dd; vertical-align: top; }
-        .report-table tr:nth-child(even) td { background: #f8faf9; }
-        .text-number { text-align: right; white-space: nowrap; }
-        .report-note { font-size: 10px; padding: 8px 10px; margin: 8px 0; border-left: 3px solid #b88729; background: #fff8e8; }
-        .report-footer { margin-top: 14px; padding-top: 8px; border-top: 1px solid #dce3df; font-size: 9px; color: #6c7771; display: flex; justify-content: space-between; }
-        .report-actions { max-width: ${landscape ? "1450px" : "950px"}; margin: 20px auto 0; display: flex; gap: 8px; }
-        @media print {
-          body { background: white !important; }
-          .report-actions { display: none !important; }
-          .report-sheet { margin: 0; max-width: none; padding: 0; box-shadow: none; }
-          .report-table thead { display: table-header-group; }
-          .report-table tr { break-inside: avoid; }
-        }
-      `}</style>
-
+    <div className={`report-print-page ${landscape ? "is-landscape" : ""} ${report.columns.length > 10 ? "is-wide" : ""}`}>
+      {/* This page rule exists only while the report route is mounted. It overrides the invoice default. */}
+      <style media="print">{reportPageCss(report.columns.length)}</style>
       <div className="report-actions">
-        <button type="button" className="btn btn-dark" onClick={() => window.print()}>
-          Print / Save PDF
+        <button type="button" className="btn btn-dark" disabled={saving} onClick={savePdf}>
+          {saving ? "Saving PDF..." : window.riseoraReports?.savePdf ? "Save PDF" : "Print / Save PDF"}
         </button>
-        <button type="button" className="btn btn-outline-secondary" onClick={() => window.close()}>
-          Close
-        </button>
+        {window.riseoraReports?.savePdf && <button type="button" className="btn btn-outline-secondary" onClick={() => window.print()}>Print</button>}
+        <button type="button" className="btn btn-outline-secondary" onClick={() => window.close()}>Close</button>
+        <span className="report-help">{report.columns.length > 10 ? "A3 landscape" : landscape ? "A4 landscape" : "A4 portrait"}</span>
+        {saveMessage && <span className="report-help" role="status">{saveMessage}</span>}
+        {!window.riseoraReports?.savePdf && <span className="report-help">For browser PDF export, disable browser headers and footers in the print dialog.</span>}
       </div>
 
       <div className="report-sheet">
         <div className="report-header">
-          <div>
+          <div className="report-heading">
             <img className="report-logo" src={riseoraLogo} alt="Riseora" />
             <h1 className="report-title">{report.title}</h1>
             <div className="report-description">{report.description}</div>
@@ -136,8 +112,8 @@ function ReportPrint() {
         </div>
 
         <div className="report-meta">
-          {filterText && <div>{filterText}</div>}
-          <div>Generated: {new Date(report.generatedAt).toLocaleString("en-IN")}</div>
+          <div><strong>Filters:</strong> {filterText} · {report.rows.length.toLocaleString("en-IN")} records</div>
+          <div>Generated: {new Date(report.generatedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST</div>
         </div>
 
         {report.summary?.length > 0 && (
@@ -156,22 +132,19 @@ function ReportPrint() {
         ))}
 
         <table className="report-table">
+          <colgroup>{report.columns.map((column, index) => <col key={column.key} style={{ width: `${weights[index] / totalWeight * 100}%` }} />)}</colgroup>
           <thead>
             <tr>
-              {report.columns.map((column) => <th key={column.key}>{column.label}</th>)}
+              {report.columns.map((column) => <th key={column.key} scope="col" className={reportCellClass(column)}>{column.label}</th>)}
             </tr>
           </thead>
           <tbody>
             {report.rows.map((row, rowIndex) => (
-              <tr key={row.id ?? rowIndex}>
+              <tr key={`${row.id ?? "row"}-${rowIndex}`}>
                 {report.columns.map((column) => (
                   <td
                     key={column.key}
-                    className={
-                      ["currency", "quantity", "percent", "integer"].includes(column.format)
-                        ? "text-number"
-                        : ""
-                    }
+                    className={reportCellClass(column, row[column.key])}
                   >
                     {formatValue(row[column.key], column.format)}
                   </td>
@@ -181,7 +154,7 @@ function ReportPrint() {
 
             {report.rows.length === 0 && (
               <tr>
-                <td colSpan={report.columns.length} style={{ textAlign: "center", padding: "20px" }}>
+                <td colSpan={report.columns.length} className="report-empty">
                   No records found.
                 </td>
               </tr>
@@ -189,9 +162,8 @@ function ReportPrint() {
           </tbody>
         </table>
 
-        <div className="report-footer">
+        <div className="report-screen-footer">
           <span>Riseora ERP • {report.title}</span>
-          <span>Generated {new Date(report.generatedAt).toLocaleDateString("en-IN")}</span>
         </div>
       </div>
     </div>
