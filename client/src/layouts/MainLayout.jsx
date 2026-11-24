@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { version as appVersion } from "../../../version.json";
 import { NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import WorkspaceSearch from "../components/WorkspaceSearch";
+import WorkspaceSearch, { ShortcutHelp } from "../components/WorkspaceSearch";
 import { readPreference, writePreference } from "../utils/proPreferences";
 import AppIcon from "../components/AppIcon";
 import riseoraLogoHori from "../assets/riseora-logo-Horizontal.png";
 import riseoraFallbackMark from "../assets/riseora-Logo-Vertical.png";
 import { WorkspaceTabProvider } from "../context/WorkspaceTabContext";
+import ManagementTools from "../pages/ManagementTools";
 import BusinessTools from "../pages/BusinessTools";
 import Dashboard from "../pages/Dashboard";
 import Company from "../pages/Company";
@@ -86,7 +87,7 @@ const navGroups = [
       { to: "/upad", label: "Upad", icon: "register" },
     ],
   },
-  { label: "Reports", key: "reports", items: [{ to: "/reports", label: "Business Reports", icon: "reports" }, { to: "/business-tools", label: "Business Tools", icon: "reports" }] },
+  { label: "Reports", key: "reports", items: [{ to: "/reports", label: "Business Reports", icon: "reports" }, { to: "/business-tools", label: "Business Tools", icon: "reports" }, { to: "/management-tools", label: "Management Tools", icon: "settings" }] },
   { label: "System", key: "system", items: [{ to: "/settings", label: "Settings", icon: "settings" }] },
 ];
 
@@ -113,6 +114,7 @@ const pageMeta = {
   "/customer-ledger": ["Customer Ledger", "Receivables, payments and running balances"],
   "/investments": ["Investment", "Borrowed funds, simple interest, returns and outstanding balances"],
   "/upad": ["Upad", "Management deduction from sales summary"],
+  "/management-tools": ["Management Tools", "Formula revisions, barcode, reports and employee access"],
   "/business-tools": ["Business Tools", "Planning, stock reconciliation and record history"],
   "/reports": ["Business Reports", "Operational and financial management reports"],
   "/settings": ["Settings", "Security, backups and application controls"],
@@ -147,6 +149,7 @@ function WorkspaceRoutes({ location }) {
       <Route path="upad" element={<Upad />} />
       <Route path="reports" element={<Reports />} />
       <Route path="business-tools" element={<BusinessTools />} />
+      <Route path="management-tools" element={<ManagementTools />} />
       <Route path="*" element={<Dashboard />} />
     </Routes>
   );
@@ -868,9 +871,9 @@ function MainLayout() {
             </div>
           </div>
 
+          <WorkspaceSearch pages={navGroups.flatMap(g => g.items)} open={palette === "search"} onActivate={() => setPalette("search")} onClose={() => setPalette("")} onOpen={openPathInNewTab} />
           <div className="topbar-user">
             <div className="topbar-workspace-tools" aria-label="Workspace controls">
-              <button type="button" onClick={() => setPalette("search")} title="Search (Ctrl+K)">Search <kbd>Ctrl+K</kbd></button>
               <button type="button" onClick={() => setCompact(v => !v)} aria-pressed={compact} title="Toggle compact tables">{compact ? "Comfortable" : "Compact"}</button>
               <button type="button" onClick={() => setPalette("help")} title="Keyboard shortcuts (F1)">?</button>
               <button type="button" title="New tab" onClick={() => openPathInNewTab("/dashboard")}>
@@ -986,7 +989,7 @@ function MainLayout() {
         </main>
       </div>
 
-      {palette && <WorkspaceSearch pages={navGroups.flatMap(g => g.items)} help={palette === "help"} onOpen={openPathInNewTab} onClose={() => setPalette("")} />}
+      {palette === "help" && <ShortcutHelp onClose={() => setPalette("")} />}
       {contextMenu && (
         <div
           className="workspace-context-menu"

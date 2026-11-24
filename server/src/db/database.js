@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { registerAuditFunctions } from "../utils/auditContext.js";
 import path from "path";
 import fs from "fs";
 import { applyPendingDatabaseRestore } from "./pendingRestore.js";
@@ -21,6 +22,7 @@ if (!fs.existsSync(dataDir)) {
 await applyPendingDatabaseRestore(dbPath, String(process.env.RISEORA_BACKUP_DIR || path.join(dataDir, "backups")));
 
 const db = new Database(dbPath);
+registerAuditFunctions(db);
 
 db.pragma("foreign_keys = ON");
 db.pragma("journal_mode = WAL");

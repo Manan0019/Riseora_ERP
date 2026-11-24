@@ -1,3 +1,4 @@
+import {inventoryOperations} from "./advancedInventoryService.js";
 import db from "../db/database.js";
 import { getFormulaById } from "./formulaService.js";
 import { convertToItemBaseUnit } from "./unitConversionService.js";
@@ -15,7 +16,8 @@ export function databaseHealth() {
     FROM items i LEFT JOIN (SELECT item_id,SUM(quantity_in-quantity_out) physical FROM stock_transactions GROUP BY item_id) s ON s.item_id=i.id
     LEFT JOIN inventory_cost_state c ON c.item_id=i.id
     WHERE ABS(COALESCE(s.physical,0)-COALESCE(c.quantity,0))>0.00001 ORDER BY i.name LIMIT 100`).all();
-  return { quick, foreignKeyIssues, differences };
+  const lotDifferences=db.prepare(`SELECT i.id,i.name,COALESCE(s.physical,0) physical,COALESCE(l.quantity,0) allocated FROM tracked_inventory_items t JOIN items i ON i.id=t.id LEFT JOIN (SELECT item_id,SUM(quantity_in-quantity_out) physical FROM stock_transactions GROUP BY item_id) s ON s.item_id=i.id LEFT JOIN (SELECT p.item_id,SUM(m.quantity) quantity FROM lot_positions p JOIN lot_movements m ON m.position_id=p.id GROUP BY p.item_id) l ON l.item_id=i.id WHERE ABS(COALESCE(s.physical,0)-COALESCE(l.quantity,0))>0.0000001`).all();
+  return { quick, foreignKeyIssues, differences, lotDifferences };
 }
 export function formulaPlan(id, target) {
   const f = getFormulaById(id), size = Number(target);
@@ -32,7 +34,8 @@ export function formulaPlan(id, target) {
     existing.required += converted.quantity; grouped.set(key,existing);
   }
   const rows = [...grouped.values()].map(row=>{
-    const available=Number(stock.get(row.item_id).qty), state=cost.get(row.item_id);
+    const tracked=inventoryOperations.tracked(row.item_id)?inventoryOperations.inspect(row.item_id):null;
+    const available=tracked?(tracked.reconciled?Math.max(0,tracked.eligible-tracked.reservations.reduce((n,r)=>n+r.quantity,0)):0):Number(stock.get(row.item_id).qty), state=cost.get(row.item_id);
     const unitCost=state && state.quantity>0 && Number.isFinite(Number(state.average_cost)) ? Number(state.average_cost) : null;
     return {...row, available, shortage:Math.max(0,row.required-available), unitCost, estimatedCost:unitCost===null?null:row.required*unitCost};
   });
@@ -51,6 +54,10 @@ export function recordedLots(itemId) {
   const id=Number(itemId); if(!Number.isSafeInteger(id)||id<=0)throw new Error('Select an item.');
   const item=db.prepare('SELECT i.name,u.code unit FROM items i JOIN units u ON u.id=i.base_unit_id WHERE i.id=?').get(id);
   if(!item)throw new Error('Item not found.');
+  if(inventoryOperations.tracked(id)){
+    const result=inventoryOperations.inspect(id);
+    return {item,physical:result.physical,verified:result.reconciled,tracked:true,unallocatedIssues:null,lots:result.positions.map(p=>({lot_no:`${p.lot_no} · ${p.warehouse_code}`,expiry_date:p.expiry_date,recorded_balance:p.quantity})).filter(p=>p.recorded_balance>0.0000001)};
+  }
   const lots=db.prepare(`SELECT lot_no,expiry_date,SUM(quantity_in-quantity_out) recorded_balance FROM stock_transactions WHERE item_id=? AND lot_no IS NOT NULL AND trim(lot_no)<>'' GROUP BY lot_no,expiry_date ORDER BY CASE WHEN expiry_date IS NULL OR trim(expiry_date)='' THEN 1 ELSE 0 END,expiry_date,lot_no`).all(id);
   const totals=db.prepare(`SELECT COALESCE(SUM(quantity_in-quantity_out),0) physical, COALESCE(SUM(CASE WHEN lot_no IS NULL OR trim(lot_no)='' THEN quantity_out ELSE 0 END),0) unallocatedIssues FROM stock_transactions WHERE item_id=?`).get(id);
   return {item,lots,...totals};
@@ -59,5 +66,6 @@ export function batchTrace(id) {
   const batch=db.prepare(`SELECT p.id,p.batch_no,p.production_date,p.finished_lot_no,p.status,i.name finished_item FROM production_batches p JOIN items i ON i.id=p.finished_item_id WHERE p.id=?`).get(Number(id));
   if(!batch)throw new Error('Batch not found.');
   const rows=db.prepare(`SELECT pc.id,i.name,pc.planned_quantity,pc.actual_quantity,u.code unit,pc.lot_no FROM production_consumption pc JOIN items i ON i.id=pc.item_id JOIN units u ON u.id=pc.unit_id WHERE pc.production_batch_id=? ORDER BY pc.id`).all(batch.id);
-  return {batch,rows};
+  const allocations=db.prepare(`SELECT s.item_id,i.name,p.lot_no,w.code warehouse_code,s.transaction_type,m.quantity,u.code unit FROM lot_movements m JOIN lot_positions p ON p.id=m.position_id JOIN warehouses w ON w.id=p.warehouse_id JOIN stock_transactions s ON s.id=m.stock_transaction_id JOIN items i ON i.id=s.item_id JOIN units u ON u.id=i.base_unit_id WHERE s.reference_type='PRODUCTION' AND s.reference_id=? ORDER BY m.id`).all(batch.id);
+  return {batch,rows,allocations};
 }

@@ -12,5 +12,6 @@ export function searchWorkspace(query) {
     ["Invoice", "/sales-register", "SELECT id, invoice_no AS label FROM sales_invoices WHERE instr(lower(invoice_no), lower(?)) > 0 ORDER BY id DESC LIMIT 8", false],
     ["Formula", "/formulas", "SELECT id, code || ' — ' || name AS label, code AS search FROM formulas WHERE instr(lower(name || ' ' || code), lower(?)) > 0 ORDER BY id DESC LIMIT 8", false],
   ];
-  return sources.flatMap(([kind, path, sql, direct]) => db.prepare(sql).all(q).map(row => ({kind,label:row.label,path:`${path}?${direct ? `record=${row.id}` : `find=${encodeURIComponent(row.search || row.label)}`}`})));
+  const barcode = db.prepare(`SELECT i.id,i.name,b.barcode FROM item_barcodes b JOIN items i ON i.id=b.item_id WHERE b.barcode = ? COLLATE NOCASE`).all(q).map(r=>({kind:"Barcode",label:`${r.name} — ${r.barcode}`,path:`/items?record=${r.id}`}));
+  return [...barcode,...sources.flatMap(([kind, path, sql, direct]) => db.prepare(sql).all(q).map(row => ({kind,label:row.label,path:`${path}?${direct ? `record=${row.id}` : `find=${encodeURIComponent(row.search || row.label)}`}`})))];
 }

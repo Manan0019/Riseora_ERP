@@ -1,7 +1,10 @@
 import db from "../db/database.js";
 
+import { inventoryOperations } from "./advancedInventoryService.js";
+
 export function addStockTransaction(data) {
-  return db
+  if (inventoryOperations.tracked(Number(data.itemId)) && !db.inTransaction) throw new Error("Tracked stock posting must be part of a business transaction.");
+  const result = db
     .prepare(
       `
     INSERT INTO stock_transactions (
@@ -35,6 +38,8 @@ export function addStockTransaction(data) {
       data.expiryDate || null,
       data.notes || null,
     );
+  inventoryOperations.postStock(data, Number(result.lastInsertRowid));
+  return result;
 }
 
 export function getCurrentStock() {

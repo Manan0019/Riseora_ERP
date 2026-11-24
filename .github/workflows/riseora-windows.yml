@@ -37,7 +37,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Version tests failed" }
 
       - name: Test shared v1.1.5 utilities and audit schema
-        run: node --test scripts/pro115.test.mjs
+        run: node --test scripts/pro115.test.mjs scripts/pro115-management.test.mjs scripts/pro115-inventory.test.mjs scripts/pro115-shared.test.mjs
 
       - name: Install backend dependencies
         working-directory: server
@@ -62,6 +62,30 @@ jobs:
       - name: Install Electron dependencies
         working-directory: desktop
         run: npm ci
+
+      - name: Audit installed runtime dependency trees
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dependency-audit | Out-Null
+          $root = (Get-Location).Path
+          foreach ($package in @('server','client','desktop')) {
+            Push-Location $package
+            try {
+              npm audit --omit=dev --json | Out-File -Encoding utf8 "$root/dependency-audit/$package.json"
+              $auditExit = $LASTEXITCODE
+              if ($auditExit -ne 0) { Write-Warning "Audit for $package returned $auditExit. Review its JSON report before owner delivery." }
+            } finally { Pop-Location }
+          }
+          exit 0
+
+      - name: Upload dependency audit reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Riseora-ERP-Dependency-Audit-${{ github.run_number }}
+          path: dependency-audit/*.json
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Build Windows setup EXE
         working-directory: desktop

@@ -33,7 +33,10 @@ import { runInvestmentSimpleInterestMigration } from "./migrations/028_investmen
 import { runPurchaseEntryUnitsMigration } from "./migrations/029_purchase_entry_units.js";
 import { seedRiseoraCatalog } from "./seeds/seedRiseoraCatalog.js";
 
+import { runManagementMigration } from "./migrations/031_management.js";
 import { runRecordHistoryMigration } from "./migrations/030_record_history.js";
+
+import { runAdvancedInventoryMigration } from "./migrations/032_advanced_inventory.js";
 
 export async function initDatabase() {
   runInitialMigration();
@@ -89,4 +92,6 @@ export async function initDatabase() {
 
   await seedAdmin();
   runRecordHistoryMigration();
+  runManagementMigration();
+  runAdvancedInventoryMigration();
 }

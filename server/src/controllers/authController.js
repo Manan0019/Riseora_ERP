@@ -23,6 +23,7 @@ export async function login(req, res) {
       });
     }
 
+    await new Promise((resolve,reject)=>req.session.regenerate(error=>error?reject(error):resolve()));
     req.session.user = {
       id: user.id,
       username: user.username,

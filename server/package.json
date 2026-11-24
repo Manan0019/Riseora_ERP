@@ -12,7 +12,9 @@
     "test:regression": "node scripts/regressionTest.js",
     "prepare:production": "node scripts/prepareProduction.js",
     "test:v114": "node scripts/testV114OwnerCorrections.js",
-    "test:v115": "node scripts/testV115.js"
+    "test:v115": "node scripts/testV115.js",
+    "prestart:shared": "node ../scripts/version.mjs",
+    "start:shared": "node src/sharedServer.js"
   },
   "keywords": [],
   "author": "",

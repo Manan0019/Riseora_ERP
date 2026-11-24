@@ -807,7 +807,7 @@ function expiryReport(filters) {
   const horizon = Number(filters.days || 90);
   const days = Number.isFinite(horizon) && horizon >= 0 ? Math.min(horizon, 3650) : 90;
   const categoryId = positiveId(filters.categoryId);
-  const conditions = ["i.is_active = 1", "st.expiry_date IS NOT NULL", "TRIM(st.expiry_date) <> ''"];
+  const conditions = ["i.is_active = 1", "st.expiry_date IS NOT NULL", "TRIM(st.expiry_date) <> ''", "NOT EXISTS(SELECT 1 FROM tracked_inventory_items t WHERE t.id=i.id)"];
   const params = [];
   if (categoryId) {
     conditions.push("i.category_id = ?");
@@ -833,7 +833,11 @@ function expiryReport(filters) {
     HAVING SUM(st.quantity_in - st.quantity_out) > 0.000001
       AND (julianday(st.expiry_date) - julianday(date('now', 'localtime'))) <= ?
     ORDER BY st.expiry_date, i.name
-  `).all(...params, days).map((row) => ({
+  `).all(...params, days);
+  const verifiedRows=db.prepare(`SELECT i.code,i.name,c.name category_name,u.code unit_code,p.lot_no||' · '||w.code lot_no,p.expiry_date,SUM(m.quantity) balance_quantity,CAST(julianday(p.expiry_date)-julianday(date('now','localtime')) AS INTEGER) days_remaining FROM lot_positions p JOIN lot_movements m ON m.position_id=p.id JOIN warehouses w ON w.id=p.warehouse_id JOIN items i ON i.id=p.item_id JOIN item_categories c ON c.id=i.category_id JOIN units u ON u.id=i.base_unit_id WHERE i.is_active=1 AND p.expiry_date IS NOT NULL ${categoryId?'AND i.category_id=?':''} GROUP BY p.id HAVING SUM(m.quantity)>0.000001 AND days_remaining<=?`).all(...params,days);
+  rows.push(...verifiedRows);
+  rows.sort((a,b)=>a.expiry_date.localeCompare(b.expiry_date)||a.name.localeCompare(b.name));
+  const expiryRows=rows.map((row) => ({
     ...row,
     expiry_status: num(row.days_remaining) < 0
       ? "EXPIRED"
@@ -847,14 +851,14 @@ function expiryReport(filters) {
     "Expiry / Near-Expiry Report",
     `Recorded lot/expiry balances expiring within ${days} days, including already expired stock.`,
     columns.expiry,
-    rows,
+    expiryRows,
     [
-      { label: "Lots Listed", value: rows.length, format: "integer" },
-      { label: "Expired Lots", value: rows.filter((r) => num(r.days_remaining) < 0).length, format: "integer" },
-      { label: "Within 30 Days", value: rows.filter((r) => num(r.days_remaining) >= 0 && num(r.days_remaining) <= 30).length, format: "integer" },
+      { label: "Lots Listed", value: expiryRows.length, format: "integer" },
+      { label: "Expired Lots", value: expiryRows.filter((r) => num(r.days_remaining) < 0).length, format: "integer" },
+      { label: "Within 30 Days", value: expiryRows.filter((r) => num(r.days_remaining) >= 0 && num(r.days_remaining) <= 30).length, format: "integer" },
     ],
     [
-      "This report is based on lot/expiry values recorded on stock movements. Full FEFO/FIFO lot allocation is a separate inventory-control enhancement.",
+      "Verified items use current lot/location allocations. Other items retain advisory historical recorded balances, which may not reflect actual remaining lots.",
     ],
   );
 }

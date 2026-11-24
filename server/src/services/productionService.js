@@ -1,3 +1,5 @@
+import {inventoryOperations} from "./advancedInventoryService.js";
+import {requiresQc,validateQcMeasurements} from "../utils/qcMeasurements.js";
 import db from "../db/database.js";
 
 import {
@@ -241,6 +243,7 @@ function getPlanRows(batchId) {
       i.code AS item_code,
       i.name AS item_name,
       i.track_lot,
+      EXISTS(SELECT 1 FROM tracked_inventory_items t WHERE t.id=i.id) AS automatic_lot_tracking,
       i.track_expiry,
       c.code AS category_code,
       c.name AS category_name,
@@ -353,7 +356,7 @@ function syncActualOnlyMaterials(batch, data) {
     }
 
     const lotNo = String(line.lotNo || "").trim();
-    if (Number(item.track_lot || 0) === 1 && !lotNo) {
+    if (Number(item.track_lot || 0) === 1 && !lotNo && !inventoryOperations.tracked(item.id)) {
       throw new Error(`${item.name}: lot number is required.`);
     }
 
@@ -711,7 +714,7 @@ export function startProductionBatch(id, data = {}) {
         ? submittedLots.get(Number(row.item_id))
         : String(row.lot_no || "").trim();
 
-      if (Number(row.track_lot || 0) === 1 && !lotNo) {
+      if (Number(row.track_lot || 0) === 1 && !lotNo && !inventoryOperations.tracked(row.item_id)) {
         throw new Error(`${row.item_name}: lot number is required before material issue.`);
       }
 
@@ -775,6 +778,7 @@ function applyCompletion(batch, data, { correction = false } = {}) {
   }
 
   const outcome = validateOutcome(data, batch);
+  db.prepare("DELETE FROM production_qc_measurements WHERE batch_id=?").run(batch.id);
   const rows = getPlanRows(batch.id);
 
   const submitted = new Map();
@@ -1495,7 +1499,7 @@ export function correctProductionBatch(id, data) {
         continue;
       }
       const lotNo = correctedLots.get(Number(row.item_id));
-      if (Number(row.track_lot || 0) === 1 && !lotNo) {
+      if (Number(row.track_lot || 0) === 1 && !lotNo && !inventoryOperations.tracked(row.item_id)) {
         throw new Error(`${row.item_name}: lot number is required for correction.`);
       }
       db.prepare(`UPDATE production_consumption SET lot_no = ? WHERE id = ?`)
@@ -1563,6 +1567,10 @@ export function updateProductionQc(id, data) {
       throw new Error("QC status must be NOT_CHECKED, PASSED or FAILED.");
     }
 
+    const spec = db.prepare('SELECT * FROM formula_specifications WHERE formula_id=?').get(batch.formula_id)||{};
+    const measurements = validateQcMeasurements(spec,data.measurements||{},qcStatus);
+    if(qcStatus==='NOT_CHECKED') db.prepare('DELETE FROM production_qc_measurements WHERE batch_id=?').run(batch.id);
+    else db.prepare(`INSERT INTO production_qc_measurements(batch_id,measurements_json) VALUES(?,?) ON CONFLICT(batch_id) DO UPDATE SET measurements_json=excluded.measurements_json,checked_at=CURRENT_TIMESTAMP`).run(batch.id,JSON.stringify(measurements));
     db.prepare(`
       UPDATE production_batches
       SET
@@ -1582,7 +1590,7 @@ export function updateProductionQc(id, data) {
     );
 
     insertEvent(batch.id, "QC_UPDATED", data.qcNotes?.trim() || null, {
-      qcStatus,
+      qcStatus, measurements,
     });
 
     return { id: batch.id, batchNo: batch.batch_no, qcStatus };
@@ -1599,6 +1607,13 @@ export function closeProductionBatch(id) {
       throw new Error("Only a completed production batch can be closed.");
     }
 
+    const spec=db.prepare('SELECT * FROM formula_specifications WHERE formula_id=?').get(batch.formula_id)||{};
+    if(requiresQc(spec)){
+      if(batch.qc_status!=='PASSED')throw new Error('This formula has QC specifications. Record passing measurements before closing.');
+      const saved=db.prepare('SELECT measurements_json FROM production_qc_measurements WHERE batch_id=?').get(batch.id);
+      if(!saved)throw new Error('Record QC measurements before closing.');
+      validateQcMeasurements(spec,JSON.parse(saved.measurements_json),'PASSED');
+    }
     if (batch.qc_status === "FAILED") {
       throw new Error("A batch with failed QC cannot be closed. Correct/rework the batch first.");
     }
@@ -1659,7 +1674,7 @@ export function getProductionBatches() {
       f.version_no,
       i.code AS finished_item_code,
       i.name AS finished_item_name,
-      i.track_lot AS finished_track_lot,
+      CASE WHEN i.track_lot=1 OR EXISTS(SELECT 1 FROM tracked_inventory_items t WHERE t.id=i.id) THEN 1 ELSE 0 END AS finished_track_lot,
       i.track_expiry AS finished_track_expiry,
       u.code AS batch_unit_code
     FROM production_batches pb
@@ -1685,7 +1700,7 @@ export function getOpenProductionBatches() {
       f.version_no,
       i.code AS finished_item_code,
       i.name AS finished_item_name,
-      i.track_lot AS finished_track_lot,
+      CASE WHEN i.track_lot=1 OR EXISTS(SELECT 1 FROM tracked_inventory_items t WHERE t.id=i.id) THEN 1 ELSE 0 END AS finished_track_lot,
       i.track_expiry AS finished_track_expiry,
       u.code AS batch_unit_code
     FROM production_batches pb
@@ -1706,7 +1721,7 @@ export function getProductionBatchById(id) {
       f.version_no,
       i.code AS finished_item_code,
       i.name AS finished_item_name,
-      i.track_lot AS finished_track_lot,
+      CASE WHEN i.track_lot=1 OR EXISTS(SELECT 1 FROM tracked_inventory_items t WHERE t.id=i.id) THEN 1 ELSE 0 END AS finished_track_lot,
       i.track_expiry AS finished_track_expiry,
       u.code AS batch_unit_code
     FROM production_batches pb
@@ -1761,7 +1776,9 @@ export function getProductionBatchById(id) {
     })(),
   }));
 
-  return { ...batch, consumption, events };
+  const qc_specification=db.prepare('SELECT * FROM formula_specifications WHERE formula_id=?').get(batch.formula_id)||null;
+  const qc=db.prepare('SELECT measurements_json FROM production_qc_measurements WHERE batch_id=?').get(batch.id);
+  return { ...batch, consumption, events, qc_specification, qc_measurements:qc?JSON.parse(qc.measurements_json):null };
 }
 
 export function cancelProductionBatch(id) {
@@ -1777,6 +1794,7 @@ export function cancelProductionBatch(id) {
     }
 
     if (batch.status === "DRAFT") {
+      inventoryOperations.releaseBatch(batch.id);
       db.prepare(`
         UPDATE production_batches
         SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP

@@ -1,4 +1,5 @@
 const icons = {
+  search: ["M10.5 3.5a7 7 0 1 0 0 14a7 7 0 1 0 0-14", "M16 16l5 5"],
   dashboard: ["M3 3h7v7H3z", "M14 3h7v4h-7z", "M14 11h7v10h-7z", "M3 14h7v7H3z"],
   company: ["M4 21h16", "M6 21V7l6-4 6 4v14", "M9 10h1", "M14 10h1", "M9 14h1", "M14 14h1"],
   units: ["M4 19V5", "M4 5h16", "M8 5v4", "M12 5v2", "M16 5v4", "M20 5v14H4"],

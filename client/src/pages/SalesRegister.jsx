@@ -1,3 +1,4 @@
+import PostedAmendments from "../components/PostedAmendments.jsx";
 import { useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 
@@ -794,6 +795,7 @@ function SalesRegister() {
               </div>
             </div>
 
+            <PostedAmendments key={selectedInvoice.id} kind="sale" record={selectedInvoice} onSaved={async()=>{await loadInvoiceDetails(selectedInvoice.id);await loadInvoices();}}/>
             {selectedInvoice.status !== "CANCELLED" &&
           Number(selectedInvoice.amount_paid || 0) > 0 &&
           <div className="alert alert-warning">

@@ -55,6 +55,7 @@ export function getItems(includeInactive = false) {
   const sql = `
     SELECT
       i.*,
+      EXISTS(SELECT 1 FROM tracked_inventory_items t WHERE t.id=i.id) AS automatic_lot_tracking,
       c.code AS category_code,
       c.name AS category_name,
       c.inventory_role AS category_role,
@@ -144,7 +145,7 @@ export function updateItem(id, data) {
   const pricing = normalizePricing(data);
   const inventory = normalizeInventoryFields(data);
 
-  if (itemHasBusinessHistory(itemId)) {
+  if (itemHasBusinessHistory(itemId) || db.prepare("SELECT 1 FROM tracked_inventory_items WHERE id=?").get(itemId)) {
     if (Number(existingItem.base_unit_id) !== inventory.baseUnitId) {
       throw new Error("Base unit cannot be changed after an item has business history. Create a new item if a different stock unit is required.");
     }

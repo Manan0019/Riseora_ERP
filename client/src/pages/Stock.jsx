@@ -462,7 +462,7 @@ function Stock() {
 
                             <td>{entry.reference_no || "-"}</td>
 
-                            <td>{entry.lot_no || "-"}</td>
+                            <td>{entry.allocated_lots || entry.lot_no || "-"}</td>
 
                             <td>{Number(entry.quantity_in || 0).toFixed(3)}</td>
 

@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Login from "./pages/Login";
 import SalesInvoicePrint from "./pages/SalesInvoicePrint";
 import ReportPrint from "./pages/ReportPrint";
+import { StockViewer } from "./pages/ManagementTools";
 import MainLayout from "./layouts/MainLayout";
 import { useAuth } from "./context/AuthContext";
 
@@ -19,6 +20,8 @@ function App() {
       </div>
     );
   }
+
+  if (user && user.role !== "ADMIN") return <BrowserRouter><StockViewer /></BrowserRouter>;
 
   return (
     <BrowserRouter>

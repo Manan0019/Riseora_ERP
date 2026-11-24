@@ -1,3 +1,4 @@
+import PostedAmendments from "../components/PostedAmendments.jsx";
 import { useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import api from "../api/api";
@@ -134,7 +135,7 @@ function PurchaseRegister() {
               <div className="col-md-4"><strong>Due Date</strong><div>{selectedPurchase.due_date || "–"}</div></div>
               <div className="col-md-4"><strong>Grand Total</strong><div>₹{Number(selectedPurchase.grand_total).toFixed(2)}</div></div>
             </div>
-            {Number(selectedPurchase.amount_paid || 0) > 0 && <p className="alert alert-warning">This purchase has payment history and cannot be directly edited.</p>}
+            {Number(selectedPurchase.amount_paid || 0) > 0 && <p className="alert alert-warning">This purchase has payment history. Financial lines are locked; reference and notes can still be corrected below.</p>}
             <div className="table-responsive"><table className="table table-bordered align-middle">
               <thead className="table-light"><tr><th>Item</th><th>HSN</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Taxable</th><th>GST %</th><th>GST Amount</th><th>Total</th><th>Lot</th><th>Expiry</th></tr></thead>
               <tbody>{selectedPurchase.items?.map((line) => <tr key={line.id}>
@@ -144,6 +145,7 @@ function PurchaseRegister() {
                 <td>{line.lot_no || "–"}</td><td>{line.expiry_date || "–"}</td>
               </tr>)}</tbody>
             </table></div>
+            <PostedAmendments key={selectedPurchase.id} kind="purchase" record={selectedPurchase} onSaved={async()=>{await loadPurchaseDetails(selectedPurchase.id);await loadPurchases();}}/>
             <p className="text-muted small mb-0">Changes to historical receipts are blocked when payments or later stock movements depend on them.</p>
           </>)}
       </MasterEditorModal>

@@ -1,3 +1,4 @@
+import { inventoryOperations } from "./advancedInventoryService.js";
 import db from "../db/database.js";
 import { addStockTransaction } from "./stockService.js";
 import { addInventoryValue, reverseInventoryReceipt } from "./costService.js";
@@ -274,8 +275,11 @@ export function updatePurchase(id, data) {
       if (newerMovement) throw new Error("Cannot introduce an item with later stock history into this purchase. Use a new stock adjustment/return entry.");
     }
     // Reversal cost is exact because no intervening stock movements exist.
-    for (const receipt of receipts) reverseInventoryReceipt(receipt.item_id, receipt.quantity_in, receipt.unit_cost);
-    db.prepare(`DELETE FROM stock_transactions WHERE reference_type = 'PURCHASE' AND reference_id = ? AND transaction_type = 'PURCHASE'`).run(previous.id);
+    for (const receipt of receipts) {
+      reverseInventoryReceipt(receipt.item_id, receipt.quantity_in, receipt.unit_cost);
+      inventoryOperations.removePurchaseReceipt(receipt);
+      db.prepare("DELETE FROM stock_transactions WHERE id=?").run(receipt.id);
+    }
     db.prepare(`DELETE FROM purchase_items WHERE purchase_id = ?`).run(previous.id);
     return savePurchaseWithinTransaction(data, previous);
   })();

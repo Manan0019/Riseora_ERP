@@ -177,14 +177,14 @@ function StockAdjustment() {
       }
 
       if (
-      item?.track_lot &&
-      !line.lotNo.trim())
+      (item?.track_lot || item?.automatic_lot_tracking) &&
+      (adjustmentType === "IN" || !item?.automatic_lot_tracking) && !line.lotNo.trim())
       {
         return `Lot number is required for ${item.name}.`;
       }
 
       if (
-      item?.track_expiry &&
+      item?.track_expiry && adjustmentType === "IN" &&
       !line.expiryDate)
       {
         return `Expiry date is required for ${item.name}.`;
@@ -581,7 +581,7 @@ function StockAdjustment() {
                             line.lotNo
                             }
                             disabled={
-                            !item?.track_lot
+                            !item?.track_lot && !item?.automatic_lot_tracking
                             }
                             onChange={(
                             event) =>
@@ -604,7 +604,7 @@ function StockAdjustment() {
                             line.expiryDate
                             }
                             disabled={
-                            !item?.track_expiry
+                            !item?.track_expiry && !item?.automatic_lot_tracking
                             }
                             onChange={(
                             event) =>

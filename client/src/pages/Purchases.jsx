@@ -155,7 +155,7 @@ function Purchases({ initialPurchase = null, onSaved = null, embedded = false })
         fail(key(line.pricingBasis === "TAXABLE" ? "taxableAmount" : "rate"), `Check rate and taxable amount in row ${i + 1}.`);
       }
       if (!Number.isFinite(Number(line.gstRate)) || Number(line.gstRate) < 0 || Number(line.gstRate) > 100) fail(key("gstRate"), `Check GST percentage in row ${i + 1}.`);
-      if (item?.track_lot && !line.lotNo.trim()) fail(key("lotNo"), `Lot number is required for ${item.name}.`);
+      if ((item?.track_lot || item?.automatic_lot_tracking) && !line.lotNo.trim()) fail(key("lotNo"), `Lot number is required for ${item.name}.`);
       if (item?.track_expiry && !line.expiryDate) fail(key("expiryDate"), `Expiry date is required for ${item.name}.`);
       if (line.mfgDate && line.expiryDate && line.expiryDate < line.mfgDate) fail(key("expiryDate"), `Expiry must follow manufacturing date in row ${i + 1}.`);
     }
@@ -231,9 +231,9 @@ function Purchases({ initialPurchase = null, onSaved = null, embedded = false })
               <td><AutoWidthEntryInput aria-label={`Taxable amount row ${index + 1}`} data-entry-field={`lines.${index}.taxableAmount`} invalid={invalid(`lines.${index}.taxableAmount`)} minChars={7} maxChars={17} min="0" step="any" className="purchase-money" value={line.pricingBasis === "TAXABLE" ? line.taxableAmount : (line.quantity && line.rate !== "" ? Number(amounts.taxable.toFixed(6)) : "")} onChange={(e) => changeLine(index, "taxableAmount", e.target.value)} /></td>
               <td><AutoWidthEntryInput aria-label={`GST percentage row ${index + 1}`} data-entry-field={`lines.${index}.gstRate`} invalid={invalid(`lines.${index}.gstRate`)} minChars={3} maxChars={6} min="0" max="100" step="any" className="purchase-gst" value={line.gstRate} onChange={(e) => changeLine(index, "gstRate", e.target.value)} /></td>
               <td className="text-end">{money(amounts.gst)}</td><td className="text-end"><strong>{money(amounts.total)}</strong></td>
-              <td><AutoWidthEntryInput type="text" aria-label={`Lot row ${index + 1}`} data-entry-field={`lines.${index}.lotNo`} invalid={invalid(`lines.${index}.lotNo`)} minChars={8} maxChars={22} className="purchase-lot" value={line.lotNo} disabled={!item?.track_lot} onChange={(e) => changeLine(index, "lotNo", e.target.value)} /></td>
-              <td><SmartDateInput className="form-control" value={line.mfgDate} disabled={!item?.track_lot && !item?.track_expiry} onChange={(e) => changeLine(index, "mfgDate", e.target.value)} /></td>
-              <td><SmartDateInput className="form-control" validationError={invalid(`lines.${index}.expiryDate`)} fieldId={`lines.${index}.expiryDate`} value={line.expiryDate} disabled={!item?.track_expiry} onChange={(e) => changeLine(index, "expiryDate", e.target.value)} /></td>
+              <td><AutoWidthEntryInput type="text" aria-label={`Lot row ${index + 1}`} data-entry-field={`lines.${index}.lotNo`} invalid={invalid(`lines.${index}.lotNo`)} minChars={8} maxChars={22} className="purchase-lot" value={line.lotNo} disabled={!item?.track_lot && !item?.automatic_lot_tracking} onChange={(e) => changeLine(index, "lotNo", e.target.value)} /></td>
+              <td><SmartDateInput className="form-control" value={line.mfgDate} disabled={!item?.track_lot && !item?.track_expiry && !item?.automatic_lot_tracking} onChange={(e) => changeLine(index, "mfgDate", e.target.value)} /></td>
+              <td><SmartDateInput className="form-control" validationError={invalid(`lines.${index}.expiryDate`)} fieldId={`lines.${index}.expiryDate`} value={line.expiryDate} disabled={!item?.track_expiry && !item?.automatic_lot_tracking} onChange={(e) => changeLine(index, "expiryDate", e.target.value)} /></td>
               <td><button type="button" className="btn btn-sm btn-outline-danger" onClick={() => setLines((current) => current.length === 1 ? [blankPurchaseLine()] : current.filter((_, i) => i !== index))} title="Remove item" aria-label={`Remove row ${index + 1}`}>×</button></td>
             </tr>;
           })}</tbody>

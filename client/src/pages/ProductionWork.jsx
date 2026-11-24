@@ -31,6 +31,7 @@ function ProductionWork() {
   const today = new Date().toISOString().slice(0, 10);
 
   const [batch, setBatch] = useState(null);
+  const [standard,setStandard]=useState(null);
   const [items, setItems] = useState([]);
   const [stock, setStock] = useState([]);
   const [consumption, setConsumption] = useState([]);
@@ -57,6 +58,8 @@ function ProductionWork() {
     loadBatch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, correctionMode]);
+
+  useEffect(()=>{setStandard(null);if(!batch?.formula_id)return;const c=new AbortController();api.get(`/manage/specs/${batch.formula_id}`,{signal:c.signal}).then(r=>setStandard(r.data.spec)).catch(()=>{});return()=>c.abort();},[batch?.formula_id]);
 
   const loadBatch = async (preserveMessage = false) => {
     try {
@@ -275,7 +278,7 @@ function ProductionWork() {
       const source = plannedConsumption[index];
       const line = consumption[index];
 
-      if (Number(source.track_lot || 0) === 1 && !String(line?.lotNo || "").trim()) {
+      if (Number(source.track_lot || 0) === 1 && !source.automatic_lot_tracking && !String(line?.lotNo || "").trim()) {
         return `${source.item_name}: lot number is required.`;
       }
 
@@ -331,7 +334,7 @@ function ProductionWork() {
       if (!String(line.reason || "").trim()) {
         return `${item.name}: reason is required because this material was not in the production plan.`;
       }
-      if (Number(item.track_lot || 0) === 1 && !String(line.lotNo || "").trim()) {
+      if (Number(item.track_lot || 0) === 1 && !item.automatic_lot_tracking && !String(line.lotNo || "").trim()) {
         return `${item.name}: lot number is required.`;
       }
 
@@ -493,6 +496,8 @@ function ProductionWork() {
       </div>
 
       {message && <div className="alert alert-success">{message}</div>}
+      {standard?.id && <section className="card p-3 mb-3"><h5>Manufacturing standard · formula revision {batch.version_no}</h5><div style={{whiteSpace:'pre-wrap'}}>{standard.instructions||'No instructions recorded.'}</div><div className="mt-2">pH: {standard.ph_min??'—'} to {standard.ph_max??'—'} · Viscosity: {standard.viscosity||'—'} · Appearance: {standard.appearance||'—'}</div><small>Measured QC targets are checked when passing and closing a batch.</small></section>}
+
       {error && <div className="alert alert-danger">{error}</div>}
 
       {correctionMode &&
@@ -672,7 +677,7 @@ function ProductionWork() {
                           className="form-control"
                           value={consumption[index]?.lotNo || ""}
                           disabled={!canEditLots}
-                          placeholder={Number(item.track_lot || 0) === 1 ? "Required" : "Optional"}
+                          placeholder={item.automatic_lot_tracking ? "Auto allocate" : Number(item.track_lot || 0) === 1 ? "Required" : "Optional"}
                           onChange={(event) =>
                           updateConsumption(index, "lotNo", event.target.value)
                           } />
@@ -828,7 +833,7 @@ function ProductionWork() {
                             value={line.lotNo}
                             disabled={!canEditActuals}
                             placeholder={
-                            Number(item?.track_lot || 0) === 1 ? "Required" : "Optional"
+                            item?.automatic_lot_tracking ? "Auto allocate" : Number(item?.track_lot || 0) === 1 ? "Required" : "Optional"
                             }
                             onChange={(event) =>
                             updateAdditionalMaterial(index, "lotNo", event.target.value)

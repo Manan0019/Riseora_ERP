@@ -45,6 +45,7 @@ function ProductionRegister() {
   const [actionLoading, setActionLoading] = useState(false);
   const [qcStatus, setQcStatus] = useState("NOT_CHECKED");
   const [qcNotes, setQcNotes] = useState("");
+  const [qcMeasurements,setQcMeasurements]=useState({});
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -76,6 +77,7 @@ function ProductionRegister() {
       setSelectedBatch(batch);
       setQcStatus(batch.qc_status || "NOT_CHECKED");
       setQcNotes(batch.qc_notes || "");
+      setQcMeasurements(batch.qc_measurements||{});
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.message || "Unable to load production batch details.");
@@ -239,6 +241,7 @@ function ProductionRegister() {
       await api.patch(`/production/${selectedBatch.id}/qc`, {
         qcStatus,
         qcNotes: qcNotes.trim(),
+        measurements: qcMeasurements,
       });
       setMessage("QC status updated successfully.");
       toastSuccess("The quality-control status and notes were saved.", "QC updated");
@@ -395,6 +398,7 @@ function ProductionRegister() {
                   </button>
                 )}
 
+                {selectedBatch.status !== "COMPLETED" && selectedBatch.qc_measurements && <section className="border rounded p-3 mb-3"><h6>Recorded QC measurements</h6><p>pH: {selectedBatch.qc_measurements.ph??'—'} · Viscosity: {selectedBatch.qc_measurements.viscosityCp??'—'} cP</p><p>Appearance: {selectedBatch.qc_measurements.appearance||'—'} · Method/observation: {selectedBatch.qc_measurements.viscosityNote||'—'}</p></section>}
                 {selectedBatch.status === "COMPLETED" && (
                   <>
                     <button
@@ -510,12 +514,16 @@ function ProductionRegister() {
                       <div>
                         <h6 className="mb-1">Quality Check</h6>
                         <div className="text-muted small">
-                          QC is lightweight in V1. Failed QC prevents final batch closure.
+                          Formula-specific measurements are checked before QC can pass. Failed QC prevents batch closure.
                         </div>
                       </div>
                       {qcBadge(selectedBatch.qc_status)}
                     </div>
 
+                    {selectedBatch.qc_specification && <div className="row g-2 mb-3">
+                      {[["ph","Measured pH",`Target: ${selectedBatch.qc_specification.ph_min??'—'} to ${selectedBatch.qc_specification.ph_max??'—'}`,14],["viscosityCp","Measured viscosity (cP)",`Target: ${selectedBatch.qc_specification.viscosity_min_cp??'—'} to ${selectedBatch.qc_specification.viscosity_max_cp??'—'}`,1000000000]].map(([key,title,target,max])=><label className="col-md-6" key={key}>{title}<input type="number" min="0" max={max} step="any" className="form-control" value={qcMeasurements[key]??''} onChange={e=>setQcMeasurements(m=>({...m,[key]:e.target.value}))}/><small>{target}</small></label>)}
+                      {[["viscosity","viscosityNote","viscosityMatches","Viscosity observation / method"],["appearance","appearance","appearanceMatches","Appearance observation"]].map(([spec,key,check,title])=>selectedBatch.qc_specification[spec]&&<div className="col-md-6" key={key}><label className="d-block">{title}<input className="form-control" maxLength={1000} value={qcMeasurements[key]??''} onChange={e=>setQcMeasurements(m=>({...m,[key]:e.target.value}))}/></label><small>Target: {selectedBatch.qc_specification[spec]}</small><label className="d-block"><input type="checkbox" checked={qcMeasurements[check]===true} onChange={e=>setQcMeasurements(m=>({...m,[check]:e.target.checked}))}/> Meets specification</label></div>)}
+                    </div>}
                     <div className="row g-2 align-items-end">
                       <div className="col-md-3">
                         <label className="form-label">QC Status</label>

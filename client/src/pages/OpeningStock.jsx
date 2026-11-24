@@ -131,7 +131,7 @@ function OpeningStock() {
       getItem(line.itemId);
 
       if (
-      item?.track_lot &&
+      (item?.track_lot || item?.automatic_lot_tracking) &&
       !line.lotNo.trim())
       {
         return `Lot number is required for ${item.name}.`;
@@ -422,7 +422,7 @@ function OpeningStock() {
                             line.lotNo
                             }
                             disabled={
-                            !item?.track_lot
+                            !item?.track_lot && !item?.automatic_lot_tracking
                             }
                             onChange={(
                             event) =>
@@ -445,7 +445,7 @@ function OpeningStock() {
                             line.expiryDate
                             }
                             disabled={
-                            !item?.track_expiry
+                            !item?.track_expiry && !item?.automatic_lot_tracking
                             }
                             onChange={(
                             event) =>

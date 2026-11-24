@@ -13,6 +13,8 @@ export function getStockLedger(itemId) {
       st.quantity_out,
       st.unit_cost,
       st.lot_no,
+      (SELECT GROUP_CONCAT(p.lot_no || ' @ ' || w.code || ' (' || m.quantity || ')', ', ')
+       FROM lot_movements m JOIN lot_positions p ON p.id=m.position_id JOIN warehouses w ON w.id=p.warehouse_id WHERE m.stock_transaction_id=st.id) AS allocated_lots,
       st.expiry_date,
       st.notes,
       st.created_at,

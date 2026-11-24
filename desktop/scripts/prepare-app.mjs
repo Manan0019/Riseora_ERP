@@ -112,19 +112,14 @@ const packagedAppJs = path.join(
 
 let appSource = fs.readFileSync(packagedAppJs, "utf8");
 
-const listenPattern =
-  /app\.listen\(\s*PORT\s*,\s*\(\)\s*=>/m;
-
+const listenPattern = /app\.listen\(\s*PORT\s*,\s*["']127\.0\.0\.1["']\s*,\s*\(\)\s*=>/m;
 if (!listenPattern.test(appSource)) {
-  fail(
-    "Could not identify the final app.listen(PORT, () => ...) call in server/src/app.js. The desktop payload was not modified.",
-  );
+  fail("Desktop backend must explicitly listen on 127.0.0.1.");
 }
-
-appSource = appSource.replace(
-  listenPattern,
-  'app.listen(PORT, "127.0.0.1", () =>',
-);
+// The shared-host branch is opt-in production-only. Remove it from the desktop payload.
+const sharedModePattern = /const shared = isProduction && process\.env\.RISEORA_SHARED_MODE === '1';/;
+if (!sharedModePattern.test(appSource)) fail("Could not identify the opt-in shared host guard.");
+appSource = appSource.replace(sharedModePattern, 'const shared = false;');
 
 fs.writeFileSync(packagedAppJs, appSource, "utf8");
 
